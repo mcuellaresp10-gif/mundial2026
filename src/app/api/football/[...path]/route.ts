@@ -36,13 +36,26 @@ function trackRequest(): void {
   }
 }
 
-async function proxyRequest(request: NextRequest, pathSegments: string[]) {
-  const apiKey = process.env.API_FOOTBALL_KEY;
-  const baseUrl = process.env.API_FOOTBALL_BASE_URL ?? "https://v3.football.api-sports.io";
+function getApiBaseUrl(): string {
+  const fallback = "https://v3.football.api-sports.io";
+  const raw = process.env.API_FOOTBALL_BASE_URL?.trim();
+  if (!raw || raw === "API_FOOTBALL_BASE_URL" || !raw.startsWith("http")) {
+    return fallback;
+  }
+  try {
+    return new URL(raw).origin + new URL(raw).pathname.replace(/\/$/, "");
+  } catch {
+    return fallback;
+  }
+}
 
-  if (!apiKey) {
+async function proxyRequest(request: NextRequest, pathSegments: string[]) {
+  const apiKey = process.env.API_FOOTBALL_KEY?.trim();
+  const baseUrl = getApiBaseUrl();
+
+  if (!apiKey || apiKey === "your_api_football_key_here" || apiKey === "API_FOOTBALL_KEY") {
     return NextResponse.json(
-      { errors: { config: "API_FOOTBALL_KEY not configured" }, response: [] },
+      { errors: { config: "API_FOOTBALL_KEY not configured on server" }, response: [] },
       { status: 500 }
     );
   }

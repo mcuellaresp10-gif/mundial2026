@@ -1,0 +1,85 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { X, Trophy, Flag } from "lucide-react";
+import { useUIStore } from "@/stores/useUIStore";
+import { cn } from "@/lib/utils";
+
+const LINKS = [
+  { href: "/", label: "Dashboard", icon: "🏠" },
+  { href: "/calendario", label: "Calendario", icon: "📅" },
+  { href: "/selecciones", label: "Selecciones", icon: "🌍" },
+  { href: "/jugadores", label: "Jugadores", icon: "👤" },
+  { href: "/once-ideal", label: "Once Ideal", icon: "⭐" },
+  { href: "/comparativas", label: "Comparativas", icon: "⚔️" },
+  { href: "/estadisticas", label: "Estadísticas", icon: "📊" },
+  { href: "/historico", label: "Histórico", icon: "📜" },
+];
+
+const HIGHLIGHTS = [
+  { href: "/selecciones?team=colombia", label: "Colombia Focus", icon: Flag },
+  { href: "/estadisticas#scorers", label: "Top Scorers", icon: Trophy },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
+
+  return (
+    <>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <aside
+        className={cn(
+          "fixed top-[70px] left-0 z-40 h-[calc(100vh-70px)] w-60 bg-mundial-sidebar border-r border-white/10 transition-transform duration-300 lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        <div className="flex items-center justify-between p-4 lg:hidden">
+          <span className="text-white font-semibold">Menú</span>
+          <button onClick={() => setSidebarOpen(false)} className="text-white">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <nav className="p-4 space-y-1">
+          {LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                pathname === link.href
+                  ? "bg-mundial-gold/20 text-mundial-gold"
+                  : "text-white/70 hover:text-white hover:bg-white/5"
+              )}
+            >
+              <span>{link.icon}</span>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="px-4 pt-4 border-t border-white/10 mt-4">
+          <p className="text-xs text-white/40 uppercase tracking-wider mb-2 px-3">Destacados</p>
+          {HIGHLIGHTS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/70 hover:text-mundial-gold hover:bg-white/5"
+            >
+              <link.icon className="h-4 w-4" />
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </aside>
+    </>
+  );
+}

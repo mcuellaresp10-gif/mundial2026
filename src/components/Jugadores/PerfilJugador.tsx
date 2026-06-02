@@ -11,6 +11,8 @@ import { formatPosition } from "@/utils/formatters";
 import { getStatBundle, statSummary } from "@/utils/playerStats";
 import {
   computePlayerRadar,
+  computeMundialAverageRadar,
+  eligibleRadarPoolPlayers,
   mundialAverageRadar,
 } from "@/utils/radarMetrics";
 import { useWorldCupBenchmarkPool, usePrefetchRadarBenchmark } from "@/hooks/useWorldCupBenchmarkPool";
@@ -48,7 +50,15 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
     return computePlayerRadar(bundle.club, position, benchmarkPool);
   }, [bundle.club, position, benchmarkPool]);
 
-  const avgPos = mundialAverageRadar();
+  const { avgMundial, poolSampleSize } = useMemo(() => {
+    if (benchmarkPool.length === 0) {
+      return { avgMundial: mundialAverageRadar(), poolSampleSize: 0 };
+    }
+    return {
+      avgMundial: computeMundialAverageRadar(benchmarkPool, position),
+      poolSampleSize: eligibleRadarPoolPlayers(benchmarkPool).length,
+    };
+  }, [benchmarkPool, position]);
 
   useEffect(() => {
     setLoadingAnalysis(true);
@@ -104,7 +114,8 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
           <CardHeader>
             <CardTitle>Radar vs promedio Mundial · {positionLabel}</CardTitle>
             <p className="text-sm text-muted-foreground font-normal">
-              Club · Temp. {PLAYER_STAT_SEASON_LABEL} (todas competiciones) · escala 0–10 (5 = promedio del pool)
+              Club · Temp. {PLAYER_STAT_SEASON_LABEL} (todas competiciones) · escala 0–10 (5 = promedio por posición)
+              {poolSampleSize > 0 && ` · Promedio Mundial = media de ${poolSampleSize} convocados`}
             </p>
           </CardHeader>
           <CardContent>
@@ -118,7 +129,7 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
                 {radar && (
                   <RadarChart
                     data={radar}
-                    compare={avgPos}
+                    compare={avgMundial}
                     labelA={player.player.name}
                     labelB="Promedio Mundial"
                   />
@@ -140,7 +151,7 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
                 {radar && (
                   <RadarChart
                     data={radar}
-                    compare={avgPos}
+                    compare={avgMundial}
                     labelA={player.player.name}
                     labelB="Promedio Mundial"
                   />

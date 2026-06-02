@@ -235,6 +235,44 @@ export function mundialAverageRadar(): RadarStats {
   };
 }
 
+/** Jugadores del pool con minutos de club suficientes para el radar. */
+export function eligibleRadarPoolPlayers(
+  pool: Player[],
+  minMinutes = RADAR_POOL_MIN_MINUTES
+): Player[] {
+  return pool
+    .map(playerForClubRadar)
+    .filter((p): p is Player => p != null)
+    .filter((p) => (p.statistics[0]?.games.minutes ?? 0) >= minMinutes);
+}
+
+/**
+ * Promedio real del radar entre todos los convocados al Mundial.
+ * Promedia las métricas crudas (cada jugador con su posición) y normaliza
+ * contra el pool de la posición comparada para que la escala coincida con el jugador.
+ */
+export function computeMundialAverageRadar(
+  pool: Player[],
+  comparePosition: string
+): RadarStats {
+  const eligible = eligibleRadarPoolPlayers(pool);
+  if (eligible.length === 0) return mundialAverageRadar();
+
+  const allRaw = eligible.map((p) => {
+    const stat = p.statistics[0];
+    const pos = stat.games.position ?? "M";
+    return computeAxisRawScores(extractPer90Metrics(stat), pos);
+  });
+
+  const avgRaw = {} as AxisRawScores;
+  for (const key of RADAR_KEYS) {
+    avgRaw[key] = allRaw.reduce((sum, r) => sum + r[key], 0) / allRaw.length;
+  }
+
+  const poolScores = buildPoolAxisScores(pool, comparePosition);
+  return normalizeAxisScoresToRadar(avgRaw, poolScores);
+}
+
 export function playerForClubRadar(player: Player): Player | null {
   const club = getStatBundle(player).club;
   if (!club || (club.games.minutes ?? 0) < 1) return null;

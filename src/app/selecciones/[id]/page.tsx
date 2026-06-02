@@ -7,7 +7,8 @@ import { PlantillaJugadores } from "@/components/Selecciones/PlantillaJugadores"
 import { AnalisisTactico } from "@/components/Selecciones/AnalisisTactico";
 import { useTeams, useStandings, useFixtures, useH2H } from "@/hooks/usePartidos";
 import { useTeamPlayers } from "@/hooks/useJugadores";
-import { calculateClassificationProbability } from "@/utils/calculations";
+import { useClasificacionProb } from "@/hooks/useClasificacionProb";
+import { ClassificationProbDisplay } from "@/components/shared/ClassificationProbDisplay";
 import { getTeamColors } from "@/utils/colors";
 import { GridSkeleton } from "@/components/shared/Loading";
 
@@ -49,11 +50,12 @@ export default function PerfilSeleccionPage({
     : undefined;
 
   const { data: h2h = [] } = useH2H(teamId, rivalId);
+  const { probability: classProb, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
+    useClasificacionProb(teamId);
 
   if (!team) return <GridSkeleton count={4} />;
 
   const colors = getTeamColors(team.name);
-  const classProb = standing ? calculateClassificationProbability(standing) : null;
 
   return (
     <div className="space-y-8 animate-in fade-in">
@@ -68,7 +70,13 @@ export default function PerfilSeleccionPage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <InfoCard label="Ranking grupo" value={standing ? `#${standing.rank}` : "N/D"} />
         <InfoCard label="Puntos" value={standing?.points ?? 0} />
-        <InfoCard label="Prob. clasificación" value={classProb != null ? `${classProb}%` : "N/D"} />
+        <ProbInfoCard
+          probability={classProb}
+          isLoading={loadingProb}
+          pendingMatchesPerTeam={pendingMatchesPerTeam}
+          isPreTournament={isPreTournament}
+          hasCalendar={hasCalendar}
+        />
         <InfoCard label="Dif. goles" value={standing?.goalsDiff ?? 0} />
       </div>
 
@@ -161,6 +169,35 @@ export default function PerfilSeleccionPage({
         </Card>
       )}
     </div>
+  );
+}
+
+function ProbInfoCard({
+  probability,
+  isLoading,
+  pendingMatchesPerTeam,
+  isPreTournament,
+  hasCalendar,
+}: {
+  probability: number | null;
+  isLoading: boolean;
+  pendingMatchesPerTeam: number;
+  isPreTournament: boolean;
+  hasCalendar: boolean;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4 text-center">
+        <p className="text-xs text-muted-foreground">Prob. clasificación</p>
+        <ClassificationProbDisplay
+          probability={probability}
+          isLoading={isLoading}
+          pendingMatchesPerTeam={pendingMatchesPerTeam}
+          isPreTournament={isPreTournament}
+          hasCalendar={hasCalendar}
+        />
+      </CardContent>
+    </Card>
   );
 }
 

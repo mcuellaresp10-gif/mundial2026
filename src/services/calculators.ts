@@ -1,7 +1,6 @@
 export {
   averageRating,
   calculatePPDA,
-  calculateClassificationProbability,
   calculateWinProbability,
   aggregateFixtureGoals,
   getBiggestWin,

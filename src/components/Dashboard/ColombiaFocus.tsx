@@ -9,7 +9,8 @@ import { useTeams } from "@/hooks/usePartidos";
 import { useColombiaData } from "@/hooks/useEstadisticasAggregadas";
 import { useTeamPlayers, getKeyPlayerByNationalRating } from "@/hooks/useJugadores";
 import { getStatBundle, statSummary } from "@/utils/playerStats";
-import { calculateClassificationProbability } from "@/utils/calculations";
+import { useClasificacionProb } from "@/hooks/useClasificacionProb";
+import { ClassificationProbDisplay } from "@/components/shared/ClassificationProbDisplay";
 import { formatFixtureDate, getFixtureScore, ratingClass } from "@/utils/formatters";
 import { cn, PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 
@@ -25,6 +26,9 @@ export function ColombiaFocus() {
   const keyPlayer = useMemo(() => getKeyPlayerByNationalRating(players), [players]);
   const keyNat = keyPlayer ? statSummary(getStatBundle(keyPlayer).national) : null;
 
+  const { probability: classProb, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
+    useClasificacionProb(colombiaTeam?.id);
+
   if (!colombiaTeam) {
     return (
       <Card className="border-colombia-yellow/30">
@@ -36,7 +40,6 @@ export function ColombiaFocus() {
   }
 
   const standing = colombiaData?.standing;
-  const classProb = standing ? calculateClassificationProbability(standing) : null;
 
   return (
     <Card className="border-colombia-yellow/40 bg-gradient-to-br from-colombia-blue/10 via-colombia-yellow/5 to-colombia-red/10 overflow-hidden">
@@ -61,11 +64,16 @@ export function ColombiaFocus() {
                 label="Posición en grupo"
                 value={standing ? `#${standing.rank}` : "N/D"}
               />
-              <MiniStat
-                label="Prob. clasificación"
-                value={classProb != null ? `${classProb}%` : "N/D"}
-                highlight
-              />
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Prob. clasificación</p>
+                <ClassificationProbDisplay
+                  probability={classProb}
+                  isLoading={loadingProb}
+                  pendingMatchesPerTeam={pendingMatchesPerTeam}
+                  isPreTournament={isPreTournament}
+                  hasCalendar={hasCalendar}
+                />
+              </div>
               <MiniStat label="Puntos" value={standing?.points ?? 0} />
               <MiniStat label="Dif. goles" value={standing?.goalsDiff ?? 0} />
             </div>

@@ -4,7 +4,6 @@ import type {
   OnceIdealPlayer,
   Player,
   RadarStats,
-  StandingTeam,
 } from "@/types";
 import { parseRating } from "./formatters";
 
@@ -17,25 +16,6 @@ export function averageRating(ratings: number[]): number {
 export function calculatePPDA(passesAllowed: number, defensiveActions: number): number {
   if (defensiveActions === 0) return 0;
   return Math.round((passesAllowed / defensiveActions) * 10) / 10;
-}
-
-export function calculateClassificationProbability(
-  standing: StandingTeam,
-  totalTeamsInGroup: number = 4,
-  qualifySpots: number = 2
-): number {
-  const { points, goalsDiff, all } = standing;
-  const maxPossiblePoints = points + (3 - all.played) * 3;
-  const minPossiblePoints = points;
-  const leaderPoints = 9;
-  const baseProb = Math.min(95, Math.max(5, (points / Math.max(leaderPoints, 1)) * 60));
-  const gdBonus = Math.min(20, goalsDiff * 5);
-  const playedBonus = all.played > 0 ? 10 : 0;
-  let prob = baseProb + gdBonus + playedBonus;
-  if (standing.rank <= qualifySpots) prob = Math.max(prob, 65);
-  if (standing.rank > qualifySpots + 1) prob = Math.min(prob, 40);
-  if (maxPossiblePoints < 4 && all.played >= 2) prob = Math.min(prob, 15);
-  return Math.round(Math.min(99, Math.max(1, prob)));
 }
 
 export function calculateWinProbability(

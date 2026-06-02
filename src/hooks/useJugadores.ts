@@ -33,11 +33,12 @@ export function useTeamPlayers(teamId?: number) {
   });
 }
 
-export function useAllPlayers(teamIds: number[], fullStats = false) {
+export function useAllPlayers(teamIds: number[], fullStats = false, enabled = true) {
+  const teamKey = [...teamIds].sort((a, b) => a - b).join(",");
   return useQuery({
-    queryKey: ["allPlayers", teamIds, fullStats ? "full" : "fast"],
+    queryKey: ["allPlayers", teamKey, fullStats ? "full" : "fast"],
     queryFn: () => getAllSquadsForTeams(teamIds, { fullStats }),
-    enabled: teamIds.length > 0,
+    enabled: enabled && teamIds.length > 0,
     staleTime: 4 * 60 * 60 * 1000,
   });
 }

@@ -21,6 +21,20 @@ export function aggregateStatistics(
   let yellow = 0;
   let red = 0;
   let shots = 0;
+  let shotsOn = 0;
+  let passesTotal = 0;
+  let passesKey = 0;
+  let passAccWeighted = 0;
+  let passAccWeight = 0;
+  let duelsTotal = 0;
+  let duelsWon = 0;
+  let dribbleAttempts = 0;
+  let dribbleSuccess = 0;
+  let tacklesTotal = 0;
+  let tacklesBlocks = 0;
+  let tacklesInterceptions = 0;
+  let foulsDrawn = 0;
+  let foulsCommitted = 0;
 
   for (const s of stats) {
     goals += s.goals.total ?? 0;
@@ -30,8 +44,27 @@ export function aggregateStatistics(
     yellow += s.cards.yellow ?? 0;
     red += s.cards.red ?? 0;
     shots += s.shots.total ?? 0;
-    const r = parseRating(s.games.rating);
+    shotsOn += s.shots.on ?? 0;
+    passesTotal += s.passes.total ?? 0;
+    passesKey += s.passes.key ?? 0;
+    duelsTotal += s.duels.total ?? 0;
+    duelsWon += s.duels.won ?? 0;
+    dribbleAttempts += s.dribbles.attempts ?? 0;
+    dribbleSuccess += s.dribbles.success ?? 0;
+    tacklesTotal += s.tackles.total ?? 0;
+    tacklesBlocks += s.tackles.blocks ?? 0;
+    tacklesInterceptions += s.tackles.interceptions ?? 0;
+    foulsDrawn += s.fouls.drawn ?? 0;
+    foulsCommitted += s.fouls.committed ?? 0;
+
+    const acc = s.passes.accuracy;
     const w = s.games.appearences ?? 1;
+    if (acc != null && acc > 0) {
+      passAccWeighted += acc * w;
+      passAccWeight += w;
+    }
+
+    const r = parseRating(s.games.rating);
     if (r > 0) {
       ratingWeighted += r * w;
       ratingWeight += w;
@@ -40,6 +73,10 @@ export function aggregateStatistics(
 
   const base = stats[0];
   const avgRating = ratingWeight > 0 ? ratingWeighted / ratingWeight : 0;
+  const passAccuracy =
+    passAccWeight > 0
+      ? Math.round((passAccWeighted / passAccWeight) * 10) / 10
+      : base.passes.accuracy;
 
   return {
     ...base,
@@ -57,7 +94,25 @@ export function aggregateStatistics(
     },
     goals: { ...base.goals, total: goals, assists },
     cards: { ...base.cards, yellow, red },
-    shots: { ...base.shots, total: shots },
+    shots: { ...base.shots, total: shots, on: shotsOn },
+    passes: {
+      ...base.passes,
+      total: passesTotal,
+      key: passesKey,
+      accuracy: passAccuracy,
+    },
+    duels: { total: duelsTotal, won: duelsWon },
+    dribbles: {
+      ...base.dribbles,
+      attempts: dribbleAttempts,
+      success: dribbleSuccess,
+    },
+    tackles: {
+      total: tacklesTotal,
+      blocks: tacklesBlocks,
+      interceptions: tacklesInterceptions,
+    },
+    fouls: { drawn: foulsDrawn, committed: foulsCommitted },
   };
 }
 

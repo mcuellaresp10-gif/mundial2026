@@ -4,20 +4,17 @@ import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ComparativaRadar } from "@/components/shared/RadarChart";
 import type { Player } from "@/types";
 import { playerToRadarStats } from "@/utils/calculations";
 import { parseRating } from "@/utils/formatters";
 import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 import { getStatBundle } from "@/utils/playerStats";
+import { useWorldCupBenchmarkPool } from "@/hooks/useWorldCupBenchmarkPool";
 
 function nationalStat(player: Player) {
   return getStatBundle(player).national ?? player.statistics[0];
-}
-
-function playerForRadar(player: Player): Player {
-  const nat = getStatBundle(player).national;
-  return nat ? { ...player, statistics: [nat] } : player;
 }
 
 interface ComparativaJugadoresProps {
@@ -28,6 +25,9 @@ export function ComparativaJugadores({ players }: ComparativaJugadoresProps) {
   const [posFilter, setPosFilter] = useState("F");
   const [playerAId, setPlayerAId] = useState<number>(0);
   const [playerBId, setPlayerBId] = useState<number>(0);
+
+  const { players: benchmarkPool, isLoading: loadingPool, isReady: poolReady } =
+    useWorldCupBenchmarkPool(true);
 
   const filtered = useMemo(
     () =>
@@ -46,10 +46,15 @@ export function ComparativaJugadores({ players }: ComparativaJugadoresProps) {
     if (filtered[1] && !playerBId) setPlayerBId(filtered[1].player.id);
   }, [filtered, playerAId, playerBId]);
 
+  const pool = poolReady ? benchmarkPool : players;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Liga de Posiciones — Comparativa</CardTitle>
+        <p className="text-sm text-muted-foreground font-normal">
+          Radar normalizado vs pool Mundial · stats club · Temp. {PLAYER_STAT_SEASON_LABEL}
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-3">
@@ -74,12 +79,16 @@ export function ComparativaJugadores({ players }: ComparativaJugadoresProps) {
 
         {playerA && playerB && (
           <>
-            <ComparativaRadar
-              dataA={playerToRadarStats(playerForRadar(playerA))}
-              dataB={playerToRadarStats(playerForRadar(playerB))}
-              labelA={playerA.player.name}
-              labelB={playerB.player.name}
-            />
+            {loadingPool && !poolReady ? (
+              <Skeleton className="h-[320px] w-full" />
+            ) : (
+              <ComparativaRadar
+                dataA={playerToRadarStats(playerA, pool)}
+                dataB={playerToRadarStats(playerB, pool)}
+                labelA={playerA.player.name}
+                labelB={playerB.player.name}
+              />
+            )}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <PlayerStats player={playerA} />
               <PlayerStats player={playerB} />

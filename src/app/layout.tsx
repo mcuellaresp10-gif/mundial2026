@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers/Providers";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SplashScreen } from "@/components/shared/SplashScreen";
 import { StyleGuard } from "@/components/shared/StyleGuard";
+import { ChunkLoadRecovery } from "@/components/shared/ChunkLoadRecovery";
 import { AppShell } from "@/components/shared/AppShell";
 
 const inter = Inter({
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} ${jetbrains.variable} font-sans`}>
         <Providers>
           <ThemeProvider>
+            <ChunkLoadRecovery />
             <StyleGuard />
             <SplashScreen />
             <AppShell>{children}</AppShell>

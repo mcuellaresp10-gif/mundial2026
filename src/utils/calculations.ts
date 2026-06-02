@@ -6,6 +6,10 @@ import type {
   RadarStats,
 } from "@/types";
 import { parseRating } from "./formatters";
+import {
+  computePlayerRadarFromPlayer,
+  mundialAverageRadar,
+} from "./radarMetrics";
 
 export function averageRating(ratings: number[]): number {
   if (ratings.length === 0) return 0;
@@ -48,73 +52,12 @@ export function getBiggestWin(fixtures: Fixture[]): { fixture: Fixture; margin: 
   return best;
 }
 
-export function playerToRadarStats(player: Player): RadarStats {
-  const stat = player.statistics[0];
-  if (!stat) {
-    return { velocidad: 5, defensa: 5, pase: 5, dribbling: 5, tiro: 5, fisico: 5 };
-  }
-  const rating = parseRating(stat.games.rating) || 6;
-  const passAcc = stat.passes.accuracy ?? 70;
-  const duelWin = stat.duels.total ? ((stat.duels.won ?? 0) / stat.duels.total) * 10 : 5;
-  const dribbleRate = stat.dribbles.attempts
-    ? ((stat.dribbles.success ?? 0) / stat.dribbles.attempts) * 10
-    : 5;
-  const shotAcc = stat.shots.total ? ((stat.shots.on ?? 0) / stat.shots.total) * 10 : 5;
-  const tackleScore = Math.min(10, (stat.tackles.total ?? 0) / 2);
-  const pos = stat.games.position ?? "M";
-
-  if (pos === "G") {
-    return {
-      velocidad: 5,
-      defensa: Math.min(10, rating),
-      pase: passAcc / 10,
-      dribbling: 4,
-      tiro: 5,
-      fisico: duelWin,
-    };
-  }
-  if (pos === "D") {
-    return {
-      velocidad: 6,
-      defensa: Math.min(10, tackleScore + rating * 0.5),
-      pase: passAcc / 10,
-      dribbling: dribbleRate * 0.6,
-      tiro: shotAcc * 0.5,
-      fisico: duelWin,
-    };
-  }
-  if (pos === "F") {
-    return {
-      velocidad: Math.min(10, dribbleRate + 2),
-      defensa: tackleScore * 0.5,
-      pase: passAcc / 10,
-      dribbling: dribbleRate,
-      tiro: shotAcc,
-      fisico: duelWin,
-    };
-  }
-  return {
-    velocidad: Math.min(10, dribbleRate + 1),
-    defensa: tackleScore,
-    pase: passAcc / 10,
-    dribbling: dribbleRate,
-    tiro: shotAcc,
-    fisico: duelWin,
-  };
+export function playerToRadarStats(player: Player, pool: Player[] = []): RadarStats {
+  return computePlayerRadarFromPlayer(player, pool) ?? mundialAverageRadar();
 }
 
-export function averageRadarByPosition(players: Player[], position: string): RadarStats {
-  const filtered = players.filter((p) => p.statistics[0]?.games.position === position);
-  if (filtered.length === 0) {
-    return { velocidad: 6, defensa: 6, pase: 6, dribbling: 6, tiro: 6, fisico: 6 };
-  }
-  const radars = filtered.map(playerToRadarStats);
-  const keys: (keyof RadarStats)[] = ["velocidad", "defensa", "pase", "dribbling", "tiro", "fisico"];
-  const result = {} as RadarStats;
-  for (const key of keys) {
-    result[key] = Math.round(averageRating(radars.map((r) => r[key])) * 10) / 10;
-  }
-  return result;
+export function averageRadarByPosition(_players: Player[], _position: string): RadarStats {
+  return mundialAverageRadar();
 }
 
 const FORMATION_SLOTS: Record<FormationType, { pos: string; x: number; y: number }[]> = {

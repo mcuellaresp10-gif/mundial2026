@@ -1,41 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadarChart } from "@/components/shared/RadarChart";
 import { StatsGrid } from "./PlayerStatsPanel";
 import type { Player, AnalysisPlayer } from "@/types";
-import { playerToRadarStats, averageRadarByPosition } from "@/utils/calculations";
 import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 import { formatPosition } from "@/utils/formatters";
 import { getStatBundle, statSummary } from "@/utils/playerStats";
+import {
+  computePlayerRadar,
+  mundialAverageRadar,
+} from "@/utils/radarMetrics";
+import { useWorldCupBenchmarkPool } from "@/hooks/useWorldCupBenchmarkPool";
 import { buildPlayerAnalysisPrompt, fetchAnalysis } from "@/services/analysisAI";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface PerfilJugadorProps {
   player: Player;
-  allPlayers?: Player[];
 }
 
-export function PerfilJugador({ player, allPlayers = [] }: PerfilJugadorProps) {
+export function PerfilJugador({ player }: PerfilJugadorProps) {
   const bundle = getStatBundle(player);
+  const [activeTab, setActiveTab] = useState("club");
   const [analysis, setAnalysis] = useState<AnalysisPlayer | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+
+  const loadBenchmark = activeTab === "advanced";
+  const { players: benchmarkPool, isLoading: loadingPool, isReady: poolReady } =
+    useWorldCupBenchmarkPool(loadBenchmark);
 
   const nationalSummary = statSummary(bundle.national);
   const clubSummary = statSummary(bundle.club);
 
-  const radarPlayer: Player = bundle.club
-    ? { ...player, statistics: [bundle.club] }
-    : player;
-  const radar = playerToRadarStats(radarPlayer);
-  const avgPos = averageRadarByPosition(
-    allPlayers.map((p) =>
-      bundle.club ? { ...p, statistics: [getStatBundle(p).club ?? p.statistics[0]].filter(Boolean) as Player["statistics"] } : p
-    ),
-    bundle.club?.games.position ?? player.statistics[0]?.games.position ?? "M"
-  );
+  const position = bundle.club?.games.position ?? player.statistics[0]?.games.position ?? "M";
+  const positionLabel = formatPosition(position);
+
+  const radar = useMemo(() => {
+    if (!bundle.club) return null;
+    return computePlayerRadar(bundle.club, position, benchmarkPool);
+  }, [bundle.club, position, benchmarkPool]);
+
+  const avgPos = mundialAverageRadar();
 
   useEffect(() => {
     setLoadingAnalysis(true);
@@ -53,7 +60,7 @@ export function PerfilJugador({ player, allPlayers = [] }: PerfilJugadorProps) {
   }, [player.player.id, player.player.name, player.player.age, player.nationalTeam?.name, nationalSummary, clubSummary, bundle.national?.games.position, bundle.club?.games.position]);
 
   return (
-    <Tabs defaultValue="club">
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="club">Club · Temp. {PLAYER_STAT_SEASON_LABEL}</TabsTrigger>
         <TabsTrigger value="national">Selección · Temp. {PLAYER_STAT_SEASON_LABEL}</TabsTrigger>
@@ -89,13 +96,32 @@ export function PerfilJugador({ player, allPlayers = [] }: PerfilJugadorProps) {
       <TabsContent value="advanced">
         <Card>
           <CardHeader>
-            <CardTitle>Radar vs promedio de posición (club)</CardTitle>
+            <CardTitle>Radar vs promedio Mundial · {positionLabel}</CardTitle>
+            <p className="text-sm text-muted-foreground font-normal">
+              Club · Temp. {PLAYER_STAT_SEASON_LABEL} (todas competiciones) · escala 0–10 (5 = promedio del pool)
+            </p>
           </CardHeader>
           <CardContent>
-            {bundle.club ? (
-              <RadarChart data={radar} compare={avgPos} labelA={player.player.name} labelB="Promedio" />
-            ) : (
+            {!bundle.club ? (
               <p className="text-sm text-muted-foreground">Se necesitan stats de club para el radar.</p>
+            ) : loadingPool && !poolReady ? (
+              <Skeleton className="h-[300px] w-full" />
+            ) : (
+              <>
+                {!poolReady && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Cargando pool del Mundial… comparativa parcial hasta que termine.
+                  </p>
+                )}
+                {radar && (
+                  <RadarChart
+                    data={radar}
+                    compare={avgPos}
+                    labelA={player.player.name}
+                    labelB="Promedio Mundial"
+                  />
+                )}
+              </>
             )}
           </CardContent>
         </Card>

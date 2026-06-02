@@ -12,6 +12,14 @@ import type {
   TeamSquad,
 } from "@/types";
 import { cacheKey, getLocalCache, getStaleLocalCache, setLocalCache } from "./cache";
+import {
+  resolveFixturesFromSnapshotOr,
+  resolvePlayerFromSnapshotOr,
+  resolvePlayersFromSnapshotOr,
+  resolveRadarPoolFromSnapshotOr,
+  resolveStandingsFromSnapshotOr,
+  resolveTeamsFromSnapshotOr,
+} from "./catalogResolver";
 import { DEFAULT_SEASON, LEAGUE_ID, PLAYER_STAT_SEASONS } from "@/lib/utils";
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
 import { pickClubStat } from "@/utils/playerStats";
@@ -52,8 +60,10 @@ async function fetchApi<T>(
 }
 
 export async function getTeams(season: number = DEFAULT_SEASON): Promise<Team[]> {
-  const data = await fetchApi<{ team: Team }[]>("teams", { league: LEAGUE_ID, season });
-  return data.map((t) => t.team);
+  return resolveTeamsFromSnapshotOr(async () => {
+    const data = await fetchApi<{ team: Team }[]>("teams", { league: LEAGUE_ID, season });
+    return data.map((t) => t.team);
+  });
 }
 
 export async function getFixtures(params: {
@@ -63,14 +73,35 @@ export async function getFixtures(params: {
   round?: string;
   id?: number;
 } = {}): Promise<Fixture[]> {
-  return fetchApi<Fixture[]>("fixtures", {
-    league: LEAGUE_ID,
-    season: params.season ?? DEFAULT_SEASON,
-    status: params.status,
-    team: params.team,
-    round: params.round,
-    id: params.id,
-  });
+  const applyFilters = (list: Fixture[]) => {
+    let out = list;
+    if (params.team) {
+      out = out.filter(
+        (f) => f.teams.home.id === params.team || f.teams.away.id === params.team
+      );
+    }
+    if (params.status) {
+      out = out.filter((f) => f.fixture.status.short === params.status);
+    }
+    if (params.id) {
+      out = out.filter((f) => f.fixture.id === params.id);
+    }
+    if (params.round) {
+      out = out.filter((f) => f.league.round === params.round);
+    }
+    return out;
+  };
+
+  return resolveFixturesFromSnapshotOr(async () =>
+    fetchApi<Fixture[]>("fixtures", {
+      league: LEAGUE_ID,
+      season: params.season ?? DEFAULT_SEASON,
+      status: params.status,
+      team: params.team,
+      round: params.round,
+      id: params.id,
+    })
+  ).then((list) => applyFilters(list));
 }
 
 export async function getNextFixture(): Promise<Fixture | null> {
@@ -82,7 +113,9 @@ export async function getNextFixture(): Promise<Fixture | null> {
 }
 
 export async function getStandings(season: number = DEFAULT_SEASON): Promise<StandingsGroup[]> {
-  return fetchApi<StandingsGroup[]>("standings", { league: LEAGUE_ID, season });
+  return resolveStandingsFromSnapshotOr(async () =>
+    fetchApi<StandingsGroup[]>("standings", { league: LEAGUE_ID, season })
+  );
 }
 
 export async function getTeamSquad(teamId: number): Promise<TeamSquad | null> {
@@ -93,6 +126,8 @@ export async function getTeamSquad(teamId: number): Promise<TeamSquad | null> {
 export interface SquadPlayersOptions {
   /** true = stats club + selección por jugador (más lento). false = solo selección vía team (rápido). */
   fullStats?: boolean;
+  /** Modo benchmark radar: más concurrencia, menos delay entre jugadores. */
+  benchmarkFast?: boolean;
 }
 
 /** Convocatoria + stats club/selección/mundial (temporadas 2025 y 2026). */
@@ -100,44 +135,51 @@ export async function getTeamSquadPlayers(
   teamId: number,
   options: SquadPlayersOptions = {}
 ): Promise<Player[]> {
-  const { fullStats = true } = options;
-  const squad = await getTeamSquad(teamId);
-  if (!squad?.players.length) {
-    return fetchPlayersByTeam(teamId, DEFAULT_SEASON);
-  }
-
-  if (!fullStats) {
-    return getTeamSquadPlayersFromTeamFetch(squad);
-  }
-
-  const enriched = await mapAsyncWithConcurrency(squad.players, 2, async (sp) => {
-    try {
-      const fullStatsRows = await fetchPlayerFullStats(sp.id);
-      const enrichedPlayer: Player | null = fullStatsRows.length
-        ? {
-            player: {
-              id: sp.id,
-              name: sp.name,
-              firstname: sp.name,
-              lastname: "",
-              age: sp.age,
-              birth: { date: null, place: null, country: null },
-              nationality: squad.team.country,
-              height: null,
-              weight: null,
-              injured: false,
-              photo: sp.photo,
-            },
-            statistics: fullStatsRows,
-          }
-        : null;
-      return mapSquadPlayerToPlayer(sp, squad.team, enrichedPlayer);
-    } catch {
-      return mapSquadPlayerToPlayer(sp, squad.team, null);
+  return resolvePlayersFromSnapshotOr([teamId], async () => {
+    const { fullStats = true } = options;
+    const squad = await getTeamSquad(teamId);
+    if (!squad?.players.length) {
+      return fetchPlayersByTeam(teamId, DEFAULT_SEASON);
     }
-  });
 
-  return enriched;
+    if (!fullStats) {
+      return getTeamSquadPlayersFromTeamFetch(squad);
+    }
+
+    const enriched = await mapAsyncWithConcurrency(
+      squad.players,
+      options.benchmarkFast ? 5 : 2,
+      async (sp) => {
+        try {
+          const fullStatsRows = await fetchPlayerFullStats(sp.id);
+          const enrichedPlayer: Player | null = fullStatsRows.length
+            ? {
+                player: {
+                  id: sp.id,
+                  name: sp.name,
+                  firstname: sp.name,
+                  lastname: "",
+                  age: sp.age,
+                  birth: { date: null, place: null, country: null },
+                  nationality: squad.team.country,
+                  height: null,
+                  weight: null,
+                  injured: false,
+                  photo: sp.photo,
+                },
+                statistics: fullStatsRows,
+              }
+            : null;
+          return mapSquadPlayerToPlayer(sp, squad.team, enrichedPlayer);
+        } catch {
+          return mapSquadPlayerToPlayer(sp, squad.team, null);
+        }
+      },
+      options.benchmarkFast ? 25 : 120
+    );
+
+    return enriched;
+  });
 }
 
 async function getTeamSquadPlayersFromTeamFetch(squad: TeamSquad): Promise<Player[]> {
@@ -180,7 +222,8 @@ async function fetchPlayerFullStats(playerId: number): Promise<Player["statistic
 async function mapAsyncWithConcurrency<T, R>(
   items: T[],
   limit: number,
-  fn: (item: T) => Promise<R>
+  fn: (item: T) => Promise<R>,
+  delayMs = 120
 ): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let index = 0;
@@ -189,7 +232,7 @@ async function mapAsyncWithConcurrency<T, R>(
     while (index < items.length) {
       const i = index++;
       results[i] = await fn(items[i]);
-      await delay(120);
+      if (delayMs > 0) await delay(delayMs);
     }
   }
 
@@ -201,66 +244,67 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Perfil completo con stats club, selección y Mundial separadas. */
 export async function getPlayerProfile(
   id: number,
   nationalTeamId?: number
 ): Promise<Player | null> {
-  const [p2025, p2026] = await Promise.all([
-    fetchPlayerByIdRaw(id, 2025),
-    fetchPlayerByIdRaw(id, 2026),
-  ]);
+  return resolvePlayerFromSnapshotOr(id, async () => {
+    const [p2025, p2026] = await Promise.all([
+      fetchPlayerByIdRaw(id, 2025),
+      fetchPlayerByIdRaw(id, 2026),
+    ]);
 
-  const base = p2025 ?? p2026;
-  if (!base) return null;
+    const base = p2025 ?? p2026;
+    if (!base) return null;
 
-  const allStats = [...(p2025?.statistics ?? []), ...(p2026?.statistics ?? [])];
+    const allStats = [...(p2025?.statistics ?? []), ...(p2026?.statistics ?? [])];
 
-  let nationalTeam: Team | undefined;
-  if (nationalTeamId) {
-    const teams = await getTeams();
-    nationalTeam = teams.find((t) => t.id === nationalTeamId);
-  }
-  if (!nationalTeam) {
-    const intlStat = allStats.find(
-      (s) =>
-        s.league.country === "World" ||
-        s.league.id === LEAGUE_ID ||
-        s.league.name.toLowerCase().includes("friend")
+    let nationalTeam: Team | undefined;
+    if (nationalTeamId) {
+      const teams = await getTeams();
+      nationalTeam = teams.find((t) => t.id === nationalTeamId);
+    }
+    if (!nationalTeam) {
+      const intlStat = allStats.find(
+        (s) =>
+          s.league.country === "World" ||
+          s.league.id === LEAGUE_ID ||
+          s.league.name.toLowerCase().includes("friend")
+      );
+      if (intlStat) {
+        nationalTeam = {
+          id: intlStat.team.id,
+          name: intlStat.team.name,
+          logo: intlStat.team.logo,
+          code: null,
+          country: base.player.nationality ?? intlStat.team.name,
+          founded: null,
+          national: true,
+        };
+      }
+    }
+    if (!nationalTeam) {
+      const club = pickClubStat(allStats, -1);
+      const anyNational = allStats.find((s) => s.team.id !== club?.team.id);
+      if (anyNational) {
+        nationalTeam = {
+          id: anyNational.team.id,
+          name: anyNational.team.name,
+          logo: anyNational.team.logo,
+          code: null,
+          country: base.player.nationality ?? "",
+          founded: null,
+          national: true,
+        };
+      }
+    }
+    if (!nationalTeam) return base;
+
+    return enrichPlayerWithStatBundle(
+      { ...base, player: base.player, statistics: allStats },
+      nationalTeam
     );
-    if (intlStat) {
-      nationalTeam = {
-        id: intlStat.team.id,
-        name: intlStat.team.name,
-        logo: intlStat.team.logo,
-        code: null,
-        country: base.player.nationality ?? intlStat.team.name,
-        founded: null,
-        national: true,
-      };
-    }
-  }
-  if (!nationalTeam) {
-    const club = pickClubStat(allStats, -1);
-    const anyNational = allStats.find((s) => s.team.id !== club?.team.id);
-    if (anyNational) {
-      nationalTeam = {
-        id: anyNational.team.id,
-        name: anyNational.team.name,
-        logo: anyNational.team.logo,
-        code: null,
-        country: base.player.nationality ?? "",
-        founded: null,
-        national: true,
-      };
-    }
-  }
-  if (!nationalTeam) return base;
-
-  return enrichPlayerWithStatBundle(
-    { ...base, player: base.player, statistics: allStats },
-    nationalTeam
-  );
+  });
 }
 
 async function fetchPlayersByTeam(teamId: number, season: number): Promise<Player[]> {
@@ -285,12 +329,40 @@ export async function getAllSquadsForTeams(
   teamIds: number[],
   options: SquadPlayersOptions = {}
 ): Promise<Player[]> {
-  const all: Player[] = [];
-  for (const teamId of teamIds) {
-    const players = await getTeamSquadPlayers(teamId, options);
-    all.push(...players);
-  }
-  return all;
+  return getAllSquadsForTeamsParallel(teamIds, options, 1);
+}
+
+export async function getAllSquadsForTeamsParallel(
+  teamIds: number[],
+  options: SquadPlayersOptions = {},
+  concurrency = 6
+): Promise<Player[]> {
+  return resolvePlayersFromSnapshotOr(teamIds, async () => {
+    const all: Player[] = [];
+    let index = 0;
+
+    async function worker() {
+      while (index < teamIds.length) {
+        const i = index++;
+        const players = await getTeamSquadPlayers(teamIds[i], options);
+        all.push(...players);
+      }
+    }
+
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, teamIds.length) }, () => worker())
+    );
+    return all;
+  });
+}
+
+export async function getRadarBenchmarkPool(teamIds: number[]): Promise<Player[]> {
+  return resolveRadarPoolFromSnapshotOr(() =>
+    getAllSquadsForTeamsParallel(teamIds, {
+      fullStats: true,
+      benchmarkFast: true,
+    })
+  );
 }
 
 export async function getPlayers(params: {

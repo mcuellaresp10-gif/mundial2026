@@ -11,7 +11,7 @@ import { playerToRadarStats } from "@/utils/calculations";
 import { parseRating } from "@/utils/formatters";
 import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 import { getStatBundle } from "@/utils/playerStats";
-import { useWorldCupBenchmarkPool } from "@/hooks/useWorldCupBenchmarkPool";
+import { useWorldCupBenchmarkPool, usePrefetchRadarBenchmark } from "@/hooks/useWorldCupBenchmarkPool";
 
 function nationalStat(player: Player) {
   return getStatBundle(player).national ?? player.statistics[0];
@@ -28,6 +28,8 @@ export function ComparativaJugadores({ players }: ComparativaJugadoresProps) {
 
   const { players: benchmarkPool, isLoading: loadingPool, isReady: poolReady } =
     useWorldCupBenchmarkPool(true);
+
+  usePrefetchRadarBenchmark();
 
   const filtered = useMemo(
     () =>

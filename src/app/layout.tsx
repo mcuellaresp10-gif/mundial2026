@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SplashScreen } from "@/components/shared/SplashScreen";
 import { StyleGuard } from "@/components/shared/StyleGuard";
 import { ChunkLoadRecovery } from "@/components/shared/ChunkLoadRecovery";
+import { TournamentPhaseSync } from "@/components/shared/TournamentPhaseSync";
 import { AppShell } from "@/components/shared/AppShell";
 
 const inter = Inter({
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <ThemeProvider>
             <ChunkLoadRecovery />
+            <TournamentPhaseSync />
             <StyleGuard />
             <SplashScreen />
             <AppShell>{children}</AppShell>

@@ -13,7 +13,7 @@ import {
   computePlayerRadar,
   mundialAverageRadar,
 } from "@/utils/radarMetrics";
-import { useWorldCupBenchmarkPool } from "@/hooks/useWorldCupBenchmarkPool";
+import { useWorldCupBenchmarkPool, usePrefetchRadarBenchmark } from "@/hooks/useWorldCupBenchmarkPool";
 import { buildPlayerAnalysisPrompt, fetchAnalysis } from "@/services/analysisAI";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -28,8 +28,14 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
   const loadBenchmark = activeTab === "advanced";
-  const { players: benchmarkPool, isLoading: loadingPool, isReady: poolReady } =
-    useWorldCupBenchmarkPool(loadBenchmark);
+  usePrefetchRadarBenchmark();
+
+  const {
+    players: benchmarkPool,
+    isLoading: loadingPool,
+    isReady: poolReady,
+    isRevalidating,
+  } = useWorldCupBenchmarkPool(loadBenchmark);
 
   const nationalSummary = statSummary(bundle.national);
   const clubSummary = statSummary(bundle.club);
@@ -105,12 +111,30 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
             {!bundle.club ? (
               <p className="text-sm text-muted-foreground">Se necesitan stats de club para el radar.</p>
             ) : loadingPool && !poolReady ? (
-              <Skeleton className="h-[300px] w-full" />
+              <>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Cargando pool del Mundial (primera vez puede tardar 1–2 min)…
+                </p>
+                {radar && (
+                  <RadarChart
+                    data={radar}
+                    compare={avgPos}
+                    labelA={player.player.name}
+                    labelB="Promedio Mundial"
+                  />
+                )}
+                <Skeleton className="h-2 w-full mt-3" />
+              </>
             ) : (
               <>
+                {isRevalidating && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Actualizando comparativa del pool…
+                  </p>
+                )}
                 {!poolReady && (
                   <p className="text-xs text-muted-foreground mb-3">
-                    Cargando pool del Mundial… comparativa parcial hasta que termine.
+                    Comparativa aproximada (pool aún cargando).
                   </p>
                 )}
                 {radar && (

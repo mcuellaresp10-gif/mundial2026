@@ -1,6 +1,4 @@
 import type { Fixture } from "@/types";
-
-/** Estados API-Football que indican partido en curso. */
 export const LIVE_FIXTURE_STATUSES = [
   "LIVE",
   "1H",
@@ -18,6 +16,24 @@ export function isFixtureLive(statusShort: string): boolean {
 
 export function hasAnyLiveFixture(fixtures: Fixture[] | undefined): boolean {
   return fixtures?.some((f) => isFixtureLive(f.fixture.status.short)) ?? false;
+}
+
+/** Partido en ventana de kickoff — refrescar aunque el status en caché siga NS. */
+export function isWithinKickoffWindow(dateStr: string, statusShort: string): boolean {
+  if (isFixtureLive(statusShort)) return true;
+  if (["FT", "AET", "PEN", "CANC", "ABD", "PST"].includes(statusShort)) return false;
+  const kickoff = new Date(dateStr).getTime();
+  if (Number.isNaN(kickoff)) return false;
+  const now = Date.now();
+  return now >= kickoff - 15 * 60 * 1000 && now <= kickoff + 2.5 * 60 * 60 * 1000;
+}
+
+export function shouldPollFixtures(fixtures: Fixture[] | undefined): boolean {
+  if (hasAnyLiveFixture(fixtures)) return true;
+  if (fixtures?.some((f) => isWithinKickoffWindow(f.fixture.date, f.fixture.status.short))) {
+    return true;
+  }
+  return false;
 }
 
 /** Intervalos de refresco (ms). */

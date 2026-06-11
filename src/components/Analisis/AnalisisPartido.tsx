@@ -14,6 +14,7 @@ import {
 } from "@/services/analysisAI";
 import { useColombiaModeStore } from "@/stores/useColombiaModeStore";
 import { formatFixtureDate, getFixtureScore, formatStatus } from "@/utils/formatters";
+import { isFixtureLive } from "@/lib/liveRefresh";
 import { getTeamColors } from "@/utils/colors";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,12 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
     fixture.teams.home.name.toLowerCase().includes("colombia") ||
     fixture.teams.away.name.toLowerCase().includes("colombia");
   const isFinished = fixture.fixture.status.short === "FT";
+  const live = isFixtureLive(fixture.fixture.status.short);
+  const elapsed = fixture.fixture.status.elapsed;
+  const statusLabel =
+    live && elapsed != null
+      ? `${formatStatus(fixture.fixture.status.short)} · ${elapsed}'`
+      : formatStatus(fixture.fixture.status.short);
 
   useEffect(() => {
     async function load() {
@@ -67,7 +74,7 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
 
   return (
     <div className="space-y-6">
-      <Card className={cn(isColombia && "border-colombia-yellow/40 bg-colombia-yellow/5")}>
+      <Card className={cn(isColombia && "border-colombia-yellow/40 bg-colombia-yellow/5", live && "border-mundial-red/50")}>
         <CardContent className="p-6">
           <div className="flex items-center justify-center gap-8">
             <TeamBlock name={fixture.teams.home.name} logo={fixture.teams.home.logo} />
@@ -75,7 +82,9 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
               <p className="text-4xl font-bold font-mono">
                 {getFixtureScore(fixture.goals.home, fixture.goals.away, fixture.fixture.status.short)}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">{formatStatus(fixture.fixture.status.short)}</p>
+              <p className={cn("text-sm mt-1", live ? "text-mundial-red font-semibold" : "text-muted-foreground")}>
+                {statusLabel}
+              </p>
               <p className="text-xs text-muted-foreground mt-2">{formatFixtureDate(fixture.fixture.date)}</p>
             </div>
             <TeamBlock name={fixture.teams.away.name} logo={fixture.teams.away.logo} />

@@ -15,8 +15,10 @@ import { DEFAULT_SEASON } from "@/lib/utils";
 import {
   hasAnyLiveFixture,
   isFixtureLive,
+  isWithinKickoffWindow,
   LIVE_REFRESH_MS,
   NORMAL_STALE_MS,
+  shouldPollFixtures,
 } from "@/lib/liveRefresh";
 import type { PhaseFilter } from "@/types";
 import { formatGroupFromRound } from "@/utils/formatters";
@@ -37,17 +39,44 @@ export function useFixtures(params?: {
   season?: number;
   id?: number;
 }) {
+  const isSingle = params?.id != null;
+
   return useQuery({
     queryKey: ["fixtures", params],
     queryFn: () => getFixtures(params),
-    staleTime: NORMAL_STALE_MS,
+    staleTime: isSingle ? LIVE_REFRESH_MS.fixtures : NORMAL_STALE_MS,
     refetchInterval: (query) => {
       const fixtures = query.state.data;
-      if (hasAnyLiveFixture(fixtures) || getClientTournamentPhase() === "live") {
+      if (
+        shouldPollFixtures(fixtures) ||
+        getClientTournamentPhase() === "live"
+      ) {
         return LIVE_REFRESH_MS.fixtures;
       }
       return false;
     },
+  });
+}
+
+export function useFixture(fixtureId: number) {
+  return useQuery({
+    queryKey: ["fixtures", { id: fixtureId }],
+    queryFn: () => getFixtures({ id: fixtureId }),
+    enabled: fixtureId > 0,
+    staleTime: LIVE_REFRESH_MS.fixtures,
+    refetchInterval: (query) => {
+      const fixture = query.state.data?.[0];
+      if (!fixture) return LIVE_REFRESH_MS.fixtures;
+      if (
+        isFixtureLive(fixture.fixture.status.short) ||
+        isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short) ||
+        getClientTournamentPhase() === "live"
+      ) {
+        return LIVE_REFRESH_MS.fixtures;
+      }
+      return false;
+    },
+    select: (data) => data[0] ?? null,
   });
 }
 
@@ -59,6 +88,9 @@ export function useNextFixture() {
     refetchInterval: (query) => {
       const fixture = query.state.data;
       if (fixture && isFixtureLive(fixture.fixture.status.short)) {
+        return LIVE_REFRESH_MS.nextFixture;
+      }
+      if (fixture && isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short)) {
         return LIVE_REFRESH_MS.nextFixture;
       }
       if (getClientTournamentPhase() === "live") {

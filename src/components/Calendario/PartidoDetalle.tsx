@@ -1,7 +1,7 @@
 "use client";
 
 import { useFixtureDetail } from "@/hooks/usePartidos";
-import { isFixtureLive } from "@/lib/liveRefresh";
+import { isFixtureLive, isWithinKickoffWindow } from "@/lib/liveRefresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Fixture } from "@/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -12,7 +12,10 @@ interface PartidoDetalleProps {
 }
 
 export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
-  const live = fixture ? isFixtureLive(fixture.fixture.status.short) : false;
+  const live = fixture
+    ? isFixtureLive(fixture.fixture.status.short) ||
+      isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short)
+    : false;
   const { events, stats, lineups } = useFixtureDetail(fixtureId, live);
   const isLoading = events.isLoading || stats.isLoading || lineups.isLoading;
 

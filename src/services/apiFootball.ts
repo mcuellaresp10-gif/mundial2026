@@ -71,9 +71,7 @@ async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
 
   try {
     const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", { params });
-    const list = (data.response ?? []).filter(
-      (f) => f.league.id === LEAGUE_ID && f.league.season === DEFAULT_SEASON
-    );
+    const list = (data.response ?? []).filter((f) => f.league.id === LEAGUE_ID);
     setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
     return list;
   } catch {
@@ -81,10 +79,45 @@ async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
   }
 }
 
+async function fetchFixtureFromApiById(id: number): Promise<Fixture | null> {
+  const key = cacheKey("fixture-by-id", { id });
+  const cached = getLocalCache<Fixture>(key);
+  if (cached) return cached;
+
+  try {
+    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", { params: { id } });
+    const fixture = data.response?.[0] ?? null;
+    if (fixture) setLocalCache(key, fixture, LIVE_FIXTURE_CACHE_MS);
+    return fixture;
+  } catch {
+    return getStaleLocalCache<Fixture>(key);
+  }
+}
+
 function mergeLiveIntoFixtures(fixtures: Fixture[], live: Fixture[]): Fixture[] {
   if (live.length === 0) return fixtures;
   const liveById = new Map(live.map((f) => [f.fixture.id, f]));
-  return fixtures.map((f) => liveById.get(f.fixture.id) ?? f);
+  const merged = fixtures.map((f) => liveById.get(f.fixture.id) ?? f);
+  for (const lf of live) {
+    if (!merged.some((f) => f.fixture.id === lf.fixture.id)) merged.push(lf);
+  }
+  return merged;
+}
+
+/** Detalle de un partido — API en vivo primero (evita snapshot/caché NS obsoleto). */
+export async function getFixtureById(id: number): Promise<Fixture | null> {
+  const live = await fetchLiveWorldCupFixtures();
+  const liveMatch = live.find((f) => f.fixture.id === id);
+  if (liveMatch) return liveMatch;
+
+  const fromApi = await fetchFixtureFromApiById(id);
+  if (fromApi) return fromApi;
+
+  const snapList = await resolveFixturesFromSnapshotOr(() => Promise.resolve([] as Fixture[]));
+  const fromSnap = snapList.find((f) => f.fixture.id === id);
+  if (!fromSnap) return null;
+
+  return mergeLiveIntoFixtures([fromSnap], live)[0] ?? fromSnap;
 }
 
 export async function getTeams(season: number = DEFAULT_SEASON): Promise<Team[]> {
@@ -101,6 +134,11 @@ export async function getFixtures(params: {
   round?: string;
   id?: number;
 } = {}): Promise<Fixture[]> {
+  if (params.id) {
+    const fixture = await getFixtureById(params.id);
+    return fixture ? [fixture] : [];
+  }
+
   const applyFilters = (list: Fixture[]) => {
     let out = list;
     if (params.team) {

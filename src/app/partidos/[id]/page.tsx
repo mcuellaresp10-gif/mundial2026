@@ -2,9 +2,10 @@
 
 import { use } from "react";
 import { AnalisisPartido } from "@/components/Analisis/AnalisisPartido";
-import { useFixtures } from "@/hooks/usePartidos";
+import { useFixture } from "@/hooks/usePartidos";
 import { GridSkeleton } from "@/components/shared/Loading";
 import { Card, CardContent } from "@/components/ui/card";
+import { isFixtureLive, isWithinKickoffWindow } from "@/lib/liveRefresh";
 
 export default function PartidoPage({
   params,
@@ -13,8 +14,7 @@ export default function PartidoPage({
 }) {
   const { id } = use(params);
   const fixtureId = Number(id);
-  const { data: fixtures = [], isLoading } = useFixtures({ id: fixtureId });
-  const fixture = fixtures[0] ?? null;
+  const { data: fixture, isLoading } = useFixture(fixtureId);
 
   if (isLoading) return <GridSkeleton count={4} />;
 
@@ -28,7 +28,10 @@ export default function PartidoPage({
     );
   }
 
-  const isNotStarted = fixture.fixture.status.short === "NS";
+  const isNotStarted =
+    fixture.fixture.status.short === "NS" &&
+    !isFixtureLive(fixture.fixture.status.short) &&
+    !isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short);
   const isScheduledFuture = new Date(fixture.fixture.date) > new Date();
 
   return (

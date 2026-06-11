@@ -20,6 +20,7 @@ export function EstadisticasGlobales() {
     const wc = extractTopScorers(players, "worldcup");
     return (wc.length > 0 ? wc : extractTopScorers(players, "national")).slice(0, 3);
   }, [players]);
+
   const scorersLabel = useMemo(() => {
     const wc = extractTopScorers(players, "worldcup");
     return wc.length > 0
@@ -29,72 +30,88 @@ export function EstadisticasGlobales() {
 
   if (isLoading && teams.length === 0) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-32 rounded-xl" />
+          <Skeleton key={i} className="h-28 rounded-xl" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="@container/stats space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold mb-1">Estadísticas globales</h2>
+        <p className="text-sm text-muted-foreground">Resumen del torneo en tiempo real</p>
+      </div>
+
+      {/* Auto-fit stat grid */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-3 @md/stats:gap-4">
         <StatCard
           label={stats.liveCount > 0 ? "En vivo ahora" : "Partidos jugados"}
           value={stats.liveCount > 0 ? stats.liveCount : stats.playedCount}
+          live={stats.liveCount > 0}
         />
         <StatCard label="Partidos pendientes" value={stats.pendingCount} />
         <StatCard label="Goles totales" value={stats.totalGoals} highlight />
         <StatCard label="Promedio goles/partido" value={stats.avgGoalsPerMatch} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
+      {/* Two-column section — container-query responsive */}
+      <div className="grid grid-cols-1 gap-4 @lg/stats:grid-cols-2 @lg/stats:gap-6 min-w-0">
+        <Card className="rounded-2xl break-inside-avoid min-w-0">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg">{scorersLabel}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="divide-y divide-border">
             {topScorers.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Sin goles registrados aún</p>
+              <p className="text-muted-foreground text-sm py-2">Sin goles registrados aún</p>
             ) : (
               topScorers.map((s, i) => (
                 <Link
                   key={s.playerId}
                   href={`/jugadores/${s.playerId}`}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                  className="flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
                 >
-                  <span className="text-2xl font-bold font-mono text-mundial-gold w-6">{i + 1}</span>
-                  <Image src={s.photo} alt={s.name} width={40} height={40} className="rounded-full" />
-                  <div className="flex-1">
-                    <p className="font-medium">{s.name}</p>
-                    <p className="text-xs text-muted-foreground">{s.team}</p>
+                  <span className="text-2xl font-bold font-mono text-mundial-gold w-6 shrink-0 tabular-nums">
+                    {i + 1}
+                  </span>
+                  <div className="relative aspect-square w-10 shrink-0 overflow-hidden rounded-full bg-muted">
+                    <Image src={s.photo} alt={s.name} fill className="object-cover" sizes="40px" />
                   </div>
-                  <span className="text-xl font-bold font-mono text-mundial-gold">{s.goals}⚽</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{s.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{s.team}</p>
+                  </div>
+                  <span className="text-xl font-bold font-mono text-mundial-gold shrink-0 tabular-nums">
+                    {s.goals}⚽
+                  </span>
                 </Link>
               ))
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card className="rounded-2xl break-inside-avoid min-w-0">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg">Líderes de Grupo</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="divide-y divide-border">
             {stats.groupLeaders.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Tablas por definir</p>
+              <p className="text-muted-foreground text-sm py-2">Tablas por definir</p>
             ) : (
               stats.groupLeaders.slice(0, 8).map((s) => (
                 <Link
                   key={s.team.id}
                   href={`/selecciones/${s.team.id}`}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                  className="flex min-w-0 items-center gap-3 py-2.5 first:pt-0 last:pb-0 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
                 >
-                  <Image src={s.team.logo} alt={s.team.name} width={28} height={28} />
-                  <span className="flex-1 font-medium">{s.team.name}</span>
+                  <div className="relative aspect-square w-7 shrink-0">
+                    <Image src={s.team.logo} alt={s.team.name} fill className="object-contain" sizes="28px" />
+                  </div>
+                  <span className="flex-1 font-medium truncate min-w-0">{s.team.name}</span>
                   <BadgeGroup group={s.group} />
-                  <span className="font-mono font-bold">{s.points} pts</span>
+                  <span className="font-mono font-bold shrink-0 tabular-nums">{s.points} pts</span>
                 </Link>
               ))
             )}
@@ -102,9 +119,9 @@ export function EstadisticasGlobales() {
         </Card>
       </div>
 
-      <Card className="bg-mundial-gold/5 border-mundial-gold/20">
-        <CardContent className="p-4">
-          <p className="text-sm">
+      <Card className="rounded-2xl bg-mundial-gold/5 border-mundial-gold/20 -mx-0">
+        <CardContent className="p-4 @md/stats:p-5">
+          <p className="text-sm leading-relaxed">
             <span className="font-semibold text-mundial-gold">Dato del día: </span>
             {stats.datoDelDia}
           </p>
@@ -114,12 +131,28 @@ export function EstadisticasGlobales() {
   );
 }
 
-function StatCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+function StatCard({
+  label,
+  value,
+  highlight,
+  live,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+  live?: boolean;
+}) {
   return (
-    <Card>
-      <CardContent className="p-4 text-center">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className={`text-3xl font-bold font-mono mt-1 ${highlight ? "text-mundial-gold" : ""}`}>
+    <Card
+      className={`rounded-xl overflow-hidden ${live ? "border-mundial-red/40 ring-1 ring-mundial-red/20" : ""}`}
+    >
+      <CardContent className="flex flex-col items-center justify-center p-4 text-center min-h-[5.5rem]">
+        <p className="text-xs @md/stats:text-sm text-muted-foreground leading-tight">{label}</p>
+        <p
+          className={`text-2xl @md/stats:text-3xl font-bold font-mono mt-1 tabular-nums ${
+            highlight ? "text-mundial-gold" : live ? "text-mundial-red" : ""
+          }`}
+        >
           {value}
         </p>
       </CardContent>
@@ -129,6 +162,8 @@ function StatCard({ label, value, highlight }: { label: string; value: number; h
 
 function BadgeGroup({ group }: { group: string }) {
   return (
-    <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{group}</span>
+    <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+      {group}
+    </span>
   );
 }

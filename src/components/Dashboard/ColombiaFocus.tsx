@@ -31,7 +31,7 @@ export function ColombiaFocus() {
 
   if (!colombiaTeam) {
     return (
-      <Card className="border-colombia-yellow/30">
+      <Card className="rounded-2xl border-colombia-yellow/30">
         <CardContent className="p-6 text-center text-muted-foreground">
           Colombia no encontrada en el torneo
         </CardContent>
@@ -42,30 +42,30 @@ export function ColombiaFocus() {
   const standing = colombiaData?.standing;
 
   return (
-    <Card className="border-colombia-yellow/40 bg-gradient-to-br from-colombia-blue/10 via-colombia-yellow/5 to-colombia-red/10 overflow-hidden">
-      <CardHeader className="border-b border-colombia-yellow/20">
-        <div className="flex items-center gap-3">
-          <Image src={colombiaTeam.logo} alt="Colombia" width={40} height={40} />
-          <div>
-            <CardTitle className="text-colombia-blue dark:text-colombia-yellow">
+    <Card className="@container/colombia rounded-2xl border-colombia-yellow/40 bg-gradient-to-br from-colombia-blue/10 via-colombia-yellow/5 to-colombia-red/10 overflow-hidden h-full">
+      <CardHeader className="border-b border-colombia-yellow/20 pb-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="relative aspect-square w-10 shrink-0 overflow-hidden rounded-full bg-white/80 ring-2 ring-colombia-yellow/40">
+            <Image src={colombiaTeam.logo} alt="Colombia" fill className="object-contain p-1" sizes="40px" />
+          </div>
+          <div className="min-w-0">
+            <CardTitle className="text-colombia-blue dark:text-colombia-yellow truncate">
               🇨🇴 Colombia Focus
             </CardTitle>
-            <p className="text-sm text-muted-foreground">La Tricolor en el Mundial 2026</p>
+            <p className="text-sm text-muted-foreground truncate">La Tricolor en el Mundial 2026</p>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-6 space-y-4">
+
+      <CardContent className="p-4 @md/colombia:p-5 space-y-5">
         {!colombiaData ? (
-          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full rounded-xl" />
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <MiniStat
-                label="Posición en grupo"
-                value={standing ? `#${standing.rank}` : "N/D"}
-              />
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Prob. clasificación</p>
+            <div className="grid grid-cols-2 gap-3 @md/colombia:grid-cols-4 @md/colombia:gap-4">
+              <MiniStat label="Posición en grupo" value={standing ? `#${standing.rank}` : "N/D"} />
+              <div className="flex flex-col items-center justify-center text-center min-w-0">
+                <p className="text-xs text-muted-foreground mb-1">Prob. clasificación</p>
                 <ClassificationProbDisplay
                   probability={classProb}
                   isLoading={loadingProb}
@@ -79,13 +79,16 @@ export function ColombiaFocus() {
             </div>
 
             {colombiaData.nextMatch && (
-              <div className="p-4 rounded-lg bg-white/50 dark:bg-white/5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Próximo partido</p>
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">
-                    {colombiaData.nextMatch.teams.home.name} vs {colombiaData.nextMatch.teams.away.name}
+              <div className="rounded-xl border border-colombia-yellow/20 bg-white/50 dark:bg-white/5 p-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                  Próximo partido
+                </p>
+                <div className="flex min-w-0 flex-col gap-1 @md/colombia:flex-row @md/colombia:items-center @md/colombia:justify-between">
+                  <span className="font-medium truncate">
+                    {colombiaData.nextMatch.teams.home.name} vs{" "}
+                    {colombiaData.nextMatch.teams.away.name}
                   </span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-muted-foreground shrink-0">
                     {formatFixtureDate(colombiaData.nextMatch.fixture.date)}
                   </span>
                 </div>
@@ -94,18 +97,20 @@ export function ColombiaFocus() {
 
             {colombiaData.lastResults.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Últimos resultados</p>
-                <div className="flex gap-3 overflow-x-auto pb-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
+                  Últimos resultados
+                </p>
+                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-thin -mx-1 px-1">
                   {colombiaData.lastResults.map((f) => (
                     <Link
                       key={f.fixture.id}
                       href={`/partidos/${f.fixture.id}`}
-                      className="flex-shrink-0 p-3 rounded-lg bg-white/50 dark:bg-white/5 hover:bg-white/80 transition-colors min-w-[140px] text-center"
+                      className="snap-start shrink-0 w-[min(100%,148px)] rounded-xl border border-colombia-yellow/15 bg-white/50 dark:bg-white/5 p-3 text-center transition-colors hover:bg-white/80 dark:hover:bg-white/10"
                     >
-                      <p className="text-xs text-muted-foreground mb-1">
+                      <p className="text-xs text-muted-foreground mb-1 truncate">
                         {formatFixtureDate(f.fixture.date).split("|")[0]}
                       </p>
-                      <p className="font-mono font-bold">
+                      <p className="font-mono text-lg font-bold tabular-nums">
                         {getFixtureScore(f.goals.home, f.goals.away, f.fixture.status.short)}
                       </p>
                     </Link>
@@ -115,28 +120,38 @@ export function ColombiaFocus() {
             )}
 
             {keyPlayer && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-colombia-yellow/10">
-                <Image
-                  src={keyPlayer.player.photo}
-                  alt={keyPlayer.player.name}
-                  width={48}
-                  height={48}
-                  className="rounded-full"
-                />
-                <div className="flex-1">
+              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl bg-colombia-yellow/10 p-3 min-w-0">
+                <div className="relative aspect-square w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-colombia-yellow/30">
+                  <Image
+                    src={keyPlayer.player.photo}
+                    alt={keyPlayer.player.name}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                  />
+                </div>
+                <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">Jugador clave en forma</p>
-                  <Link href={`/jugadores/${keyPlayer.player.id}`} className="font-semibold hover:underline">
+                  <Link
+                    href={`/jugadores/${keyPlayer.player.id}`}
+                    className="font-semibold hover:underline truncate block"
+                  >
                     {keyPlayer.player.name}
                   </Link>
+                  {keyNat && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {keyNat.goals}G con la selección · Temp. {PLAYER_STAT_SEASON_LABEL}
+                    </p>
+                  )}
                 </div>
-                <span className={cn("text-xl font-bold font-mono", ratingClass(keyNat?.rating))}>
+                <span
+                  className={cn(
+                    "text-xl font-bold font-mono shrink-0 tabular-nums",
+                    ratingClass(keyNat?.rating)
+                  )}
+                >
                   {keyNat && keyNat.rating > 0 ? keyNat.rating.toFixed(1) : "N/D"}
                 </span>
-                {keyNat && (
-                  <p className="text-[10px] text-muted-foreground w-full text-right">
-                    {keyNat.goals}G con la selección · Temp. {PLAYER_STAT_SEASON_LABEL}
-                  </p>
-                )}
               </div>
             )}
           </>
@@ -146,11 +161,24 @@ export function ColombiaFocus() {
   );
 }
 
-function MiniStat({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+function MiniStat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string | number;
+  highlight?: boolean;
+}) {
   return (
-    <div className="text-center">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("text-xl font-bold font-mono", highlight && "text-colombia-blue dark:text-colombia-yellow")}>
+    <div className="flex flex-col items-center justify-center text-center min-w-0 rounded-lg bg-white/30 dark:bg-white/5 px-2 py-2">
+      <p className="text-[10px] @md/colombia:text-xs text-muted-foreground leading-tight">{label}</p>
+      <p
+        className={cn(
+          "text-lg @md/colombia:text-xl font-bold font-mono tabular-nums mt-0.5",
+          highlight && "text-colombia-blue dark:text-colombia-yellow"
+        )}
+      >
         {value}
       </p>
     </div>

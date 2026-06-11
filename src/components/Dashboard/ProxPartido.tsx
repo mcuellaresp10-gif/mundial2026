@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,10 +15,13 @@ import { cn } from "@/lib/utils";
 export function ProxPartido() {
   const { data: fixture, isLoading } = useNextFixture();
 
-  if (isLoading) return <Skeleton className="h-52 w-full rounded-xl" />;
+  if (isLoading) {
+    return <Skeleton className="aspect-[21/9] min-h-[220px] w-full rounded-2xl" />;
+  }
+
   if (!fixture) {
     return (
-      <Card>
+      <Card className="rounded-2xl">
         <CardContent className="p-8 text-center text-muted-foreground">
           No hay partidos programados próximamente
         </CardContent>
@@ -47,53 +50,115 @@ export function ProxPartido() {
   return (
     <Card
       className={cn(
-        "overflow-hidden transition-all duration-300 hover:shadow-lg",
-        isColombia && "border-colombia-yellow/50 bg-gradient-to-br from-colombia-blue/5 via-colombia-yellow/5 to-colombia-red/5",
+        "@container/match overflow-hidden rounded-2xl transition-all duration-300 hover:shadow-lg",
+        isColombia &&
+          "border-colombia-yellow/50 bg-gradient-to-br from-colombia-blue/5 via-colombia-yellow/5 to-colombia-red/5",
         live && "border-mundial-red/60 ring-1 ring-mundial-red/30"
       )}
     >
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{cardTitle}</CardTitle>
-          <Badge variant="outline">{formatFixtureDate(fixture.fixture.date)}</Badge>
-        </div>
-        <p className="text-sm text-muted-foreground">{fixture.league.round}</p>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-center gap-6 py-4">
-          <div className="flex flex-col items-center gap-2 flex-1">
-            <Image src={fixture.teams.home.logo} alt={fixture.teams.home.name} width={56} height={56} />
-            <span className="font-bold text-center" style={{ color: getTeamColors(fixture.teams.home.name).primary }}>
-              {fixture.teams.home.name}
-            </span>
+      {/* Header band — grid template areas */}
+      <div
+        className={cn(
+          "grid gap-3 border-b px-4 py-4 @md/match:px-6",
+          "grid-cols-1 @md/match:grid-cols-[1fr_auto]",
+          "@md/match:items-center",
+          live ? "bg-mundial-red/5" : "bg-muted/30"
+        )}
+      >
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold">{cardTitle}</h2>
+            {live && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-mundial-red opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-mundial-red" />
+              </span>
+            )}
           </div>
-          <div className="text-center">
-            <p className="text-3xl font-bold font-mono">
+          <p className="text-sm text-muted-foreground truncate">{fixture.league.round}</p>
+        </div>
+        <Badge variant="outline" className="w-fit shrink-0">
+          {formatFixtureDate(fixture.fixture.date)}
+        </Badge>
+      </div>
+
+      <CardContent className="p-4 @md/match:p-6">
+        {/* Scoreboard — 3-column grid with flexible sides */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 @md/match:gap-6 py-2 @md/match:py-4">
+          <TeamCell
+            name={fixture.teams.home.name}
+            logo={fixture.teams.home.logo}
+            align="end"
+          />
+          <div className="flex flex-col items-center justify-center px-2 shrink-0">
+            <p className="text-[clamp(1.75rem,8cqw,3rem)] font-bold font-mono leading-none tabular-nums">
               {getFixtureScore(fixture.goals.home, fixture.goals.away, fixture.fixture.status.short)}
             </p>
             <Badge
-              className={cn("mt-1", live && "bg-mundial-red text-white animate-pulse border-0")}
+              className={cn(
+                "mt-2 whitespace-nowrap",
+                live && "bg-mundial-red text-white animate-pulse border-0"
+              )}
             >
               {statusLabel}
             </Badge>
           </div>
-          <div className="flex flex-col items-center gap-2 flex-1">
-            <Image src={fixture.teams.away.logo} alt={fixture.teams.away.name} width={56} height={56} />
-            <span className="font-bold text-center" style={{ color: getTeamColors(fixture.teams.away.name).primary }}>
-              {fixture.teams.away.name}
+          <TeamCell
+            name={fixture.teams.away.name}
+            logo={fixture.teams.away.logo}
+            align="start"
+          />
+        </div>
+
+        {/* Meta row — flex with min-w-0 truncate */}
+        <div className="mt-4 grid gap-2 border-t pt-4 text-sm text-muted-foreground @md/match:grid-cols-2 min-w-0">
+          <span className="min-w-0 truncate">📍 {fixture.fixture.venue.city}</span>
+          {fixture.fixture.referee && (
+            <span className="min-w-0 truncate @md/match:text-right">
+              ⚖️ {fixture.fixture.referee}
             </span>
-          </div>
+          )}
         </div>
-        <div className="flex items-center justify-between text-sm text-muted-foreground mt-2">
-          <span>📍 {fixture.fixture.venue.city}</span>
-          {fixture.fixture.referee && <span>⚖️ {fixture.fixture.referee}</span>}
-        </div>
-        <div className="mt-4 flex justify-center">
-          <Button asChild>
+
+        <div className="mt-5 flex justify-center @md/match:justify-end">
+          <Button asChild className="w-full @md/match:w-auto">
             <Link href={`/partidos/${fixture.fixture.id}`}>Ver análisis</Link>
           </Button>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function TeamCell({
+  name,
+  logo,
+  align,
+}: {
+  name: string;
+  logo: string;
+  align: "start" | "end";
+}) {
+  const colors = getTeamColors(name);
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-2",
+        align === "end" ? "items-center @md/match:items-end" : "items-center @md/match:items-start"
+      )}
+    >
+      <div className="relative aspect-square w-14 @md/match:w-16 shrink-0 overflow-hidden rounded-full bg-muted/50 ring-2 ring-border">
+        <Image src={logo} alt={name} fill className="object-contain p-1.5" sizes="64px" />
+      </div>
+      <span
+        className={cn(
+          "font-bold text-center text-sm @md/match:text-base leading-tight line-clamp-2",
+          align === "end" ? "@md/match:text-right" : "@md/match:text-left"
+        )}
+        style={{ color: colors.primary }}
+      >
+        {name}
+      </span>
+    </div>
   );
 }

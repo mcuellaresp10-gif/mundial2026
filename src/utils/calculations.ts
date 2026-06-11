@@ -5,6 +5,7 @@ import type {
   Player,
   RadarStats,
 } from "@/types";
+import { isFixtureFinished, isFixtureStarted } from "@/lib/liveRefresh";
 import { parseRating } from "./formatters";
 import {
   computePlayerRadarFromPlayer,
@@ -37,13 +38,13 @@ export function calculateWinProbability(
 
 export function aggregateFixtureGoals(fixtures: Fixture[]): number {
   return fixtures
-    .filter((f) => f.fixture.status.short === "FT")
+    .filter((f) => isFixtureStarted(f.fixture.status.short))
     .reduce((sum, f) => sum + (f.goals.home ?? 0) + (f.goals.away ?? 0), 0);
 }
 
 export function getBiggestWin(fixtures: Fixture[]): { fixture: Fixture; margin: number } | null {
   let best: { fixture: Fixture; margin: number } | null = null;
-  for (const f of fixtures.filter((x) => x.fixture.status.short === "FT")) {
+  for (const f of fixtures.filter((x) => isFixtureFinished(x.fixture.status.short))) {
     const h = f.goals.home ?? 0;
     const a = f.goals.away ?? 0;
     const margin = Math.abs(h - a);

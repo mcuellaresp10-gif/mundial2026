@@ -120,6 +120,49 @@ export async function getFixtureById(id: number): Promise<Fixture | null> {
   return mergeLiveIntoFixtures([fromSnap], live)[0] ?? fromSnap;
 }
 
+async function fetchAllWorldCupFixturesFromApi(
+  season: number = DEFAULT_SEASON
+): Promise<Fixture[]> {
+  const key = cacheKey("fixtures-wc-all", { league: LEAGUE_ID, season });
+  const cached = getLocalCache<Fixture[]>(key);
+  if (cached) return cached;
+
+  try {
+    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
+      params: { league: LEAGUE_ID, season },
+    });
+    const list = data.response ?? [];
+    setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
+    return list;
+  } catch {
+    return getStaleLocalCache<Fixture[]>(key) ?? [];
+  }
+}
+
+async function fetchStandingsFromApi(
+  season: number = DEFAULT_SEASON
+): Promise<StandingsGroup[]> {
+  const key = cacheKey("standings-wc-live", { league: LEAGUE_ID, season });
+  const cached = getLocalCache<StandingsGroup[]>(key);
+  if (cached) return cached;
+
+  try {
+    const { data } = await client.get<ApiResponse<StandingsGroup[]>>("standings", {
+      params: { league: LEAGUE_ID, season },
+    });
+    const list = data.response ?? [];
+    setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
+    return list;
+  } catch {
+    return getStaleLocalCache<StandingsGroup[]>(key) ?? [];
+  }
+}
+
+async function isWorldCupSessionActive(): Promise<boolean> {
+  const live = await fetchLiveWorldCupFixtures();
+  return live.length > 0;
+}
+
 export async function getTeams(season: number = DEFAULT_SEASON): Promise<Team[]> {
   return resolveTeamsFromSnapshotOr(async () => {
     const data = await fetchApi<{ team: Team }[]>("teams", { league: LEAGUE_ID, season });
@@ -169,7 +212,11 @@ export async function getFixtures(params: {
     })
   ).then(async (list) => {
     const live = await fetchLiveWorldCupFixtures();
-    const merged = mergeLiveIntoFixtures(list, live);
+    const base =
+      live.length > 0
+        ? await fetchAllWorldCupFixturesFromApi(params.season ?? DEFAULT_SEASON)
+        : list;
+    const merged = mergeLiveIntoFixtures(base, live);
     return applyFilters(merged);
   });
 }
@@ -190,6 +237,9 @@ export async function getNextFixture(): Promise<Fixture | null> {
 }
 
 export async function getStandings(season: number = DEFAULT_SEASON): Promise<StandingsGroup[]> {
+  if (await isWorldCupSessionActive()) {
+    return fetchStandingsFromApi(season);
+  }
   return resolveStandingsFromSnapshotOr(async () =>
     fetchApi<StandingsGroup[]>("standings", { league: LEAGUE_ID, season })
   );

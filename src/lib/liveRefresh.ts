@@ -14,8 +14,28 @@ export function isFixtureLive(statusShort: string): boolean {
   return (LIVE_FIXTURE_STATUSES as readonly string[]).includes(statusShort);
 }
 
+export function isFixtureFinished(statusShort: string): boolean {
+  return ["FT", "AET", "PEN"].includes(statusShort);
+}
+
+/** Partido ya comenzó (en vivo o finalizado). */
+export function isFixtureStarted(statusShort: string): boolean {
+  return isFixtureFinished(statusShort) || isFixtureLive(statusShort);
+}
+
 export function hasAnyLiveFixture(fixtures: Fixture[] | undefined): boolean {
   return fixtures?.some((f) => isFixtureLive(f.fixture.status.short)) ?? false;
+}
+
+export function hasAnyStartedFixture(fixtures: Fixture[] | undefined): boolean {
+  return fixtures?.some((f) => isFixtureStarted(f.fixture.status.short)) ?? false;
+}
+
+export function isTournamentActive(
+  fixtures: Fixture[] | undefined,
+  standingsPlayed = false
+): boolean {
+  return standingsPlayed || hasAnyStartedFixture(fixtures);
 }
 
 /** Partido en ventana de kickoff — refrescar aunque el status en caché siga NS. */

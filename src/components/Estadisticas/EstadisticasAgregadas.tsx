@@ -26,7 +26,10 @@ export function EstadisticasAgregadas() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MiniCard label="Partidos jugados" value={stats.playedCount} />
+        <MiniCard
+          label={stats.liveCount > 0 ? "En vivo ahora" : "Partidos jugados"}
+          value={stats.liveCount > 0 ? stats.liveCount : stats.playedCount}
+        />
         <MiniCard label="Goles totales" value={stats.totalGoals} highlight />
         <MiniCard label="Promedio goles/partido" value={stats.avgGoalsPerMatch} />
         <MiniCard label="Pendientes" value={stats.pendingCount} />

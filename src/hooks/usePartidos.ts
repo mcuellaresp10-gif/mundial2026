@@ -105,10 +105,12 @@ export function useStandings(season = DEFAULT_SEASON) {
   return useQuery({
     queryKey: ["standings", season],
     queryFn: () => getStandings(season),
-    staleTime: NORMAL_STALE_MS,
+    staleTime: LIVE_REFRESH_MS.standings,
     refetchInterval: (query) => {
       const standings = query.state.data ?? [];
-      return isWorldCupLive(standings) ? LIVE_REFRESH_MS.standings : false;
+      if (isWorldCupLive(standings)) return LIVE_REFRESH_MS.standings;
+      if (getClientTournamentPhase() === "live") return LIVE_REFRESH_MS.standings;
+      return false;
     },
   });
 }

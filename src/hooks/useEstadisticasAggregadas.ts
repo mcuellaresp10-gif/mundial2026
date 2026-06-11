@@ -3,18 +3,27 @@
 import { useMemo } from "react";
 import { useFixtures, useStandings } from "./usePartidos";
 import { aggregateFixtureGoals, getBiggestWin } from "@/utils/calculations";
-import type { Fixture, StandingTeam } from "@/types";
+import {
+  isFixtureFinished,
+  isFixtureLive,
+  isFixtureStarted,
+} from "@/lib/liveRefresh";
+import type { StandingTeam } from "@/types";
 
 export function useEstadisticasAggregadas() {
   const { data: fixtures = [] } = useFixtures();
   const { data: standings = [] } = useStandings();
 
   return useMemo(() => {
-    const played = fixtures.filter((f) => f.fixture.status.short === "FT");
+    const finished = fixtures.filter((f) => isFixtureFinished(f.fixture.status.short));
+    const liveNow = fixtures.filter((f) => isFixtureLive(f.fixture.status.short));
+    const started = fixtures.filter((f) => isFixtureStarted(f.fixture.status.short));
     const pending = fixtures.filter((f) => f.fixture.status.short === "NS");
+
     const totalGoals = aggregateFixtureGoals(fixtures);
     const biggestWin = getBiggestWin(fixtures);
-    const avgGoalsPerMatch = played.length > 0 ? totalGoals / played.length : 0;
+    const avgGoalsPerMatch =
+      started.length > 0 ? totalGoals / started.length : 0;
 
     const groupLeaders: StandingTeam[] = [];
     for (const sg of standings) {
@@ -24,18 +33,27 @@ export function useEstadisticasAggregadas() {
     }
 
     const goalsByRound = new Map<string, number>();
-    for (const f of played) {
+    for (const f of started) {
       const round = f.league.round;
       const goals = (f.goals.home ?? 0) + (f.goals.away ?? 0);
       goalsByRound.set(round, (goalsByRound.get(round) ?? 0) + goals);
     }
 
-    const datoDelDia = biggestWin
-      ? `Mayor goleada: ${biggestWin.fixture.teams.home.name} ${biggestWin.fixture.goals.home}-${biggestWin.fixture.goals.away} ${biggestWin.fixture.teams.away.name}`
-      : "El torneo está por comenzar";
+    const datoDelDia = liveNow.length
+      ? `En vivo: ${liveNow
+          .map(
+            (f) =>
+              `${f.teams.home.name} ${f.goals.home ?? 0}-${f.goals.away ?? 0} ${f.teams.away.name}`
+          )
+          .join(" · ")}`
+      : biggestWin
+        ? `Mayor goleada: ${biggestWin.fixture.teams.home.name} ${biggestWin.fixture.goals.home}-${biggestWin.fixture.goals.away} ${biggestWin.fixture.teams.away.name}`
+        : "El torneo está por comenzar";
 
     return {
-      playedCount: played.length,
+      playedCount: finished.length,
+      liveCount: liveNow.length,
+      startedCount: started.length,
       pendingCount: pending.length,
       totalGoals,
       avgGoalsPerMatch: Math.round(avgGoalsPerMatch * 100) / 100,

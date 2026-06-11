@@ -1,9 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use } from "react";
 import { AnalisisPartido } from "@/components/Analisis/AnalisisPartido";
-import { getFixtures } from "@/services/apiFootball";
-import type { Fixture } from "@/types";
+import { useFixtures } from "@/hooks/usePartidos";
 import { GridSkeleton } from "@/components/shared/Loading";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -14,17 +13,10 @@ export default function PartidoPage({
 }) {
   const { id } = use(params);
   const fixtureId = Number(id);
-  const [fixture, setFixture] = useState<Fixture | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: fixtures = [], isLoading } = useFixtures({ id: fixtureId });
+  const fixture = fixtures[0] ?? null;
 
-  useEffect(() => {
-    getFixtures({ id: fixtureId })
-      .then((fixtures) => setFixture(fixtures[0] ?? null))
-      .catch(() => setFixture(null))
-      .finally(() => setLoading(false));
-  }, [fixtureId]);
-
-  if (loading) return <GridSkeleton count={4} />;
+  if (isLoading) return <GridSkeleton count={4} />;
 
   if (!fixture) {
     return (

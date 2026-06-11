@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNextFixture } from "@/hooks/usePartidos";
 import { formatFixtureDate, formatStatus, getFixtureScore } from "@/utils/formatters";
+import { isFixtureLive } from "@/lib/liveRefresh";
 import { getTeamColors } from "@/utils/colors";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,13 @@ export function ProxPartido() {
     );
   }
 
+  const live = isFixtureLive(fixture.fixture.status.short);
+  const elapsed = fixture.fixture.status.elapsed;
+  const statusLabel =
+    live && elapsed != null
+      ? `${formatStatus(fixture.fixture.status.short)} · ${elapsed}'`
+      : formatStatus(fixture.fixture.status.short);
+
   const isColombia =
     fixture.teams.home.name.toLowerCase().includes("colombia") ||
     fixture.teams.away.name.toLowerCase().includes("colombia");
@@ -33,12 +41,13 @@ export function ProxPartido() {
     <Card
       className={cn(
         "overflow-hidden transition-all duration-300 hover:shadow-lg",
-        isColombia && "border-colombia-yellow/50 bg-gradient-to-br from-colombia-blue/5 via-colombia-yellow/5 to-colombia-red/5"
+        isColombia && "border-colombia-yellow/50 bg-gradient-to-br from-colombia-blue/5 via-colombia-yellow/5 to-colombia-red/5",
+        live && "border-mundial-red/60 ring-1 ring-mundial-red/30"
       )}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Próximo Partido</CardTitle>
+          <CardTitle className="text-lg">{live ? "Partido en vivo" : "Próximo Partido"}</CardTitle>
           <Badge variant="outline">{formatFixtureDate(fixture.fixture.date)}</Badge>
         </div>
         <p className="text-sm text-muted-foreground">{fixture.league.round}</p>
@@ -55,7 +64,11 @@ export function ProxPartido() {
             <p className="text-3xl font-bold font-mono">
               {getFixtureScore(fixture.goals.home, fixture.goals.away, fixture.fixture.status.short)}
             </p>
-            <Badge className="mt-1">{formatStatus(fixture.fixture.status.short)}</Badge>
+            <Badge
+              className={cn("mt-1", live && "bg-mundial-red text-white animate-pulse border-0")}
+            >
+              {statusLabel}
+            </Badge>
           </div>
           <div className="flex flex-col items-center gap-2 flex-1">
             <Image src={fixture.teams.away.logo} alt={fixture.teams.away.name} width={56} height={56} />

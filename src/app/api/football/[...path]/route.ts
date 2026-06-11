@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const CACHE_TTL = 4 * 60 * 60 * 1000;
+const LIVE_CACHE_TTL = 60 * 1000;
+const LIVE_DETAIL_CACHE_TTL = 30 * 1000;
+const LIVE_STANDINGS_CACHE_TTL = 2 * 60 * 1000;
+
+function getCacheTtl(path: string): number {
+  if (path.includes("fixtures/events") || path.includes("fixtures/statistics")) {
+    return LIVE_DETAIL_CACHE_TTL;
+  }
+  if (path === "fixtures" || path.startsWith("fixtures/")) {
+    return LIVE_CACHE_TTL;
+  }
+  if (path === "standings") {
+    return LIVE_STANDINGS_CACHE_TTL;
+  }
+  return CACHE_TTL;
+}
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 let dailyRequestCount = 0;
 let dailyResetDate = new Date().toDateString();
@@ -13,10 +29,10 @@ function getCacheKey(path: string, search: string): string {
   return `${path}?${search}`;
 }
 
-function getFromCache(key: string): { data: unknown; stale: boolean } | null {
+function getFromCache(key: string, ttl: number): { data: unknown; stale: boolean } | null {
   const entry = cache.get(key);
   if (!entry) return null;
-  const stale = Date.now() - entry.timestamp > CACHE_TTL;
+  const stale = Date.now() - entry.timestamp > ttl;
   return { data: entry.data, stale };
 }
 
@@ -63,7 +79,8 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
   const path = pathSegments.join("/");
   const search = request.nextUrl.searchParams.toString();
   const cacheKey = getCacheKey(path, search);
-  const cached = getFromCache(cacheKey);
+  const cacheTtl = getCacheTtl(path);
+  const cached = getFromCache(cacheKey, cacheTtl);
 
   if (cached && !cached.stale) {
     return NextResponse.json(cached.data, {

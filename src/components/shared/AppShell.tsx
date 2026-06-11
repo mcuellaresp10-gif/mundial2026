@@ -4,24 +4,25 @@ import { useEffect } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { Footer } from "./Footer";
-import { useFixtures, useRefreshAll } from "@/hooks/usePartidos";
+import { useFixtures, useStandings, useRefreshAll, hasAnyLiveFixture } from "@/hooks/usePartidos";
+import { LIVE_REFRESH_MS } from "@/lib/liveRefresh";
+import { isWorldCupLive } from "@/services/tournamentPhase";
 import { useUIStore } from "@/stores/useUIStore";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: fixtures = [] } = useFixtures();
+  const { data: standings = [] } = useStandings();
   const refresh = useRefreshAll();
   const setLastRefresh = useUIStore((s) => s.setLastRefresh);
 
-  const hasActive = fixtures.some(
-    (f) => ["LIVE", "1H", "2H", "HT"].includes(f.fixture.status.short)
-  );
+  const hasActive = hasAnyLiveFixture(fixtures) || isWorldCupLive(standings);
 
   useEffect(() => {
     if (!hasActive) return;
     const interval = setInterval(() => {
       refresh();
       setLastRefresh(Date.now());
-    }, 30 * 60 * 1000);
+    }, LIVE_REFRESH_MS.fixtures);
     return () => clearInterval(interval);
   }, [hasActive, refresh, setLastRefresh]);
 

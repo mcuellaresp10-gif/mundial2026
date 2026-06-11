@@ -59,6 +59,34 @@ async function fetchApi<T>(
   }
 }
 
+const LIVE_FIXTURE_CACHE_MS = 30 * 1000;
+
+/** Partidos en curso del Mundial — siempre API (el snapshot puede tener status NS obsoleto). */
+async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
+  const params = { live: "all" };
+  const key = cacheKey("fixtures", { ...params, scope: "worldcup-live" });
+
+  const cached = getLocalCache<Fixture[]>(key);
+  if (cached) return cached;
+
+  try {
+    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", { params });
+    const list = (data.response ?? []).filter(
+      (f) => f.league.id === LEAGUE_ID && f.league.season === DEFAULT_SEASON
+    );
+    setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
+    return list;
+  } catch {
+    return getStaleLocalCache<Fixture[]>(key) ?? [];
+  }
+}
+
+function mergeLiveIntoFixtures(fixtures: Fixture[], live: Fixture[]): Fixture[] {
+  if (live.length === 0) return fixtures;
+  const liveById = new Map(live.map((f) => [f.fixture.id, f]));
+  return fixtures.map((f) => liveById.get(f.fixture.id) ?? f);
+}
+
 export async function getTeams(season: number = DEFAULT_SEASON): Promise<Team[]> {
   return resolveTeamsFromSnapshotOr(async () => {
     const data = await fetchApi<{ team: Team }[]>("teams", { league: LEAGUE_ID, season });
@@ -101,10 +129,21 @@ export async function getFixtures(params: {
       round: params.round,
       id: params.id,
     })
-  ).then((list) => applyFilters(list));
+  ).then(async (list) => {
+    const live = await fetchLiveWorldCupFixtures();
+    const merged = mergeLiveIntoFixtures(list, live);
+    return applyFilters(merged);
+  });
 }
 
 export async function getNextFixture(): Promise<Fixture | null> {
+  const live = await fetchLiveWorldCupFixtures();
+  if (live.length > 0) {
+    return [...live].sort(
+      (a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
+    )[0];
+  }
+
   const fixtures = await getFixtures({ status: "NS" });
   const sorted = [...fixtures].sort(
     (a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()

@@ -1,6 +1,7 @@
 "use client";
 
 import { useFixtureDetail } from "@/hooks/usePartidos";
+import { isFixtureLive } from "@/lib/liveRefresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Fixture } from "@/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -10,8 +11,9 @@ interface PartidoDetalleProps {
   fixture?: Fixture;
 }
 
-export function PartidoDetalle({ fixtureId }: PartidoDetalleProps) {
-  const { events, stats, lineups } = useFixtureDetail(fixtureId);
+export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
+  const live = fixture ? isFixtureLive(fixture.fixture.status.short) : false;
+  const { events, stats, lineups } = useFixtureDetail(fixtureId, live);
   const isLoading = events.isLoading || stats.isLoading || lineups.isLoading;
 
   if (isLoading) return <Skeleton className="h-48 w-full" />;

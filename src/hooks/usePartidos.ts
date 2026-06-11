@@ -12,18 +12,42 @@ import {
   getH2H,
 } from "@/services/apiFootball";
 import { DEFAULT_SEASON } from "@/lib/utils";
+import {
+  hasAnyLiveFixture,
+  isFixtureLive,
+  LIVE_REFRESH_MS,
+  NORMAL_STALE_MS,
+} from "@/lib/liveRefresh";
 import type { PhaseFilter } from "@/types";
 import { formatGroupFromRound } from "@/utils/formatters";
+import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
+import { isWorldCupLive } from "@/services/tournamentPhase";
 
 export function useTeams(season = DEFAULT_SEASON) {
-  return useQuery({ queryKey: ["teams", season], queryFn: () => getTeams(season), staleTime: 4 * 60 * 60 * 1000 });
+  return useQuery({
+    queryKey: ["teams", season],
+    queryFn: () => getTeams(season),
+    staleTime: NORMAL_STALE_MS,
+  });
 }
 
-export function useFixtures(params?: { status?: string; team?: number; season?: number }) {
+export function useFixtures(params?: {
+  status?: string;
+  team?: number;
+  season?: number;
+  id?: number;
+}) {
   return useQuery({
     queryKey: ["fixtures", params],
     queryFn: () => getFixtures(params),
-    staleTime: 4 * 60 * 60 * 1000,
+    staleTime: NORMAL_STALE_MS,
+    refetchInterval: (query) => {
+      const fixtures = query.state.data;
+      if (hasAnyLiveFixture(fixtures) || getClientTournamentPhase() === "live") {
+        return LIVE_REFRESH_MS.fixtures;
+      }
+      return false;
+    },
   });
 }
 
@@ -31,7 +55,17 @@ export function useNextFixture() {
   return useQuery({
     queryKey: ["nextFixture"],
     queryFn: getNextFixture,
-    staleTime: 30 * 60 * 1000,
+    staleTime: LIVE_REFRESH_MS.nextFixture,
+    refetchInterval: (query) => {
+      const fixture = query.state.data;
+      if (fixture && isFixtureLive(fixture.fixture.status.short)) {
+        return LIVE_REFRESH_MS.nextFixture;
+      }
+      if (getClientTournamentPhase() === "live") {
+        return LIVE_REFRESH_MS.nextFixture;
+      }
+      return false;
+    },
   });
 }
 
@@ -39,25 +73,39 @@ export function useStandings(season = DEFAULT_SEASON) {
   return useQuery({
     queryKey: ["standings", season],
     queryFn: () => getStandings(season),
-    staleTime: 4 * 60 * 60 * 1000,
+    staleTime: NORMAL_STALE_MS,
+    refetchInterval: (query) => {
+      const standings = query.state.data ?? [];
+      return isWorldCupLive(standings) ? LIVE_REFRESH_MS.standings : false;
+    },
   });
 }
 
-export function useFixtureDetail(fixtureId: number) {
+export function useFixtureDetail(fixtureId: number, isLive = false) {
+  const live = isLive;
+  const detailInterval = live ? LIVE_REFRESH_MS.fixtureDetail : false;
+  const detailStale = live ? LIVE_REFRESH_MS.fixtureDetail : NORMAL_STALE_MS;
+
   const events = useQuery({
     queryKey: ["fixtureEvents", fixtureId],
     queryFn: () => getFixtureEvents(fixtureId),
     enabled: fixtureId > 0,
+    staleTime: detailStale,
+    refetchInterval: detailInterval,
   });
   const stats = useQuery({
     queryKey: ["fixtureStats", fixtureId],
     queryFn: () => getFixtureStatistics(fixtureId),
     enabled: fixtureId > 0,
+    staleTime: detailStale,
+    refetchInterval: detailInterval,
   });
   const lineups = useQuery({
     queryKey: ["fixtureLineups", fixtureId],
     queryFn: () => getFixtureLineups(fixtureId),
     enabled: fixtureId > 0,
+    staleTime: live ? LIVE_REFRESH_MS.standings : NORMAL_STALE_MS,
+    refetchInterval: live ? LIVE_REFRESH_MS.standings : false,
   });
   return { events, stats, lineups };
 }
@@ -89,11 +137,13 @@ export function useRefreshAll() {
   };
 }
 
-export function useAutoRefresh(enabled: boolean) {
+export function useAutoRefresh(enabled: boolean, intervalMs = LIVE_REFRESH_MS.fixtures) {
   const refresh = useRefreshAll();
   if (typeof window !== "undefined" && enabled) {
-    const interval = setInterval(refresh, 30 * 60 * 1000);
+    const interval = setInterval(refresh, intervalMs);
     return () => clearInterval(interval);
   }
   return undefined;
 }
+
+export { hasAnyLiveFixture, isFixtureLive, LIVE_REFRESH_MS } from "@/lib/liveRefresh";

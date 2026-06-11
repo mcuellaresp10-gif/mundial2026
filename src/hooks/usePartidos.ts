@@ -14,6 +14,7 @@ import {
 import { DEFAULT_SEASON } from "@/lib/utils";
 import {
   hasAnyLiveFixture,
+  isFixtureFinished,
   isFixtureLive,
   isWithinKickoffWindow,
   LIVE_REFRESH_MS,
@@ -90,7 +91,11 @@ export function useNextFixture() {
       if (fixture && isFixtureLive(fixture.fixture.status.short)) {
         return LIVE_REFRESH_MS.nextFixture;
       }
-      if (fixture && isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short)) {
+      if (
+        fixture &&
+        (isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short) ||
+          isFixtureFinished(fixture.fixture.status.short))
+      ) {
         return LIVE_REFRESH_MS.nextFixture;
       }
       if (getClientTournamentPhase() === "live") {

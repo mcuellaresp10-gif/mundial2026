@@ -11,7 +11,7 @@ import type {
   Team,
   TeamSquad,
 } from "@/types";
-import { cacheKey, getLocalCache, getStaleLocalCache, setLocalCache } from "./cache";
+import { cacheKey, getLocalCache, getStaleLocalCache, removeLocalCache, setLocalCache } from "./cache";
 import {
   resolveFixturesFromSnapshotOr,
   resolvePlayerFromSnapshotOr,
@@ -21,6 +21,12 @@ import {
   resolveTeamsFromSnapshotOr,
 } from "./catalogResolver";
 import { DEFAULT_SEASON, LEAGUE_ID, PLAYER_STAT_SEASONS } from "@/lib/utils";
+import {
+  isFixtureLive,
+  isFixtureStarted,
+  isPlausibleLiveFixture,
+  pickFeaturedFixture,
+} from "@/lib/liveRefresh";
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
 import { pickClubStat } from "@/utils/playerStats";
 
@@ -61,28 +67,41 @@ async function fetchApi<T>(
 
 const LIVE_FIXTURE_CACHE_MS = 30 * 1000;
 
+let tournamentStartedFlag: boolean | null = null;
+
 /** Partidos en curso del Mundial — siempre API (el snapshot puede tener status NS obsoleto). */
 async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
   const params = { live: "all" };
   const key = cacheKey("fixtures", { ...params, scope: "worldcup-live" });
 
   const cached = getLocalCache<Fixture[]>(key);
-  if (cached) return cached;
+  if (cached) {
+    return cached.filter((f) => isPlausibleLiveFixture(f));
+  }
 
   try {
     const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", { params });
-    const list = (data.response ?? []).filter((f) => f.league.id === LEAGUE_ID);
+    const list = (data.response ?? [])
+      .filter((f) => f.league.id === LEAGUE_ID)
+      .filter((f) => isPlausibleLiveFixture(f));
     setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
     return list;
   } catch {
-    return getStaleLocalCache<Fixture[]>(key) ?? [];
+    removeLocalCache(key);
+    return [];
   }
 }
 
 async function fetchFixtureFromApiById(id: number): Promise<Fixture | null> {
   const key = cacheKey("fixture-by-id", { id });
   const cached = getLocalCache<Fixture>(key);
-  if (cached) return cached;
+  if (cached) {
+    if (isFixtureLive(cached.fixture.status.short) && !isPlausibleLiveFixture(cached)) {
+      removeLocalCache(key);
+    } else {
+      return cached;
+    }
+  }
 
   try {
     const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", { params: { id } });
@@ -90,7 +109,8 @@ async function fetchFixtureFromApiById(id: number): Promise<Fixture | null> {
     if (fixture) setLocalCache(key, fixture, LIVE_FIXTURE_CACHE_MS);
     return fixture;
   } catch {
-    return getStaleLocalCache<Fixture>(key);
+    removeLocalCache(key);
+    return null;
   }
 }
 
@@ -104,20 +124,17 @@ function mergeLiveIntoFixtures(fixtures: Fixture[], live: Fixture[]): Fixture[] 
   return merged;
 }
 
-/** Detalle de un partido — API en vivo primero (evita snapshot/caché NS obsoleto). */
+/** Detalle de un partido — API fresca primero (status FT/live real). */
 export async function getFixtureById(id: number): Promise<Fixture | null> {
+  const fromApi = await fetchFixtureFromApiById(id);
+  if (fromApi) return fromApi;
+
   const live = await fetchLiveWorldCupFixtures();
   const liveMatch = live.find((f) => f.fixture.id === id);
   if (liveMatch) return liveMatch;
 
-  const fromApi = await fetchFixtureFromApiById(id);
-  if (fromApi) return fromApi;
-
   const snapList = await resolveFixturesFromSnapshotOr(() => Promise.resolve([] as Fixture[]));
-  const fromSnap = snapList.find((f) => f.fixture.id === id);
-  if (!fromSnap) return null;
-
-  return mergeLiveIntoFixtures([fromSnap], live)[0] ?? fromSnap;
+  return snapList.find((f) => f.fixture.id === id) ?? null;
 }
 
 async function fetchAllWorldCupFixturesFromApi(
@@ -159,8 +176,33 @@ async function fetchStandingsFromApi(
 }
 
 async function isWorldCupSessionActive(): Promise<boolean> {
+  if (tournamentStartedFlag) return true;
+
   const live = await fetchLiveWorldCupFixtures();
-  return live.length > 0;
+  if (live.length > 0) {
+    tournamentStartedFlag = true;
+    return true;
+  }
+
+  const all = await fetchAllWorldCupFixturesFromApi();
+  const started = all.some((f) => isFixtureStarted(f.fixture.status.short));
+  if (started) tournamentStartedFlag = true;
+  return started;
+}
+
+async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]> {
+  const live = await fetchLiveWorldCupFixtures();
+  const sessionActive = await isWorldCupSessionActive();
+
+  if (sessionActive) {
+    const all = await fetchAllWorldCupFixturesFromApi(season);
+    return mergeLiveIntoFixtures(all, live);
+  }
+
+  const snap = await resolveFixturesFromSnapshotOr(() =>
+    fetchApi<Fixture[]>("fixtures", { league: LEAGUE_ID, season })
+  );
+  return mergeLiveIntoFixtures(snap, live);
 }
 
 export async function getTeams(season: number = DEFAULT_SEASON): Promise<Team[]> {
@@ -201,39 +243,14 @@ export async function getFixtures(params: {
     return out;
   };
 
-  return resolveFixturesFromSnapshotOr(async () =>
-    fetchApi<Fixture[]>("fixtures", {
-      league: LEAGUE_ID,
-      season: params.season ?? DEFAULT_SEASON,
-      status: params.status,
-      team: params.team,
-      round: params.round,
-      id: params.id,
-    })
-  ).then(async (list) => {
-    const live = await fetchLiveWorldCupFixtures();
-    const base =
-      live.length > 0
-        ? await fetchAllWorldCupFixturesFromApi(params.season ?? DEFAULT_SEASON)
-        : list;
-    const merged = mergeLiveIntoFixtures(base, live);
-    return applyFilters(merged);
-  });
+  return loadWorldCupFixtures(params.season ?? DEFAULT_SEASON).then((list) =>
+    applyFilters(list)
+  );
 }
 
 export async function getNextFixture(): Promise<Fixture | null> {
-  const live = await fetchLiveWorldCupFixtures();
-  if (live.length > 0) {
-    return [...live].sort(
-      (a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
-    )[0];
-  }
-
-  const fixtures = await getFixtures({ status: "NS" });
-  const sorted = [...fixtures].sort(
-    (a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
-  );
-  return sorted[0] ?? null;
+  const all = await getFixtures({});
+  return pickFeaturedFixture(all);
 }
 
 export async function getStandings(season: number = DEFAULT_SEASON): Promise<StandingsGroup[]> {

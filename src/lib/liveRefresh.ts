@@ -56,6 +56,41 @@ export function shouldPollFixtures(fixtures: Fixture[] | undefined): boolean {
   return false;
 }
 
+/** Partido ya terminó (FT o live obsoleto tras el kickoff). */
+export function isEffectivelyFinished(fixture: Fixture): boolean {
+  if (isFixtureFinished(fixture.fixture.status.short)) return true;
+  return isFixtureLive(fixture.fixture.status.short) && !isPlausibleLiveFixture(fixture);
+}
+
+/** Evita tratar como en vivo un partido cuyo kickoff fue hace mucho (caché obsoleto). */
+export function isPlausibleLiveFixture(fixture: Fixture): boolean {
+  const status = fixture.fixture.status.short;
+  if (!isFixtureLive(status)) return false;
+  const kickoff = new Date(fixture.fixture.date).getTime();
+  if (Number.isNaN(kickoff)) return true;
+  const maxMatchMs = 150 * 60 * 1000;
+  return Date.now() <= kickoff + maxMatchMs;
+}
+/** Partido destacado en dashboard: en vivo → último FT → próximo NS. */
+export function pickFeaturedFixture(all: Fixture[]): Fixture | null {
+  const live = all.filter((f) => isPlausibleLiveFixture(f));
+  if (live.length > 0) {
+    return [...live].sort(
+      (a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
+    )[0];
+  }
+
+  const finished = all
+    .filter((f) => isEffectivelyFinished(f))
+    .sort((a, b) => new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime());
+  if (finished[0]) return finished[0];
+
+  const upcoming = all
+    .filter((f) => f.fixture.status.short === "NS")
+    .sort((a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime());
+  return upcoming[0] ?? null;
+}
+
 /** Intervalos de refresco (ms). */
 export const LIVE_REFRESH_MS = {
   /** Marcador, calendario, detalle de partido. */

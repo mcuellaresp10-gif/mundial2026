@@ -44,6 +44,15 @@ export function setLocalCache<T>(key: string, data: T, ttl: number = CACHE_TTL_M
   }
 }
 
+export function removeLocalCache(key: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(LS_PREFIX + key);
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function getIndexedCache<T>(key: string): Promise<T | null> {
   try {
     const entry = await get<CacheEntry<T>>(LS_PREFIX + key);

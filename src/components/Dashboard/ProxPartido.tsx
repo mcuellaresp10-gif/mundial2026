@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNextFixture } from "@/hooks/usePartidos";
 import { formatFixtureDate, formatStatus, getFixtureScore } from "@/utils/formatters";
-import { isFixtureLive } from "@/lib/liveRefresh";
+import { isEffectivelyFinished, isPlausibleLiveFixture } from "@/lib/liveRefresh";
 import { getTeamColors } from "@/utils/colors";
 import { cn } from "@/lib/utils";
 
@@ -26,12 +26,19 @@ export function ProxPartido() {
     );
   }
 
-  const live = isFixtureLive(fixture.fixture.status.short);
+  const live = isPlausibleLiveFixture(fixture);
+  const finished = isEffectivelyFinished(fixture);
   const elapsed = fixture.fixture.status.elapsed;
   const statusLabel =
     live && elapsed != null
       ? `${formatStatus(fixture.fixture.status.short)} · ${elapsed}'`
       : formatStatus(fixture.fixture.status.short);
+
+  const cardTitle = live
+    ? "Partido en vivo"
+    : finished
+      ? "Último resultado"
+      : "Próximo Partido";
 
   const isColombia =
     fixture.teams.home.name.toLowerCase().includes("colombia") ||
@@ -47,7 +54,7 @@ export function ProxPartido() {
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{live ? "Partido en vivo" : "Próximo Partido"}</CardTitle>
+          <CardTitle className="text-lg">{cardTitle}</CardTitle>
           <Badge variant="outline">{formatFixtureDate(fixture.fixture.date)}</Badge>
         </div>
         <p className="text-sm text-muted-foreground">{fixture.league.round}</p>

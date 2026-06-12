@@ -9,7 +9,9 @@ import { useTeams, useStandings, useFixtures, useH2H } from "@/hooks/usePartidos
 import { useTeamPlayers } from "@/hooks/useJugadores";
 import { useClasificacionProb } from "@/hooks/useClasificacionProb";
 import { ClassificationProbDisplay } from "@/components/shared/ClassificationProbDisplay";
+import { H2HRow, TeamLink } from "@/components/shared/TeamLink";
 import { getTeamColors } from "@/utils/colors";
+import { translateTeamName } from "@/utils/teamNames";
 import { GridSkeleton } from "@/components/shared/Loading";
 
 export default function PerfilSeleccionPage({
@@ -56,14 +58,16 @@ export default function PerfilSeleccionPage({
   if (!team) return <GridSkeleton count={4} />;
 
   const colors = getTeamColors(team.name);
+  const displayName = translateTeamName(team.name);
+  const displayCountry = translateTeamName(team.country);
 
   return (
     <div className="space-y-8 animate-in fade-in">
       <div className="flex items-center gap-4">
-        <Image src={team.logo} alt={team.name} width={80} height={80} />
+        <Image src={team.logo} alt={displayName} width={80} height={80} />
         <div>
-          <h1 className="text-4xl font-bold" style={{ color: colors.primary }}>{team.name}</h1>
-          <p className="text-muted-foreground">{team.country} · Grupo {standing?.group ?? "N/D"}</p>
+          <h1 className="text-4xl font-bold" style={{ color: colors.primary }}>{displayName}</h1>
+          <p className="text-muted-foreground">{displayCountry} · Grupo {standing?.group ?? "N/D"}</p>
         </div>
       </div>
 
@@ -111,7 +115,7 @@ export default function PerfilSeleccionPage({
                               className={`border-b ${s.team.id === teamId ? "bg-mundial-gold/10 font-semibold" : ""}`}
                             >
                               <td className="py-2">{s.rank}</td>
-                              <td className="py-2">{s.team.name}</td>
+                              <td className="py-2">{translateTeamName(s.team.name)}</td>
                               <td className="py-2 text-center">{s.all.played}</td>
                               <td className="py-2 text-center">{s.all.win}</td>
                               <td className="py-2 text-center">{s.all.draw}</td>
@@ -145,21 +149,32 @@ export default function PerfilSeleccionPage({
           <CardContent>
             <p className="mb-4">
               Próximo partido vs{" "}
-              <strong>
-                {nextFixture.teams.home.id === teamId
-                  ? nextFixture.teams.away.name
-                  : nextFixture.teams.home.name}
-              </strong>
+              <TeamLink
+                id={rivalId}
+                name={
+                  nextFixture.teams.home.id === teamId
+                    ? nextFixture.teams.away.name
+                    : nextFixture.teams.home.name
+                }
+                logo={
+                  nextFixture.teams.home.id === teamId
+                    ? nextFixture.teams.away.logo
+                    : nextFixture.teams.home.logo
+                }
+                variant="name"
+                className="font-semibold"
+              />
             </p>
             {h2h.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">Últimos H2H:</p>
                 {h2h.slice(0, 5).map((f) => (
-                  <div key={f.fixture.id} className="flex justify-between text-sm p-2 rounded bg-muted/50">
-                    <span>{f.teams.home.name}</span>
-                    <span className="font-mono font-bold">{f.goals.home}-{f.goals.away}</span>
-                    <span>{f.teams.away.name}</span>
-                  </div>
+                  <H2HRow
+                    key={f.fixture.id}
+                    home={f.teams.home}
+                    away={f.teams.away}
+                    score={`${f.goals.home}-${f.goals.away}`}
+                  />
                 ))}
               </div>
             ) : (

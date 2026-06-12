@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PlayerStatistics } from "@/types";
 import { parseRating, ratingClass } from "@/utils/formatters";
 import { cn, PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
+import { translateTeamName } from "@/utils/teamNames";
 
 interface StatsGridProps {
   stat: PlayerStatistics | null | undefined;
@@ -19,7 +20,7 @@ export function StatsGrid({ stat, emptyMessage = "Sin datos disponibles" }: Stat
     );
   }
 
-  const subtitle = [stat.team.name, stat.league.name, stat.league.season]
+  const subtitle = [translateTeamName(stat.team.name), stat.league.name, stat.league.season]
     .filter(Boolean)
     .join(" · ");
 

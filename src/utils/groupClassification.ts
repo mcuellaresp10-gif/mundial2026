@@ -69,6 +69,30 @@ export function extractGroupStandings(
   return null;
 }
 
+/** Grupos A–L de la fase de grupos (excluye ranking de terceros, etc.). */
+export function isWorldCupGroupLabel(group: string): boolean {
+  return /^Group\s+[A-L]$/i.test(group.trim());
+}
+
+/** Un líder por cada grupo A–L (máx. 12). */
+export function extractGroupStageLeaders(standings: StandingsGroup[]): StandingTeam[] {
+  const leaders: StandingTeam[] = [];
+  const seen = new Set<string>();
+
+  for (const sg of standings) {
+    for (const group of sg.league.standings) {
+      const leader = group[0];
+      if (!leader || !isWorldCupGroupLabel(leader.group)) continue;
+      const key = leader.group.trim().toUpperCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      leaders.push(leader);
+    }
+  }
+
+  return leaders.sort((a, b) => a.group.localeCompare(b.group, "es"));
+}
+
 export function getGroupTeamIds(group: StandingTeam[]): Set<number> {
   return new Set(group.map((s) => s.team.id));
 }

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useTeams, useFixtures } from "@/hooks/usePartidos";
 import type { SearchResult } from "@/types";
 import { cn } from "@/lib/utils";
+import { translateTeamName, teamNameMatchesQuery, formatFixtureTeamsLabel } from "@/utils/teamNames";
 
 export function SearchGlobal() {
   const [query, setQuery] = useState("");
@@ -26,20 +27,23 @@ export function SearchGlobal() {
       const found: SearchResult[] = [];
 
       for (const team of teams) {
-        if (team.name.toLowerCase().includes(lower)) {
+        if (teamNameMatchesQuery(team.name, q)) {
           found.push({
             type: "team",
             id: team.id,
-            label: team.name,
-            subtitle: team.country,
+            label: translateTeamName(team.name),
+            subtitle: translateTeamName(team.country),
             href: `/selecciones/${team.id}`,
           });
         }
       }
 
       for (const f of fixtures) {
-        const label = `${f.teams.home.name} vs ${f.teams.away.name}`;
-        if (label.toLowerCase().includes(lower)) {
+        const label = formatFixtureTeamsLabel(f.teams.home.name, f.teams.away.name);
+        if (
+          label.toLowerCase().includes(lower) ||
+          `${f.teams.home.name} vs ${f.teams.away.name}`.toLowerCase().includes(lower)
+        ) {
           found.push({
             type: "fixture",
             id: f.fixture.id,

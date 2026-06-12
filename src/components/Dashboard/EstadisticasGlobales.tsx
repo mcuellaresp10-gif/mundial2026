@@ -5,30 +5,14 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEstadisticasAggregadas } from "@/hooks/useEstadisticasAggregadas";
-import { useTeams } from "@/hooks/usePartidos";
-import { useAllPlayers, extractTopScorers } from "@/hooks/useJugadores";
-import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
-import { useMemo } from "react";
+import { useWorldCupTopScorers } from "@/hooks/useJugadores";
+import { translateTeamName } from "@/utils/teamNames";
 
 export function EstadisticasGlobales() {
   const stats = useEstadisticasAggregadas();
-  const { data: teams = [] } = useTeams();
-  const teamIds = useMemo(() => teams.slice(0, 12).map((t) => t.id), [teams]);
-  const { data: players = [], isLoading } = useAllPlayers(teamIds);
+  const { scorers: topScorers, isLoading: loadingScorers } = useWorldCupTopScorers(10);
 
-  const topScorers = useMemo(() => {
-    const wc = extractTopScorers(players, "worldcup");
-    return (wc.length > 0 ? wc : extractTopScorers(players, "national")).slice(0, 3);
-  }, [players]);
-
-  const scorersLabel = useMemo(() => {
-    const wc = extractTopScorers(players, "worldcup");
-    return wc.length > 0
-      ? "Top 3 Goleadores (Mundial 2026)"
-      : `Top 3 Goleadores (Selección · Temp. ${PLAYER_STAT_SEASON_LABEL})`;
-  }, [players]);
-
-  if (isLoading && teams.length === 0) {
+  if (loadingScorers && topScorers.length === 0) {
     return (
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -61,11 +45,13 @@ export function EstadisticasGlobales() {
       <div className="grid grid-cols-1 gap-4 @lg/stats:grid-cols-2 @lg/stats:gap-6 min-w-0">
         <Card className="rounded-2xl break-inside-avoid min-w-0">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">{scorersLabel}</CardTitle>
+            <CardTitle className="text-lg">Top 10 Goleadores del Mundial 2026</CardTitle>
           </CardHeader>
-          <CardContent className="divide-y divide-border">
+          <CardContent className="divide-y divide-border max-h-[28rem] overflow-y-auto scrollbar-thin">
             {topScorers.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-2">Sin goles registrados aún</p>
+              <p className="text-muted-foreground text-sm py-2">
+                Sin goles registrados en el torneo aún
+              </p>
             ) : (
               topScorers.map((s, i) => (
                 <Link
@@ -73,11 +59,17 @@ export function EstadisticasGlobales() {
                   href={`/jugadores/${s.playerId}`}
                   className="flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
                 >
-                  <span className="text-2xl font-bold font-mono text-mundial-gold w-6 shrink-0 tabular-nums">
+                  <span className="text-lg font-bold font-mono text-mundial-gold w-6 shrink-0 tabular-nums">
                     {i + 1}
                   </span>
                   <div className="relative aspect-square w-10 shrink-0 overflow-hidden rounded-full bg-muted">
-                    <Image src={s.photo} alt={s.name} fill className="object-cover" sizes="40px" />
+                    <Image
+                      src={s.photo || s.teamLogo}
+                      alt={s.name}
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{s.name}</p>
@@ -96,11 +88,11 @@ export function EstadisticasGlobales() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Líderes de Grupo</CardTitle>
           </CardHeader>
-          <CardContent className="divide-y divide-border">
+          <CardContent className="divide-y divide-border max-h-[28rem] overflow-y-auto scrollbar-thin">
             {stats.groupLeaders.length === 0 ? (
               <p className="text-muted-foreground text-sm py-2">Tablas por definir</p>
             ) : (
-              stats.groupLeaders.slice(0, 8).map((s) => (
+              stats.groupLeaders.map((s) => (
                 <Link
                   key={s.team.id}
                   href={`/selecciones/${s.team.id}`}
@@ -109,7 +101,7 @@ export function EstadisticasGlobales() {
                   <div className="relative aspect-square w-7 shrink-0">
                     <Image src={s.team.logo} alt={s.team.name} fill className="object-contain" sizes="28px" />
                   </div>
-                  <span className="flex-1 font-medium truncate min-w-0">{s.team.name}</span>
+                  <span className="flex-1 font-medium truncate min-w-0">{translateTeamName(s.team.name)}</span>
                   <BadgeGroup group={s.group} />
                   <span className="font-mono font-bold shrink-0 tabular-nums">{s.points} pts</span>
                 </Link>

@@ -6,10 +6,10 @@ const root = process.cwd();
 const nextDir = join(root, ".next");
 const PORT = process.env.PORT ?? "3000";
 
-function killDevServerOnPort() {
+function killDevServerOnPort(port) {
   try {
     if (process.platform === "win32") {
-      const out = execSync(`netstat -ano | findstr :${PORT}`, { encoding: "utf8" });
+      const out = execSync(`netstat -ano | findstr :${port}`, { encoding: "utf8" });
       const pids = new Set();
       for (const line of out.split("\n")) {
         if (!line.includes("LISTENING")) continue;
@@ -19,13 +19,13 @@ function killDevServerOnPort() {
       for (const pid of pids) {
         try {
           execSync(`taskkill /PID ${pid} /F`, { stdio: "ignore" });
-          console.log(`✓ Proceso en puerto ${PORT} detenido (PID ${pid})`);
+          console.log(`✓ Proceso en puerto ${port} detenido (PID ${pid})`);
         } catch {
           /* already gone */
         }
       }
     } else {
-      execSync(`lsof -ti:${PORT} | xargs kill -9 2>/dev/null || true`, {
+      execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, {
         stdio: "ignore",
         shell: true,
       });
@@ -35,7 +35,9 @@ function killDevServerOnPort() {
   }
 }
 
-killDevServerOnPort();
+for (const port of ["3000", "3001", "3002", PORT].filter((p, i, a) => a.indexOf(p) === i)) {
+  killDevServerOnPort(port);
+}
 
 // Breve pausa para liberar locks de .next en Windows
 if (process.platform === "win32") {

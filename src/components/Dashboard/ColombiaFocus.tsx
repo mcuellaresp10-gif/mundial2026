@@ -11,6 +11,7 @@ import { useTeamPlayers, getKeyPlayerByNationalRating } from "@/hooks/useJugador
 import { getStatBundle, statSummary } from "@/utils/playerStats";
 import { useClasificacionProb } from "@/hooks/useClasificacionProb";
 import { ClassificationProbDisplay } from "@/components/shared/ClassificationProbDisplay";
+import { MatchTeamPair } from "@/components/shared/TeamLink";
 import { formatFixtureDate, getFixtureScore, ratingClass } from "@/utils/formatters";
 import { cn, PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 
@@ -45,9 +46,13 @@ export function ColombiaFocus() {
     <Card className="@container/colombia rounded-2xl border-colombia-yellow/40 bg-gradient-to-br from-colombia-blue/10 via-colombia-yellow/5 to-colombia-red/10 overflow-hidden h-full">
       <CardHeader className="border-b border-colombia-yellow/20 pb-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="relative aspect-square w-10 shrink-0 overflow-hidden rounded-full bg-white/80 ring-2 ring-colombia-yellow/40">
+          <Link
+            href={`/selecciones/${colombiaTeam.id}`}
+            aria-label="Ver selección Colombia"
+            className="relative aspect-square w-10 shrink-0 overflow-hidden rounded-full bg-white/80 ring-2 ring-colombia-yellow/40 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <Image src={colombiaTeam.logo} alt="Colombia" fill className="object-contain p-1" sizes="40px" />
-          </div>
+          </Link>
           <div className="min-w-0">
             <CardTitle className="text-colombia-blue dark:text-colombia-yellow truncate">
               🇨🇴 Colombia Focus
@@ -83,11 +88,11 @@ export function ColombiaFocus() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
                   Próximo partido
                 </p>
-                <div className="flex min-w-0 flex-col gap-1 @md/colombia:flex-row @md/colombia:items-center @md/colombia:justify-between">
-                  <span className="font-medium truncate">
-                    {colombiaData.nextMatch.teams.home.name} vs{" "}
-                    {colombiaData.nextMatch.teams.away.name}
-                  </span>
+                <div className="flex min-w-0 flex-col gap-2 @md/colombia:flex-row @md/colombia:items-center @md/colombia:justify-between">
+                  <MatchTeamPair
+                    home={colombiaData.nextMatch.teams.home}
+                    away={colombiaData.nextMatch.teams.away}
+                  />
                   <span className="text-sm text-muted-foreground shrink-0">
                     {formatFixtureDate(colombiaData.nextMatch.fixture.date)}
                   </span>

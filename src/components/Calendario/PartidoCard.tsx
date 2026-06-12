@@ -1,16 +1,15 @@
 "use client";
 
 import { useState, memo } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PartidoDetalle } from "./PartidoDetalle";
+import { TeamLink } from "@/components/shared/TeamLink";
 import type { Fixture } from "@/types";
 import { formatFixtureDate, formatStatus, getFixtureScore, formatGroupFromRound } from "@/utils/formatters";
-import { getTeamColors } from "@/utils/colors";
 import { cn } from "@/lib/utils";
 
 interface PartidoCardProps {
@@ -39,13 +38,16 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-2">
-            <Image src={fixture.teams.home.logo} alt="" width={32} height={32} />
-            <span className="font-semibold truncate" style={{ color: getTeamColors(fixture.teams.home.name).primary }}>
-              {fixture.teams.home.name}
-            </span>
+          <div className="flex-1 min-w-0">
+            <TeamLink
+              id={fixture.teams.home.id}
+              name={fixture.teams.home.name}
+              logo={fixture.teams.home.logo}
+              variant="inline"
+              size="sm"
+            />
           </div>
-          <div className="text-center px-3">
+          <div className="text-center px-3 shrink-0">
             <p className="text-2xl font-bold font-mono">
               {getFixtureScore(fixture.goals.home, fixture.goals.away, fixture.fixture.status.short)}
             </p>
@@ -53,11 +55,15 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
               {formatStatus(fixture.fixture.status.short)}
             </Badge>
           </div>
-          <div className="flex-1 flex items-center gap-2 justify-end">
-            <span className="font-semibold truncate text-right" style={{ color: getTeamColors(fixture.teams.away.name).primary }}>
-              {fixture.teams.away.name}
-            </span>
-            <Image src={fixture.teams.away.logo} alt="" width={32} height={32} />
+          <div className="flex-1 min-w-0">
+            <TeamLink
+              id={fixture.teams.away.id}
+              name={fixture.teams.away.name}
+              logo={fixture.teams.away.logo}
+              variant="inline"
+              align="end"
+              size="sm"
+            />
           </div>
         </div>
 

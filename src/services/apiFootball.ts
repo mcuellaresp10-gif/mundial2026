@@ -10,6 +10,7 @@ import type {
   StandingsGroup,
   Team,
   TeamSquad,
+  TopScorerEntry,
 } from "@/types";
 import { cacheKey, getLocalCache, getStaleLocalCache, removeLocalCache, setLocalCache } from "./cache";
 import {
@@ -29,8 +30,10 @@ import {
 } from "@/lib/liveRefresh";
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
 import { pickClubStat } from "@/utils/playerStats";
+import { mapPlayersToTopScorers } from "@/utils/tournamentScorers";
 
 const client = axios.create({ baseURL: "/api/football" });
+const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
 
 async function fetchApi<T>(
   path: string,
@@ -543,6 +546,24 @@ export async function getPlayerById(
 
 export async function getH2H(teamA: number, teamB: number): Promise<Fixture[]> {
   return fetchApi<Fixture[]>("fixtures/headtohead", { h2h: `${teamA}-${teamB}` });
+}
+
+export async function getWorldCupTopScorers(
+  season: number = DEFAULT_SEASON
+): Promise<TopScorerEntry[]> {
+  const params = { league: LEAGUE_ID, season };
+  const key = cacheKey("players/topscorers", params);
+  const cached = getLocalCache<TopScorerEntry[]>(key);
+  if (cached) return cached;
+
+  try {
+    const { data } = await client.get<ApiResponse<Player[]>>("players/topscorers", { params });
+    const list = mapPlayersToTopScorers(data.response ?? []);
+    setLocalCache(key, list, LIVE_TOP_SCORERS_CACHE_MS);
+    return list;
+  } catch {
+    return getStaleLocalCache<TopScorerEntry[]>(key) ?? [];
+  }
 }
 
 export async function getFixtureEvents(fixtureId: number): Promise<FixtureEvent[]> {

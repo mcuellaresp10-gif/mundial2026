@@ -9,6 +9,9 @@ function getCacheTtl(path: string): number {
   if (path.includes("fixtures/events") || path.includes("fixtures/statistics")) {
     return LIVE_DETAIL_CACHE_TTL;
   }
+  if (path.includes("players/topscorers")) {
+    return LIVE_CACHE_TTL;
+  }
   if (path === "fixtures" || path.startsWith("fixtures/")) {
     return LIVE_CACHE_TTL;
   }

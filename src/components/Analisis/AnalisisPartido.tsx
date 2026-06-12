@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -15,7 +14,7 @@ import {
 import { useColombiaModeStore } from "@/stores/useColombiaModeStore";
 import { formatFixtureDate, getFixtureScore, formatStatus } from "@/utils/formatters";
 import { isFixtureLive } from "@/lib/liveRefresh";
-import { getTeamColors } from "@/utils/colors";
+import { TeamLink } from "@/components/shared/TeamLink";
 import { cn } from "@/lib/utils";
 
 interface AnalisisPartidoProps {
@@ -77,7 +76,13 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
       <Card className={cn(isColombia && "border-colombia-yellow/40 bg-colombia-yellow/5", live && "border-mundial-red/50")}>
         <CardContent className="p-6">
           <div className="flex items-center justify-center gap-8">
-            <TeamBlock name={fixture.teams.home.name} logo={fixture.teams.home.logo} />
+            <TeamLink
+              id={fixture.teams.home.id}
+              name={fixture.teams.home.name}
+              logo={fixture.teams.home.logo}
+              variant="stack"
+              size="lg"
+            />
             <div className="text-center">
               <p className="text-4xl font-bold font-mono">
                 {getFixtureScore(fixture.goals.home, fixture.goals.away, fixture.fixture.status.short)}
@@ -87,7 +92,13 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
               </p>
               <p className="text-xs text-muted-foreground mt-2">{formatFixtureDate(fixture.fixture.date)}</p>
             </div>
-            <TeamBlock name={fixture.teams.away.name} logo={fixture.teams.away.logo} />
+            <TeamLink
+              id={fixture.teams.away.id}
+              name={fixture.teams.away.name}
+              logo={fixture.teams.away.logo}
+              variant="stack"
+              size="lg"
+            />
           </div>
         </CardContent>
       </Card>
@@ -177,15 +188,6 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
           <PartidoDetalle fixtureId={fixture.fixture.id} fixture={fixture} />
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function TeamBlock({ name, logo }: { name: string; logo: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <Image src={logo} alt={name} width={64} height={64} />
-      <span className="font-bold text-center" style={{ color: getTeamColors(name).primary }}>{name}</span>
     </div>
   );
 }

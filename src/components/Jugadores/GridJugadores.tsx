@@ -12,6 +12,7 @@ import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 import { formatPosition } from "@/utils/formatters";
 import { positionToCode } from "@/utils/squad";
 import { getStatBundle, statSummary } from "@/utils/playerStats";
+import { translateTeamName } from "@/utils/teamNames";
 
 interface GridJugadoresProps {
   players: Player[];
@@ -67,7 +68,7 @@ export function GridJugadores({ players, teams, isLoading }: GridJugadoresProps)
         <Select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
           <option value="all">Todas las selecciones</option>
           {teams.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
+            <option key={t.id} value={t.id}>{translateTeamName(t.name)}</option>
           ))}
         </Select>
         <Select value={posFilter} onChange={(e) => setPosFilter(e.target.value)}>
@@ -102,7 +103,9 @@ export function GridJugadores({ players, teams, isLoading }: GridJugadoresProps)
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold truncate">{p.player.name}</p>
                       <p className="text-xs text-muted-foreground">{formatPosition(p.statistics[0]?.games.position)}</p>
-                      <p className="text-xs truncate text-muted-foreground">{p.nationalTeam?.name} · {club.teamName}</p>
+                      <p className="text-xs truncate text-muted-foreground">
+                        {translateTeamName(p.nationalTeam?.name ?? nat.teamName)} · {club.teamName}
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center text-xs">

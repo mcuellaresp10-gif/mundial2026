@@ -7,6 +7,7 @@ import type {
 } from "@/types";
 import { isFixtureFinished, isFixtureStarted } from "@/lib/liveRefresh";
 import { parseRating } from "./formatters";
+import { translateTeamName } from "./teamNames";
 import {
   computePlayerRadarFromPlayer,
   mundialAverageRadar,
@@ -108,7 +109,7 @@ export function buildOnceIdeal(
         id: pick.player.id,
         name: pick.player.name,
         photo: pick.player.photo,
-        team: stat?.team.name ?? "",
+        team: translateTeamName(stat?.team.name ?? ""),
         teamLogo: stat?.team.logo ?? "",
         position: slot.pos,
         rating: parseRating(stat?.games.rating),

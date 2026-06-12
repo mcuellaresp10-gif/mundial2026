@@ -5,6 +5,7 @@ import { isFixtureLive, isWithinKickoffWindow } from "@/lib/liveRefresh";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Fixture } from "@/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { translateTeamName } from "@/utils/teamNames";
 
 interface PartidoDetalleProps {
   fixtureId: number;
@@ -33,7 +34,7 @@ export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {stats.data?.map((teamStats) => (
             <div key={teamStats.team.id} className="space-y-2">
-              <p className="font-semibold text-sm">{teamStats.team.name}</p>
+              <p className="font-semibold text-sm">{translateTeamName(teamStats.team.name)}</p>
               {teamStats.statistics.map((s) => (
                 <div key={s.type} className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{s.type}</span>
@@ -56,7 +57,7 @@ export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
               <span>{e.type === "Goal" ? "⚽" : e.type === "subst" ? "🔄" : "🟨"}</span>
               <span className="font-medium">{e.player.name}</span>
               <span className="text-muted-foreground">{e.detail}</span>
-              <span className="ml-auto text-xs">{e.team.name}</span>
+              <span className="ml-auto text-xs">{translateTeamName(e.team.name)}</span>
             </div>
           ))}
           {!events.data?.length && (
@@ -69,7 +70,7 @@ export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {lineups.data?.map((lu) => (
             <div key={lu.team.id}>
-              <p className="font-semibold mb-2">{lu.team.name} — {lu.formation}</p>
+              <p className="font-semibold mb-2">{translateTeamName(lu.team.name)} — {lu.formation}</p>
               <p className="text-xs text-muted-foreground mb-2">DT: {lu.coach.name}</p>
               <div className="space-y-1">
                 {lu.startXI.map((p) => (

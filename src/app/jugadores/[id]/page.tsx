@@ -9,6 +9,7 @@ import { useMiXIStore } from "@/stores/useMiXIStore";
 import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 import { formatPosition } from "@/utils/formatters";
 import { getStatBundle, statSummary } from "@/utils/playerStats";
+import { translateTeamName } from "@/utils/teamNames";
 import { GridSkeleton } from "@/components/shared/Loading";
 
 export default function PerfilJugadorPage({
@@ -33,7 +34,7 @@ export default function PerfilJugadorPage({
       id: player.player.id,
       name: player.player.name,
       photo: player.player.photo,
-      team: player.nationalTeam?.name ?? nat.teamName,
+      team: translateTeamName(player.nationalTeam?.name ?? nat.teamName),
       position: bundle.national?.games.position ?? bundle.club?.games.position ?? "M",
       rating: nat.rating > 0 ? nat.rating : club.rating,
       slot: useMiXIStore.getState().players.length,
@@ -54,7 +55,7 @@ export default function PerfilJugadorPage({
           <h1 className="text-4xl font-bold">{player.player.name}</h1>
           <p className="text-muted-foreground mt-1">
             {formatPosition(bundle.national?.games.position ?? bundle.club?.games.position)}
-            {player.nationalTeam && ` · ${player.nationalTeam.name}`}
+            {player.nationalTeam && ` · ${translateTeamName(player.nationalTeam.name)}`}
             {club.teamName !== "N/D" && ` · ${club.teamName}`}
           </p>
           <div className="flex flex-wrap gap-4 mt-3 text-sm">

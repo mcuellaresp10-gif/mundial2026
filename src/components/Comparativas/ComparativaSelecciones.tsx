@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { TeamRadarChart } from "@/components/shared/RadarChart";
+import { H2HRow } from "@/components/shared/TeamLink";
 import { useH2H } from "@/hooks/usePartidos";
 import { useTeamPlayers } from "@/hooks/useJugadores";
 import type { Team, StandingTeam } from "@/types";
@@ -12,6 +13,7 @@ import { calculateWinProbability } from "@/utils/calculations";
 import { parseRating } from "@/utils/formatters";
 import { getStatBundle } from "@/utils/playerStats";
 import { getTeamColors } from "@/utils/colors";
+import { translateTeamName } from "@/utils/teamNames";
 
 interface ComparativaSeleccionesProps {
   teams: Team[];
@@ -72,11 +74,11 @@ export function ComparativaSelecciones({ teams, standings }: ComparativaSeleccio
     <div className="space-y-6">
       <div className="flex flex-wrap gap-4 items-center">
         <Select value={teamAId} onChange={(e) => setTeamAId(Number(e.target.value))}>
-          {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          {teams.map((t) => <option key={t.id} value={t.id}>{translateTeamName(t.name)}</option>)}
         </Select>
         <span className="font-bold text-muted-foreground">VS</span>
         <Select value={teamBId} onChange={(e) => setTeamBId(Number(e.target.value))}>
-          {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          {teams.map((t) => <option key={t.id} value={t.id}>{translateTeamName(t.name)}</option>)}
         </Select>
       </div>
 
@@ -87,9 +89,9 @@ export function ComparativaSelecciones({ teams, standings }: ComparativaSeleccio
           <CardContent>
             {winProb && (
               <div className="space-y-3 mb-6">
-                <ProbBar label={teamA?.name ?? "A"} value={winProb.winA} color="#003DA5" />
+                <ProbBar label={translateTeamName(teamA?.name ?? "A")} value={winProb.winA} color="#003DA5" />
                 <ProbBar label="Empate" value={winProb.draw} color="#64748B" />
-                <ProbBar label={teamB?.name ?? "B"} value={winProb.winB} color="#EF4444" />
+                <ProbBar label={translateTeamName(teamB?.name ?? "B")} value={winProb.winB} color="#EF4444" />
               </div>
             )}
             <TeamRadarChart stats={radarStats} />
@@ -103,11 +105,12 @@ export function ComparativaSelecciones({ teams, standings }: ComparativaSeleccio
           <CardHeader><CardTitle>H2H — Últimos enfrentamientos</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {h2h.slice(0, 5).map((f) => (
-              <div key={f.fixture.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
-                <span>{f.teams.home.name}</span>
-                <span className="font-mono font-bold">{f.goals.home}-{f.goals.away}</span>
-                <span>{f.teams.away.name}</span>
-              </div>
+              <H2HRow
+                key={f.fixture.id}
+                home={f.teams.home}
+                away={f.teams.away}
+                score={`${f.goals.home}-${f.goals.away}`}
+              />
             ))}
           </CardContent>
         </Card>
@@ -130,12 +133,13 @@ function CompareCol({
   color: string;
 }) {
   if (!team) return null;
+  const displayName = translateTeamName(team.name);
   return (
     <Card>
       <CardContent className="p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <Image src={team.logo} alt={team.name} width={48} height={48} />
-          <h3 className="text-xl font-bold" style={{ color }}>{team.name}</h3>
+          <Image src={team.logo} alt={displayName} width={48} height={48} />
+          <h3 className="text-xl font-bold" style={{ color }}>{displayName}</h3>
         </div>
         <div className="space-y-2 text-sm">
           <Row label="Puntos" value={standing?.points ?? 0} />

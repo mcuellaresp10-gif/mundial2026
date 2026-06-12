@@ -17,6 +17,7 @@ import {
 } from "@/utils/radarMetrics";
 import { useWorldCupBenchmarkPool, usePrefetchRadarBenchmark } from "@/hooks/useWorldCupBenchmarkPool";
 import { buildPlayerAnalysisPrompt, fetchAnalysis } from "@/services/analysisAI";
+import { translateTeamName } from "@/utils/teamNames";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface PerfilJugadorProps {
@@ -65,7 +66,7 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
     const prompt = buildPlayerAnalysisPrompt({
       name: player.player.name,
       position: formatPosition(bundle.national?.games.position ?? bundle.club?.games.position),
-      team: player.nationalTeam?.name ?? nationalSummary.teamName,
+      team: translateTeamName(player.nationalTeam?.name ?? nationalSummary.teamName),
       stats: `Selección: ${nationalSummary.goals}G ${nationalSummary.assists}A (rating ${nationalSummary.rating}). Club: ${clubSummary.goals}G ${clubSummary.assists}A en ${clubSummary.teamName} (rating ${clubSummary.rating}).`,
       age: player.player.age ?? undefined,
     });

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useNextFixture } from "@/hooks/usePartidos";
 import { formatFixtureDate, formatStatus, getFixtureScore } from "@/utils/formatters";
 import { isEffectivelyFinished, isPlausibleLiveFixture } from "@/lib/liveRefresh";
-import { getTeamColors } from "@/utils/colors";
+import { TeamLink } from "@/components/shared/TeamLink";
 import { cn } from "@/lib/utils";
 
 export function ProxPartido() {
@@ -85,9 +84,11 @@ export function ProxPartido() {
       <CardContent className="p-4 @md/match:p-6">
         {/* Scoreboard — 3-column grid with flexible sides */}
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 @md/match:gap-6 py-2 @md/match:py-4">
-          <TeamCell
+          <TeamLink
+            id={fixture.teams.home.id}
             name={fixture.teams.home.name}
             logo={fixture.teams.home.logo}
+            variant="stack"
             align="end"
           />
           <div className="flex flex-col items-center justify-center px-2 shrink-0">
@@ -103,9 +104,11 @@ export function ProxPartido() {
               {statusLabel}
             </Badge>
           </div>
-          <TeamCell
+          <TeamLink
+            id={fixture.teams.away.id}
             name={fixture.teams.away.name}
             logo={fixture.teams.away.logo}
+            variant="stack"
             align="start"
           />
         </div>
@@ -127,38 +130,5 @@ export function ProxPartido() {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function TeamCell({
-  name,
-  logo,
-  align,
-}: {
-  name: string;
-  logo: string;
-  align: "start" | "end";
-}) {
-  const colors = getTeamColors(name);
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col gap-2",
-        align === "end" ? "items-center @md/match:items-end" : "items-center @md/match:items-start"
-      )}
-    >
-      <div className="relative aspect-square w-14 @md/match:w-16 shrink-0 overflow-hidden rounded-full bg-muted/50 ring-2 ring-border">
-        <Image src={logo} alt={name} fill className="object-contain p-1.5" sizes="64px" />
-      </div>
-      <span
-        className={cn(
-          "font-bold text-center text-sm @md/match:text-base leading-tight line-clamp-2",
-          align === "end" ? "@md/match:text-right" : "@md/match:text-left"
-        )}
-        style={{ color: colors.primary }}
-      >
-        {name}
-      </span>
-    </div>
   );
 }

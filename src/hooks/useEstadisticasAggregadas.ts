@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { useFixtures, useStandings } from "./usePartidos";
 import { aggregateFixtureGoals, getBiggestWin } from "@/utils/calculations";
+import { extractGroupStageLeaders } from "@/utils/groupClassification";
+import { translateTeamName } from "@/utils/teamNames";
 import {
   isFixtureFinished,
   isFixtureLive,
@@ -25,12 +27,7 @@ export function useEstadisticasAggregadas() {
     const avgGoalsPerMatch =
       started.length > 0 ? totalGoals / started.length : 0;
 
-    const groupLeaders: StandingTeam[] = [];
-    for (const sg of standings) {
-      for (const group of sg.league.standings) {
-        if (group[0]) groupLeaders.push(group[0]);
-      }
-    }
+    const groupLeaders = extractGroupStageLeaders(standings);
 
     const goalsByRound = new Map<string, number>();
     for (const f of started) {
@@ -43,11 +40,11 @@ export function useEstadisticasAggregadas() {
       ? `En vivo: ${liveNow
           .map(
             (f) =>
-              `${f.teams.home.name} ${f.goals.home ?? 0}-${f.goals.away ?? 0} ${f.teams.away.name}`
+              `${translateTeamName(f.teams.home.name)} ${f.goals.home ?? 0}-${f.goals.away ?? 0} ${translateTeamName(f.teams.away.name)}`
           )
           .join(" · ")}`
       : biggestWin
-        ? `Mayor goleada: ${biggestWin.fixture.teams.home.name} ${biggestWin.fixture.goals.home}-${biggestWin.fixture.goals.away} ${biggestWin.fixture.teams.away.name}`
+        ? `Mayor goleada: ${translateTeamName(biggestWin.fixture.teams.home.name)} ${biggestWin.fixture.goals.home}-${biggestWin.fixture.goals.away} ${translateTeamName(biggestWin.fixture.teams.away.name)}`
         : "El torneo está por comenzar";
 
     return {

@@ -85,12 +85,22 @@ export function formatPosition(pos: string | null | undefined): string {
 }
 
 export function formatGroupFromRound(round: string): string {
-  const match = round.match(/Group\s+([A-H])/i);
-  if (match) return `Grupo ${match[1]}`;
-  if (/Round of 16|8th Finals/i.test(round)) return "Octavos";
-  if (/Quarter/i.test(round)) return "Cuartos";
-  if (/Semi/i.test(round)) return "Semis";
-  if (/Final/i.test(round) && !/Semi/i.test(round)) return "Final";
+  return formatRoundLabel(round);
+}
+
+export function formatRoundLabel(round: string): string {
+  const groupStage = round.match(/Group Stage\s*-\s*(\d+)/i);
+  if (groupStage) return `Fase de grupos · Jornada ${groupStage[1]}`;
+
+  const groupMatch = round.match(/Group\s+([A-L])/i);
+  if (groupMatch) return `Grupo ${groupMatch[1].toUpperCase()}`;
+
+  if (/Round of 16|8th Finals|Round of sixteen/i.test(round)) return "Octavos de final";
+  if (/Quarter[- ]finals?/i.test(round)) return "Cuartos de final";
+  if (/Semi[- ]finals?/i.test(round)) return "Semifinal";
+  if (/3rd Place|Third Place/i.test(round)) return "Tercer puesto";
+  if (/Final/i.test(round) && !/Semi|Quarter|Round|3rd|Third/i.test(round)) return "Final";
+
   return round;
 }
 

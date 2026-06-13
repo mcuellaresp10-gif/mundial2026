@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { PartidoDetalle } from "./PartidoDetalle";
 import { TeamLink } from "@/components/shared/TeamLink";
 import type { Fixture } from "@/types";
-import { formatFixtureDate, formatStatus, getFixtureScore, formatGroupFromRound } from "@/utils/formatters";
+import { formatFixtureDate, formatStatus, getFixtureScore, formatRoundLabel } from "@/utils/formatters";
 import { isPlausibleLiveFixture, isWithinKickoffWindow } from "@/lib/liveRefresh";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +42,7 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
       <CardContent className="p-4">
         <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
           <span>{formatFixtureDate(fixture.fixture.date)}</span>
-          <Badge variant="outline">{formatGroupFromRound(fixture.league.round)}</Badge>
+          <Badge variant="outline">{formatRoundLabel(fixture.league.round)}</Badge>
         </div>
 
         <div className="flex items-center gap-3">

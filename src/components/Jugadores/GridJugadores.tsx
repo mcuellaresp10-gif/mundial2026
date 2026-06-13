@@ -81,7 +81,7 @@ export function GridJugadores({ players, teams, isLoading }: GridJugadoresProps)
         <Select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
           <option value="nationalGoals">Goles selección</option>
           <option value="clubGoals">Goles club</option>
-          <option value="nationalRating">Rating selección</option>
+          <option value="nationalRating">Valoración selección</option>
         </Select>
       </div>
 

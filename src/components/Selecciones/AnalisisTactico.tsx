@@ -54,7 +54,7 @@ export function AnalisisTactico({ players, standing, formation = "4-2-3-1" }: An
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MiniStat label="Formación preferida" value={formation} />
-          <MiniStat label="Rating prom. selección" value={avgNationalRating > 0 ? avgNationalRating.toFixed(1) : "N/D"} />
+          <MiniStat label="Valoración prom. selección" value={avgNationalRating > 0 ? avgNationalRating.toFixed(1) : "N/D"} />
           <MiniStat label={`Goles selección (Temp. ${PLAYER_STAT_SEASON_LABEL})`} value={String(totalNationalGoals)} />
           <MiniStat label={`Goles club (Temp. ${PLAYER_STAT_SEASON_LABEL})`} value={String(totalClubGoals)} />
         </div>

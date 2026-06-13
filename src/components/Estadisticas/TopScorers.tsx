@@ -55,7 +55,7 @@ export function TopScorers({ scorers, title = "Top Goleadores" }: TopScorersProp
                 </th>
                 <th className="pb-2 pr-4">Partidos</th>
                 <th className="pb-2 cursor-pointer" onClick={() => toggleSort("rating")}>
-                  Rating<SortIcon col="rating" />
+                  Valoración<SortIcon col="rating" />
                 </th>
               </tr>
             </thead>

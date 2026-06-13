@@ -6,6 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Fixture } from "@/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { translateTeamName } from "@/utils/teamNames";
+import {
+  eventTypeIcon,
+  translateEventDetail,
+  translateFixtureStatType,
+} from "@/utils/statLabels";
+import { formatPosition } from "@/utils/formatters";
 
 interface PartidoDetalleProps {
   fixtureId: number;
@@ -37,7 +43,7 @@ export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
               <p className="font-semibold text-sm">{translateTeamName(teamStats.team.name)}</p>
               {teamStats.statistics.map((s) => (
                 <div key={s.type} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{s.type}</span>
+                  <span className="text-muted-foreground">{translateFixtureStatType(s.type)}</span>
                   <span className="font-mono font-medium">{s.value ?? "-"}</span>
                 </div>
               ))}
@@ -54,9 +60,9 @@ export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
           {events.data?.map((e, i) => (
             <div key={i} className="flex items-center gap-3 text-sm p-2 rounded bg-muted/50">
               <span className="font-mono font-bold w-8">{e.time.elapsed}&apos;</span>
-              <span>{e.type === "Goal" ? "⚽" : e.type === "subst" ? "🔄" : "🟨"}</span>
+              <span>{eventTypeIcon(e.type)}</span>
               <span className="font-medium">{e.player.name}</span>
-              <span className="text-muted-foreground">{e.detail}</span>
+              <span className="text-muted-foreground">{translateEventDetail(e.detail)}</span>
               <span className="ml-auto text-xs">{translateTeamName(e.team.name)}</span>
             </div>
           ))}
@@ -77,7 +83,7 @@ export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
                   <div key={p.player.id} className="flex items-center gap-2 text-sm">
                     <span className="font-mono w-6 text-muted-foreground">{p.player.number}</span>
                     <span>{p.player.name}</span>
-                    <span className="text-xs text-muted-foreground ml-auto">{p.player.pos}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{formatPosition(p.player.pos)}</span>
                   </div>
                 ))}
               </div>

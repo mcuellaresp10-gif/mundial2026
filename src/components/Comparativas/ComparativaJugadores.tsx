@@ -114,7 +114,7 @@ function PlayerStats({ player }: { player: Player }) {
       <p className="text-xs text-muted-foreground uppercase">Selección · Temp. {PLAYER_STAT_SEASON_LABEL}</p>
       <p>Goles: {stat?.goals.total ?? 0}</p>
       <p>Asistencias: {stat?.goals.assists ?? 0}</p>
-      <p>Rating: {parseRating(stat?.games.rating).toFixed(1)}</p>
+      <p>Valoración: {parseRating(stat?.games.rating).toFixed(1)}</p>
       <p className="text-xs text-muted-foreground uppercase mt-2">Club · Temp. {PLAYER_STAT_SEASON_LABEL}</p>
       <p>Goles: {club?.goals.total ?? 0} · Asistencias: {club?.goals.assists ?? 0}</p>
     </div>

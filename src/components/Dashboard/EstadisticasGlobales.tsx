@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEstadisticasAggregadas } from "@/hooks/useEstadisticasAggregadas";
 import { useWorldCupTopScorers } from "@/hooks/useJugadores";
+import { formatRoundLabel } from "@/utils/formatters";
 import { translateTeamName } from "@/utils/teamNames";
 
 export function EstadisticasGlobales() {
@@ -155,7 +156,7 @@ function StatCard({
 function BadgeGroup({ group }: { group: string }) {
   return (
     <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
-      {group}
+      {formatRoundLabel(group)}
     </span>
   );
 }

@@ -67,11 +67,11 @@ export default function PerfilJugadorPage({
           <div className="flex flex-wrap gap-4 mt-4">
             <div className="rounded-lg border px-4 py-2 text-sm">
               <p className="text-xs text-muted-foreground uppercase">Selección · Temp. {PLAYER_STAT_SEASON_LABEL}</p>
-              <p className="font-mono font-bold">{nat.goals}G · {nat.assists}A · Rating {nat.rating > 0 ? nat.rating.toFixed(1) : "N/D"}</p>
+              <p className="font-mono font-bold">{nat.goals}G · {nat.assists}A · Valoración {nat.rating > 0 ? nat.rating.toFixed(1) : "N/D"}</p>
             </div>
             <div className="rounded-lg border px-4 py-2 text-sm">
               <p className="text-xs text-muted-foreground uppercase">Club · Temp. {PLAYER_STAT_SEASON_LABEL}</p>
-              <p className="font-mono font-bold">{club.goals}G · {club.assists}A · Rating {club.rating > 0 ? club.rating.toFixed(1) : "N/D"}</p>
+              <p className="font-mono font-bold">{club.goals}G · {club.assists}A · Valoración {club.rating > 0 ? club.rating.toFixed(1) : "N/D"}</p>
             </div>
           </div>
           <Button className="mt-4" onClick={handleAddToXI}>

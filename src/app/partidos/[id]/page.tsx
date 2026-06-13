@@ -6,6 +6,7 @@ import { useFixture } from "@/hooks/usePartidos";
 import { GridSkeleton } from "@/components/shared/Loading";
 import { Card, CardContent } from "@/components/ui/card";
 import { isFixtureLive, isWithinKickoffWindow } from "@/lib/liveRefresh";
+import { formatRoundLabel } from "@/utils/formatters";
 
 export default function PartidoPage({
   params,
@@ -46,7 +47,7 @@ export default function PartidoPage({
 
       <div>
         <h1 className="text-3xl font-bold">Análisis Táctico</h1>
-        <p className="text-muted-foreground mt-1">{fixture.league.round}</p>
+        <p className="text-muted-foreground mt-1">{formatRoundLabel(fixture.league.round)}</p>
       </div>
 
       <AnalisisPartido fixture={fixture} />

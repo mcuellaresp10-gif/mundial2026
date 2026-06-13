@@ -25,7 +25,7 @@ export function OnceIdealDisplay() {
           <div>
             <CardTitle>Once Ideal del Torneo</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Rating promedio: <span className="font-bold font-mono text-mundial-gold">{averageRating}</span>
+              Valoración promedio: <span className="font-bold font-mono text-mundial-gold">{averageRating}</span>
             </p>
           </div>
           <SelectorFormacion value={formation} onChange={setFormation} />
@@ -82,7 +82,7 @@ export function ArmarMiXI() {
           <Button variant="outline" size="sm" onClick={clear}>Limpiar</Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          {players.length}/11 jugadores · Rating: {avgRating}
+          {players.length}/11 jugadores · Valoración: {avgRating}
         </p>
       </CardHeader>
       <CardContent>

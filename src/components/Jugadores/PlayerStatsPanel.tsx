@@ -32,7 +32,7 @@ export function StatsGrid({ stat, emptyMessage = "Sin datos disponibles" }: Stat
         <StatBox label="Minutos" value={stat.games.minutes ?? 0} />
         <StatBox label="Goles" value={stat.goals.total ?? 0} highlight />
         <StatBox label="Asistencias" value={stat.goals.assists ?? 0} />
-        <StatBox label="Rating" value={parseRating(stat.games.rating).toFixed(1)} />
+        <StatBox label="Valoración" value={parseRating(stat.games.rating).toFixed(1)} />
         <StatBox label="Amarillas" value={stat.cards.yellow ?? 0} />
         <StatBox label="Rojas" value={stat.cards.red ?? 0} />
         <StatBox label="Tiros" value={stat.shots.total ?? 0} />

@@ -8,6 +8,7 @@ import { useTeams, useFixtures } from "@/hooks/usePartidos";
 import type { SearchResult } from "@/types";
 import { cn } from "@/lib/utils";
 import { translateTeamName, teamNameMatchesQuery, formatFixtureTeamsLabel } from "@/utils/teamNames";
+import { formatRoundLabel } from "@/utils/formatters";
 
 export function SearchGlobal() {
   const [query, setQuery] = useState("");
@@ -48,7 +49,7 @@ export function SearchGlobal() {
             type: "fixture",
             id: f.fixture.id,
             label,
-            subtitle: f.league.round,
+            subtitle: formatRoundLabel(f.league.round),
             href: `/partidos/${f.fixture.id}`,
           });
         }

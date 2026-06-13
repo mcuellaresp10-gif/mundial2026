@@ -12,6 +12,7 @@ import { ClassificationProbDisplay } from "@/components/shared/ClassificationPro
 import { H2HRow, TeamLink } from "@/components/shared/TeamLink";
 import { getTeamColors } from "@/utils/colors";
 import { translateTeamName } from "@/utils/teamNames";
+import { formatRoundLabel } from "@/utils/formatters";
 import { GridSkeleton } from "@/components/shared/Loading";
 
 export default function PerfilSeleccionPage({
@@ -67,7 +68,7 @@ export default function PerfilSeleccionPage({
         <Image src={team.logo} alt={displayName} width={80} height={80} />
         <div>
           <h1 className="text-4xl font-bold" style={{ color: colors.primary }}>{displayName}</h1>
-          <p className="text-muted-foreground">{displayCountry} · Grupo {standing?.group ?? "N/D"}</p>
+          <p className="text-muted-foreground">{displayCountry} · {standing ? formatRoundLabel(standing.group) : "N/D"}</p>
         </div>
       </div>
 
@@ -86,7 +87,7 @@ export default function PerfilSeleccionPage({
 
       {standing && (
         <Card>
-          <CardHeader><CardTitle>Tabla del Grupo — {standing.group}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Tabla del {standing ? formatRoundLabel(standing.group) : "Grupo"}</CardTitle></CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

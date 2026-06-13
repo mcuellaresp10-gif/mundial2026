@@ -5,7 +5,26 @@ const LIVE_CACHE_TTL = 60 * 1000;
 const LIVE_DETAIL_CACHE_TTL = 30 * 1000;
 const LIVE_STANDINGS_CACHE_TTL = 2 * 60 * 1000;
 
-function getCacheTtl(path: string, search: string): number {
+const LIVE_SESSION_LIVE_TTL = 10 * 1000;
+const LIVE_SESSION_FIXTURE_TTL = 10 * 1000;
+const LIVE_SESSION_LEAGUE_TTL = 30 * 1000;
+const LIVE_SESSION_DETAIL_TTL = 15 * 1000;
+
+function isLiveSessionRequest(request: NextRequest): boolean {
+  return request.headers.get("X-Mundial-Live") === "1";
+}
+
+function getCacheTtl(path: string, search: string, liveSession: boolean): number {
+  if (liveSession) {
+    if (path.includes("fixtures/events") || path.includes("fixtures/statistics")) {
+      return LIVE_SESSION_DETAIL_TTL;
+    }
+    if (search.includes("live=all")) return LIVE_SESSION_LIVE_TTL;
+    if (search.includes("id=")) return LIVE_SESSION_FIXTURE_TTL;
+    if (path === "fixtures" && search.includes("league=")) return LIVE_SESSION_LEAGUE_TTL;
+    if (path === "fixtures" || path.startsWith("fixtures/")) return LIVE_SESSION_FIXTURE_TTL;
+  }
+
   if (path.includes("fixtures/events") || path.includes("fixtures/statistics")) {
     return LIVE_DETAIL_CACHE_TTL;
   }
@@ -23,6 +42,7 @@ function getCacheTtl(path: string, search: string): number {
   }
   return CACHE_TTL;
 }
+
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 let dailyRequestCount = 0;
 let dailyResetDate = new Date().toDateString();
@@ -85,7 +105,8 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
   const path = pathSegments.join("/");
   const search = request.nextUrl.searchParams.toString();
   const cacheKey = getCacheKey(path, search);
-  const cacheTtl = getCacheTtl(path, search);
+  const liveSession = isLiveSessionRequest(request);
+  const cacheTtl = getCacheTtl(path, search, liveSession);
   const cached = getFromCache(cacheKey, cacheTtl);
 
   if (cached && !cached.stale) {
@@ -94,6 +115,10 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     });
   }
 
+  const isLiveUpstream =
+    search.includes("live=all") ||
+    (liveSession && (path === "fixtures" || path.startsWith("fixtures/")));
+
   try {
     trackRequest();
     const url = `${baseUrl}/${path}${search ? `?${search}` : ""}`;
@@ -101,7 +126,9 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
       headers: {
         "x-apisports-key": apiKey,
       },
-      next: { revalidate: 14400 },
+      ...(isLiveUpstream
+        ? { cache: "no-store" as RequestCache }
+        : { next: { revalidate: 14400 } }),
     });
 
     if (res.status === 429) {

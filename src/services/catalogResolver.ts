@@ -11,6 +11,7 @@ import {
   getSnapshotTeams,
   loadSnapshot,
 } from "./snapshotStore";
+import { isLiveSessionActive } from "./liveSession";
 import {
   shouldUseLiveApiForScores,
   shouldUseSnapshotForCatalog,
@@ -35,7 +36,9 @@ export async function resolveTeamsFromSnapshotOr<T>(
 export async function resolveFixturesFromSnapshotOr<T>(
   fallback: () => Promise<T>
 ): Promise<T> {
-  if (shouldUseLiveApiForScores(getClientTournamentPhase())) return fallback();
+  if (shouldUseLiveApiForScores(getClientTournamentPhase()) || isLiveSessionActive()) {
+    return fallback();
+  }
   const snap = await trySnapshotCatalog(getSnapshotFixtures);
   if (snap?.length) return snap as T;
   return fallback();
@@ -44,7 +47,9 @@ export async function resolveFixturesFromSnapshotOr<T>(
 export async function resolveStandingsFromSnapshotOr<T>(
   fallback: () => Promise<T>
 ): Promise<T> {
-  if (shouldUseLiveApiForScores(getClientTournamentPhase())) return fallback();
+  if (shouldUseLiveApiForScores(getClientTournamentPhase()) || isLiveSessionActive()) {
+    return fallback();
+  }
   const snap = await trySnapshotCatalog(getSnapshotStandings);
   if (snap?.length) return snap as T;
   return fallback();

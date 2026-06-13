@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Menu, Moon, RefreshCw, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchGlobal } from "./SearchGlobal";
 import { useThemeStore } from "@/stores/useThemeStore";
 import { useUIStore } from "@/stores/useUIStore";
 import { useRefreshAll } from "@/hooks/usePartidos";
+import { isLiveSessionActive } from "@/services/liveSession";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -26,8 +28,21 @@ export function Header() {
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const lastRefresh = useUIStore((s) => s.lastRefresh);
   const setLastRefresh = useUIStore((s) => s.setLastRefresh);
   const refresh = useRefreshAll();
+  const [secondsAgo, setSecondsAgo] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isLiveSessionActive() || !lastRefresh) {
+      setSecondsAgo(null);
+      return;
+    }
+    const update = () => setSecondsAgo(Math.max(0, Math.floor((Date.now() - lastRefresh) / 1000)));
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [lastRefresh]);
 
   const handleRefresh = () => {
     refresh();
@@ -68,6 +83,14 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          {secondsAgo !== null && (
+            <span
+              className="hidden sm:inline text-xs text-emerald-300/90 tabular-nums"
+              title="Última sincronización de marcadores en vivo"
+            >
+              Actualizado hace {secondsAgo}s
+            </span>
+          )}
           <Button
             variant="ghost"
             size="icon"

@@ -178,13 +178,19 @@ export function pickFeaturedFixture(all: Fixture[]): Fixture | null {
 /** Intervalos de refresco (ms). */
 export const LIVE_REFRESH_MS = {
   /** Marcador, calendario, detalle de partido. */
-  fixtures: 60 * 1000,
+  fixtures: 20 * 1000,
   /** Eventos y stats dentro de un partido en vivo. */
-  fixtureDetail: 30 * 1000,
+  fixtureDetail: 15 * 1000,
   /** Tabla de posiciones durante el torneo. */
   standings: 2 * 60 * 1000,
   /** Próximo partido cuando hay juego en curso. */
-  nextFixture: 60 * 1000,
+  nextFixture: 20 * 1000,
+  /** Poll dedicado live=all. */
+  livePoll: 15 * 1000,
 } as const;
+
+export function getLiveRefreshInterval(): number {
+  return LIVE_REFRESH_MS.livePoll;
+}
 
 export const NORMAL_STALE_MS = 4 * 60 * 60 * 1000;

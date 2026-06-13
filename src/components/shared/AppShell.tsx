@@ -4,8 +4,9 @@ import { useEffect } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { Footer } from "./Footer";
-import { useFixtures, useStandings, useRefreshAll, hasAnyLiveFixture } from "@/hooks/usePartidos";
-import { LIVE_REFRESH_MS } from "@/lib/liveRefresh";
+import { useFixtures, useStandings, useRefreshAll } from "@/hooks/usePartidos";
+import { LIVE_REFRESH_MS, shouldPollFixtures } from "@/lib/liveRefresh";
+import { isLiveSessionActive } from "@/services/liveSession";
 import { isWorldCupLive } from "@/services/tournamentPhase";
 import { useUIStore } from "@/stores/useUIStore";
 
@@ -15,16 +16,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const refresh = useRefreshAll();
   const setLastRefresh = useUIStore((s) => s.setLastRefresh);
 
-  const hasActive = hasAnyLiveFixture(fixtures) || isWorldCupLive(standings);
+  const shouldRefresh =
+    isLiveSessionActive() ||
+    shouldPollFixtures(fixtures) ||
+    isWorldCupLive(standings);
 
   useEffect(() => {
-    if (!hasActive) return;
+    if (!shouldRefresh) return;
     const interval = setInterval(() => {
       refresh();
       setLastRefresh(Date.now());
-    }, LIVE_REFRESH_MS.fixtures);
+    }, LIVE_REFRESH_MS.standings);
     return () => clearInterval(interval);
-  }, [hasActive, refresh, setLastRefresh]);
+  }, [shouldRefresh, refresh, setLastRefresh]);
 
   return (
     <div className="min-h-screen flex flex-col">

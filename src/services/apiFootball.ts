@@ -13,6 +13,7 @@ import type {
   TopScorerEntry,
 } from "@/types";
 import { cacheKey, getLocalCache, getStaleLocalCache, removeLocalCache, setLocalCache } from "./cache";
+import { isLiveSessionActive } from "./liveSession";
 import {
   resolveFixturesFromSnapshotOr,
   resolvePlayerFromSnapshotOr,
@@ -36,6 +37,16 @@ import { mapPlayersToTopScorers } from "@/utils/tournamentScorers";
 const client = axios.create({ baseURL: "/api/football" });
 const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
 
+function liveRequestConfig() {
+  return isLiveSessionActive()
+    ? { headers: { "X-Mundial-Live": "1" } as Record<string, string> }
+    : {};
+}
+
+function isFixtureRelatedCacheKey(path: string): boolean {
+  return path === "fixtures" || path.startsWith("fixtures/");
+}
+
 async function fetchApi<T>(
   path: string,
   params?: Record<string, string | number | undefined>
@@ -45,22 +56,29 @@ async function fetchApi<T>(
   ) as Record<string, string | number>;
 
   const key = cacheKey(path, cleanParams);
-  const cached = getLocalCache<T>(key);
-  if (cached) return cached;
+  const bypassCache = isLiveSessionActive() && isFixtureRelatedCacheKey(path);
+
+  if (!bypassCache) {
+    const cached = getLocalCache<T>(key);
+    if (cached) return cached;
+  }
 
   try {
-    const { data } = await client.get<ApiResponse<T>>(path, { params: cleanParams });
+    const { data } = await client.get<ApiResponse<T>>(path, {
+      params: cleanParams,
+      ...liveRequestConfig(),
+    });
     if (data.errors && Object.keys(data.errors).length > 0) {
       const stale = getStaleLocalCache<T>(key);
       if (stale) return stale;
       console.warn(`[API-Football] ${path}`, data.errors);
       if (Array.isArray(data.response)) {
-        setLocalCache(key, data.response);
+        if (!bypassCache) setLocalCache(key, data.response);
         return data.response as T;
       }
       return [] as T;
     }
-    setLocalCache(key, data.response);
+    if (!bypassCache) setLocalCache(key, data.response);
     return data.response;
   } catch (error) {
     const stale = getStaleLocalCache<T>(key);
@@ -70,6 +88,7 @@ async function fetchApi<T>(
 }
 
 const LIVE_FIXTURE_CACHE_MS = 30 * 1000;
+const LIVE_SESSION_LIST_CACHE_MS = 30 * 1000;
 const EMPTY_LIVE_CACHE_MS = 10 * 1000;
 
 let tournamentStartedFlag: boolean | null = null;
@@ -86,24 +105,37 @@ function fixtureNeedsFreshScore(fixture: Fixture): boolean {
 async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
   const params = { live: "all" };
   const key = cacheKey("fixtures", { ...params, scope: "worldcup-live" });
+  const bypassCache = isLiveSessionActive();
 
-  const cached = getLocalCache<Fixture[]>(key);
-  if (cached && cached.length > 0) {
-    const filtered = cached.filter((f) => isPlausibleLiveFixture(f));
-    if (filtered.length > 0) return filtered;
+  if (!bypassCache) {
+    const cached = getLocalCache<Fixture[]>(key);
+    if (cached && cached.length > 0) {
+      const filtered = cached.filter((f) => isPlausibleLiveFixture(f));
+      if (filtered.length > 0) return filtered;
+    }
   }
 
   try {
-    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", { params });
+    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
+      params,
+      ...liveRequestConfig(),
+    });
     const list = (data.response ?? [])
       .filter((f) => f.league.id === LEAGUE_ID)
       .filter((f) => isPlausibleLiveFixture(f));
-    setLocalCache(key, list, list.length > 0 ? LIVE_FIXTURE_CACHE_MS : EMPTY_LIVE_CACHE_MS);
+    if (!bypassCache) {
+      setLocalCache(key, list, list.length > 0 ? LIVE_FIXTURE_CACHE_MS : EMPTY_LIVE_CACHE_MS);
+    }
     return list;
   } catch {
-    removeLocalCache(key);
+    if (!bypassCache) removeLocalCache(key);
     return [];
   }
+}
+
+/** Poll dedicado live=all — exportado para useLiveScoreSync. */
+export async function getLiveWorldCupFixtures(): Promise<Fixture[]> {
+  return fetchLiveWorldCupFixtures();
 }
 
 async function fetchFixtureFromApiById(
@@ -111,8 +143,9 @@ async function fetchFixtureFromApiById(
   options?: { force?: boolean }
 ): Promise<Fixture | null> {
   const key = cacheKey("fixture-by-id", { id });
+  const bypassCache = isLiveSessionActive();
 
-  if (!options?.force) {
+  if (!options?.force && !bypassCache) {
     const cached = getLocalCache<Fixture>(key);
     if (cached) {
       const staleNsInWindow =
@@ -124,14 +157,19 @@ async function fetchFixtureFromApiById(
         return cached;
       }
     }
-  } else {
+  } else if (options?.force) {
     removeLocalCache(key);
   }
 
   try {
-    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", { params: { id } });
+    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
+      params: { id },
+      ...liveRequestConfig(),
+    });
     const fixture = data.response?.[0] ?? null;
-    if (fixture) setLocalCache(key, fixture, LIVE_FIXTURE_CACHE_MS);
+    if (fixture && !isLiveSessionActive()) {
+      setLocalCache(key, fixture, LIVE_FIXTURE_CACHE_MS);
+    }
     return fixture;
   } catch {
     removeLocalCache(key);
@@ -139,7 +177,7 @@ async function fetchFixtureFromApiById(
   }
 }
 
-function mergeLiveIntoFixtures(fixtures: Fixture[], live: Fixture[]): Fixture[] {
+export function mergeLiveIntoFixtures(fixtures: Fixture[], live: Fixture[]): Fixture[] {
   if (live.length === 0) return fixtures;
   const liveById = new Map(live.map((f) => [f.fixture.id, f]));
   const merged = fixtures.map((f) => liveById.get(f.fixture.id) ?? f);
@@ -166,41 +204,49 @@ async function fetchAllWorldCupFixturesFromApi(
   season: number = DEFAULT_SEASON
 ): Promise<Fixture[]> {
   const key = cacheKey("fixtures-wc-all", { league: LEAGUE_ID, season });
-  const cached = getLocalCache<Fixture[]>(key);
+  const bypassCache = isLiveSessionActive();
+  const cached = bypassCache ? null : getLocalCache<Fixture[]>(key);
   const kickoffSoon = cached?.some((f) => fixtureNeedsFreshScore(f)) ?? false;
   if (cached && !kickoffSoon) return cached;
 
   try {
     const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
       params: { league: LEAGUE_ID, season },
+      ...liveRequestConfig(),
     });
     const list = data.response ?? [];
-    setLocalCache(key, list, kickoffSoon ? EMPTY_LIVE_CACHE_MS : LIVE_FIXTURE_CACHE_MS);
+    const ttl = bypassCache
+      ? LIVE_SESSION_LIST_CACHE_MS
+      : kickoffSoon
+        ? EMPTY_LIVE_CACHE_MS
+        : LIVE_FIXTURE_CACHE_MS;
+    if (!bypassCache) setLocalCache(key, list, ttl);
     return list;
   } catch {
     return getStaleLocalCache<Fixture[]>(key) ?? cached ?? [];
   }
 }
 
-async function refreshFixturesInKickoffWindow(fixtures: Fixture[]): Promise<Fixture[]> {
-  const targetIds = new Set(
-    fixtures.filter((f) => fixtureNeedsFreshScore(f)).map((f) => f.fixture.id)
+/** Fallback: partidos en ventana kickoff que no aparecieron en live=all ni en la lista. */
+async function refreshMissingKickoffFixtures(
+  fixtures: Fixture[],
+  liveIds: Set<number>
+): Promise<Fixture[]> {
+  const missing = fixtures.filter(
+    (f) =>
+      fixtureNeedsFreshScore(f) &&
+      !liveIds.has(f.fixture.id) &&
+      (f.fixture.status.short === "NS" || isFixtureLive(f.fixture.status.short))
   );
-  if (targetIds.size === 0) return fixtures;
+  if (missing.length === 0) return fixtures;
 
   const byId = new Map(fixtures.map((f) => [f.fixture.id, f]));
   await Promise.all(
-    [...targetIds].map(async (id) => {
-      const current = byId.get(id);
-      const force =
-        !current ||
-        current.fixture.status.short === "NS" ||
-        isFixtureLive(current.fixture.status.short);
-      const fresh = await fetchFixtureFromApiById(id, { force });
-      if (fresh) byId.set(id, fresh);
+    missing.map(async (f) => {
+      const fresh = await fetchFixtureFromApiById(f.fixture.id, { force: true });
+      if (fresh) byId.set(f.fixture.id, fresh);
     })
   );
-
   return fixtures.map((f) => byId.get(f.fixture.id) ?? f);
 }
 
@@ -208,15 +254,19 @@ async function fetchStandingsFromApi(
   season: number = DEFAULT_SEASON
 ): Promise<StandingsGroup[]> {
   const key = cacheKey("standings-wc-live", { league: LEAGUE_ID, season });
-  const cached = getLocalCache<StandingsGroup[]>(key);
-  if (cached) return cached;
+  const bypassCache = isLiveSessionActive();
+  if (!bypassCache) {
+    const cached = getLocalCache<StandingsGroup[]>(key);
+    if (cached) return cached;
+  }
 
   try {
     const { data } = await client.get<ApiResponse<StandingsGroup[]>>("standings", {
       params: { league: LEAGUE_ID, season },
+      ...liveRequestConfig(),
     });
     const list = data.response ?? [];
-    setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
+    if (!bypassCache) setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
     return list;
   } catch {
     return getStaleLocalCache<StandingsGroup[]>(key) ?? [];
@@ -224,7 +274,7 @@ async function fetchStandingsFromApi(
 }
 
 async function isWorldCupSessionActive(): Promise<boolean> {
-  if (tournamentStartedFlag) return true;
+  if (isLiveSessionActive() || tournamentStartedFlag) return true;
 
   const live = await fetchLiveWorldCupFixtures();
   if (live.length > 0) {
@@ -240,10 +290,11 @@ async function isWorldCupSessionActive(): Promise<boolean> {
 
 async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]> {
   const live = await fetchLiveWorldCupFixtures();
+  const liveIds = new Set(live.map((f) => f.fixture.id));
   const sessionActive = await isWorldCupSessionActive();
 
   let list: Fixture[];
-  if (sessionActive) {
+  if (sessionActive || isLiveSessionActive()) {
     const all = await fetchAllWorldCupFixturesFromApi(season);
     list = mergeLiveIntoFixtures(all, live);
   } else {
@@ -253,7 +304,7 @@ async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]>
     list = mergeLiveIntoFixtures(snap, live);
   }
 
-  list = await refreshFixturesInKickoffWindow(list);
+  list = await refreshMissingKickoffFixtures(list, liveIds);
 
   if (
     live.length > 0 ||
@@ -314,7 +365,7 @@ export async function getNextFixture(): Promise<Fixture | null> {
 }
 
 export async function getStandings(season: number = DEFAULT_SEASON): Promise<StandingsGroup[]> {
-  if (await isWorldCupSessionActive()) {
+  if (isLiveSessionActive() || (await isWorldCupSessionActive())) {
     return fetchStandingsFromApi(season);
   }
   return resolveStandingsFromSnapshotOr(async () =>

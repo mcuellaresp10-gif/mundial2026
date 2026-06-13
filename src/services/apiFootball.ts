@@ -26,6 +26,7 @@ import {
   isFixtureLive,
   isFixtureStarted,
   isPlausibleLiveFixture,
+  isWithinKickoffWindow,
   pickFeaturedFixture,
 } from "@/lib/liveRefresh";
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
@@ -69,8 +70,17 @@ async function fetchApi<T>(
 }
 
 const LIVE_FIXTURE_CACHE_MS = 30 * 1000;
+const EMPTY_LIVE_CACHE_MS = 10 * 1000;
 
 let tournamentStartedFlag: boolean | null = null;
+
+function fixtureNeedsFreshScore(fixture: Fixture): boolean {
+  return (
+    isPlausibleLiveFixture(fixture) ||
+    isFixtureLive(fixture.fixture.status.short) ||
+    isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short)
+  );
+}
 
 /** Partidos en curso del Mundial — siempre API (el snapshot puede tener status NS obsoleto). */
 async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
@@ -78,8 +88,9 @@ async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
   const key = cacheKey("fixtures", { ...params, scope: "worldcup-live" });
 
   const cached = getLocalCache<Fixture[]>(key);
-  if (cached) {
-    return cached.filter((f) => isPlausibleLiveFixture(f));
+  if (cached && cached.length > 0) {
+    const filtered = cached.filter((f) => isPlausibleLiveFixture(f));
+    if (filtered.length > 0) return filtered;
   }
 
   try {
@@ -87,7 +98,7 @@ async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
     const list = (data.response ?? [])
       .filter((f) => f.league.id === LEAGUE_ID)
       .filter((f) => isPlausibleLiveFixture(f));
-    setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
+    setLocalCache(key, list, list.length > 0 ? LIVE_FIXTURE_CACHE_MS : EMPTY_LIVE_CACHE_MS);
     return list;
   } catch {
     removeLocalCache(key);
@@ -95,15 +106,26 @@ async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
   }
 }
 
-async function fetchFixtureFromApiById(id: number): Promise<Fixture | null> {
+async function fetchFixtureFromApiById(
+  id: number,
+  options?: { force?: boolean }
+): Promise<Fixture | null> {
   const key = cacheKey("fixture-by-id", { id });
-  const cached = getLocalCache<Fixture>(key);
-  if (cached) {
-    if (isFixtureLive(cached.fixture.status.short) && !isPlausibleLiveFixture(cached)) {
-      removeLocalCache(key);
-    } else {
-      return cached;
+
+  if (!options?.force) {
+    const cached = getLocalCache<Fixture>(key);
+    if (cached) {
+      const staleNsInWindow =
+        cached.fixture.status.short === "NS" &&
+        isWithinKickoffWindow(cached.fixture.date, cached.fixture.status.short);
+      if (isFixtureLive(cached.fixture.status.short) && !isPlausibleLiveFixture(cached)) {
+        removeLocalCache(key);
+      } else if (!staleNsInWindow) {
+        return cached;
+      }
     }
+  } else {
+    removeLocalCache(key);
   }
 
   try {
@@ -145,18 +167,41 @@ async function fetchAllWorldCupFixturesFromApi(
 ): Promise<Fixture[]> {
   const key = cacheKey("fixtures-wc-all", { league: LEAGUE_ID, season });
   const cached = getLocalCache<Fixture[]>(key);
-  if (cached) return cached;
+  const kickoffSoon = cached?.some((f) => fixtureNeedsFreshScore(f)) ?? false;
+  if (cached && !kickoffSoon) return cached;
 
   try {
     const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
       params: { league: LEAGUE_ID, season },
     });
     const list = data.response ?? [];
-    setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
+    setLocalCache(key, list, kickoffSoon ? EMPTY_LIVE_CACHE_MS : LIVE_FIXTURE_CACHE_MS);
     return list;
   } catch {
-    return getStaleLocalCache<Fixture[]>(key) ?? [];
+    return getStaleLocalCache<Fixture[]>(key) ?? cached ?? [];
   }
+}
+
+async function refreshFixturesInKickoffWindow(fixtures: Fixture[]): Promise<Fixture[]> {
+  const targetIds = new Set(
+    fixtures.filter((f) => fixtureNeedsFreshScore(f)).map((f) => f.fixture.id)
+  );
+  if (targetIds.size === 0) return fixtures;
+
+  const byId = new Map(fixtures.map((f) => [f.fixture.id, f]));
+  await Promise.all(
+    [...targetIds].map(async (id) => {
+      const current = byId.get(id);
+      const force =
+        !current ||
+        current.fixture.status.short === "NS" ||
+        isFixtureLive(current.fixture.status.short);
+      const fresh = await fetchFixtureFromApiById(id, { force });
+      if (fresh) byId.set(id, fresh);
+    })
+  );
+
+  return fixtures.map((f) => byId.get(f.fixture.id) ?? f);
 }
 
 async function fetchStandingsFromApi(
@@ -197,15 +242,27 @@ async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]>
   const live = await fetchLiveWorldCupFixtures();
   const sessionActive = await isWorldCupSessionActive();
 
+  let list: Fixture[];
   if (sessionActive) {
     const all = await fetchAllWorldCupFixturesFromApi(season);
-    return mergeLiveIntoFixtures(all, live);
+    list = mergeLiveIntoFixtures(all, live);
+  } else {
+    const snap = await resolveFixturesFromSnapshotOr(() =>
+      fetchApi<Fixture[]>("fixtures", { league: LEAGUE_ID, season })
+    );
+    list = mergeLiveIntoFixtures(snap, live);
   }
 
-  const snap = await resolveFixturesFromSnapshotOr(() =>
-    fetchApi<Fixture[]>("fixtures", { league: LEAGUE_ID, season })
-  );
-  return mergeLiveIntoFixtures(snap, live);
+  list = await refreshFixturesInKickoffWindow(list);
+
+  if (
+    live.length > 0 ||
+    list.some((f) => isFixtureStarted(f.fixture.status.short))
+  ) {
+    tournamentStartedFlag = true;
+  }
+
+  return list;
 }
 
 export async function getTeams(season: number = DEFAULT_SEASON): Promise<Team[]> {

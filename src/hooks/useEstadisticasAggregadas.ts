@@ -7,8 +7,9 @@ import { extractGroupStageLeaders } from "@/utils/groupClassification";
 import { translateTeamName } from "@/utils/teamNames";
 import {
   isFixtureFinished,
-  isFixtureLive,
   isFixtureStarted,
+  isPlausibleLiveFixture,
+  isWithinKickoffWindow,
 } from "@/lib/liveRefresh";
 import type { StandingTeam } from "@/types";
 
@@ -18,7 +19,12 @@ export function useEstadisticasAggregadas() {
 
   return useMemo(() => {
     const finished = fixtures.filter((f) => isFixtureFinished(f.fixture.status.short));
-    const liveNow = fixtures.filter((f) => isFixtureLive(f.fixture.status.short));
+    const liveNow = fixtures.filter(
+      (f) =>
+        isPlausibleLiveFixture(f) ||
+        (isWithinKickoffWindow(f.fixture.date, f.fixture.status.short) &&
+          !isFixtureFinished(f.fixture.status.short))
+    );
     const started = fixtures.filter((f) => isFixtureStarted(f.fixture.status.short));
     const pending = fixtures.filter((f) => f.fixture.status.short === "NS");
 

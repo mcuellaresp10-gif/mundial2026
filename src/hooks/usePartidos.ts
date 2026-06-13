@@ -45,7 +45,17 @@ export function useFixtures(params?: {
   return useQuery({
     queryKey: ["fixtures", params],
     queryFn: () => getFixtures(params),
-    staleTime: isSingle ? LIVE_REFRESH_MS.fixtures : NORMAL_STALE_MS,
+    staleTime: (query) => {
+      const fixtures = query.state.data;
+      if (
+        isSingle ||
+        shouldPollFixtures(fixtures) ||
+        getClientTournamentPhase() === "live"
+      ) {
+        return LIVE_REFRESH_MS.fixtures;
+      }
+      return NORMAL_STALE_MS;
+    },
     refetchInterval: (query) => {
       const fixtures = query.state.data;
       if (
@@ -56,6 +66,8 @@ export function useFixtures(params?: {
       }
       return false;
     },
+    refetchOnWindowFocus: (query) =>
+      shouldPollFixtures(query.state.data) || getClientTournamentPhase() === "live",
   });
 }
 

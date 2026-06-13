@@ -5,12 +5,15 @@ const LIVE_CACHE_TTL = 60 * 1000;
 const LIVE_DETAIL_CACHE_TTL = 30 * 1000;
 const LIVE_STANDINGS_CACHE_TTL = 2 * 60 * 1000;
 
-function getCacheTtl(path: string): number {
+function getCacheTtl(path: string, search: string): number {
   if (path.includes("fixtures/events") || path.includes("fixtures/statistics")) {
     return LIVE_DETAIL_CACHE_TTL;
   }
   if (path.includes("players/topscorers")) {
     return LIVE_CACHE_TTL;
+  }
+  if (search.includes("live=all")) {
+    return 15 * 1000;
   }
   if (path === "fixtures" || path.startsWith("fixtures/")) {
     return LIVE_CACHE_TTL;
@@ -82,7 +85,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
   const path = pathSegments.join("/");
   const search = request.nextUrl.searchParams.toString();
   const cacheKey = getCacheKey(path, search);
-  const cacheTtl = getCacheTtl(path);
+  const cacheTtl = getCacheTtl(path, search);
   const cached = getFromCache(cacheKey, cacheTtl);
 
   if (cached && !cached.stale) {
@@ -114,7 +117,13 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     }
 
     const data = await res.json();
-    setCache(cacheKey, data);
+    const isEmptyLive =
+      search.includes("live=all") &&
+      Array.isArray((data as { response?: unknown[] }).response) &&
+      ((data as { response: unknown[] }).response?.length ?? 0) === 0;
+    if (!isEmptyLive) {
+      setCache(cacheKey, data);
+    }
 
     return NextResponse.json(data, {
       headers: {

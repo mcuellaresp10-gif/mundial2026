@@ -8,6 +8,7 @@ import { useFixtures } from "@/hooks/usePartidos";
 import {
   getDashboardFixtures,
   isPlausibleLiveFixture,
+  isWithinKickoffWindow,
 } from "@/lib/liveRefresh";
 import { formatDayHeading } from "@/utils/formatters";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,12 @@ export function PartidosDelDia() {
   const group = useMemo(() => getDashboardFixtures(fixtures), [fixtures]);
 
   const liveCount = useMemo(
-    () => group.fixtures.filter((f) => isPlausibleLiveFixture(f)).length,
+    () =>
+      group.fixtures.filter(
+        (f) =>
+          isPlausibleLiveFixture(f) ||
+          isWithinKickoffWindow(f.fixture.date, f.fixture.status.short)
+      ).length,
     [group.fixtures]
   );
 

@@ -10,6 +10,7 @@ import { PartidoDetalle } from "./PartidoDetalle";
 import { TeamLink } from "@/components/shared/TeamLink";
 import type { Fixture } from "@/types";
 import { formatFixtureDate, formatStatus, getFixtureScore, formatGroupFromRound } from "@/utils/formatters";
+import { isPlausibleLiveFixture, isWithinKickoffWindow } from "@/lib/liveRefresh";
 import { cn } from "@/lib/utils";
 
 interface PartidoCardProps {
@@ -21,14 +22,21 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
   const isColombia =
     fixture.teams.home.name.toLowerCase().includes("colombia") ||
     fixture.teams.away.name.toLowerCase().includes("colombia");
-  const isLive = ["LIVE", "1H", "2H", "HT", "ET"].includes(fixture.fixture.status.short);
+  const isLive =
+    isPlausibleLiveFixture(fixture) ||
+    isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short);
+  const elapsed = fixture.fixture.status.elapsed;
+  const statusLabel =
+    isLive && elapsed != null
+      ? `${formatStatus(fixture.fixture.status.short)} · ${elapsed}'`
+      : formatStatus(fixture.fixture.status.short);
 
   return (
     <Card
       className={cn(
         "transition-all duration-300 hover:shadow-md",
         isColombia && "border-colombia-yellow/30",
-        isLive && "ring-2 ring-mundial-green/50"
+        isLive && "ring-2 ring-mundial-red/50"
       )}
     >
       <CardContent className="p-4">
@@ -51,8 +59,8 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
             <p className="text-2xl font-bold font-mono">
               {getFixtureScore(fixture.goals.home, fixture.goals.away, fixture.fixture.status.short)}
             </p>
-            <Badge className={cn(isLive && "bg-mundial-green text-white")}>
-              {formatStatus(fixture.fixture.status.short)}
+            <Badge className={cn(isLive && "bg-mundial-red text-white border-0 animate-pulse")}>
+              {statusLabel}
             </Badge>
           </div>
           <div className="flex-1 min-w-0">

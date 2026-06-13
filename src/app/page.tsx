@@ -1,6 +1,6 @@
 "use client";
 
-import { ProxPartido } from "@/components/Dashboard/ProxPartido";
+import { PartidosDelDia } from "@/components/Dashboard/PartidosDelDia";
 import { EstadisticasGlobales } from "@/components/Dashboard/EstadisticasGlobales";
 import { ColombiaFocus } from "@/components/Dashboard/ColombiaFocus";
 import { DashboardHero } from "@/components/Dashboard/DashboardHero";
@@ -26,7 +26,7 @@ export default function DashboardPage() {
         "
       >
         <section id="partido" className="scroll-mt-24 min-w-0 xl:col-start-1 xl:row-start-1">
-          <ProxPartido />
+          <PartidosDelDia />
         </section>
 
         <aside

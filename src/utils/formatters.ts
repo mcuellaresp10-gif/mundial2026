@@ -18,6 +18,14 @@ export function formatShortDate(dateStr: string): string {
   }
 }
 
+export function formatDayHeading(dateStr: string): string {
+  try {
+    return format(parseISO(dateStr), "EEEE d 'de' MMMM", { locale: es });
+  } catch {
+    return dateStr;
+  }
+}
+
 export function formatRating(rating: number | string | null | undefined): string {
   if (rating == null || rating === "") return "N/D";
   const num = typeof rating === "string" ? parseFloat(rating) : rating;

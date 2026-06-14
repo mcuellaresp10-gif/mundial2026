@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 const CACHE_TTL = 4 * 60 * 60 * 1000;
 const LIVE_CACHE_TTL = 60 * 1000;
-const LIVE_DETAIL_CACHE_TTL = 30 * 1000;
+const LIVE_DETAIL_CACHE_TTL = 60 * 1000;
 const LIVE_STANDINGS_CACHE_TTL = 2 * 60 * 1000;
 
-const LIVE_SESSION_LIVE_TTL = 10 * 1000;
-const LIVE_SESSION_FIXTURE_TTL = 10 * 1000;
-const LIVE_SESSION_LEAGUE_TTL = 30 * 1000;
-const LIVE_SESSION_DETAIL_TTL = 15 * 1000;
+const LIVE_SESSION_LIVE_TTL = 40 * 1000;
+const LIVE_SESSION_FIXTURE_TTL = 30 * 1000;
+const LIVE_SESSION_LEAGUE_TTL = 5 * 60 * 1000;
+const LIVE_SESSION_DETAIL_TTL = 60 * 1000;
 
 function isLiveSessionRequest(request: NextRequest): boolean {
   return request.headers.get("X-Mundial-Live") === "1";
@@ -32,7 +32,7 @@ function getCacheTtl(path: string, search: string, liveSession: boolean): number
     return LIVE_CACHE_TTL;
   }
   if (search.includes("live=all")) {
-    return 15 * 1000;
+    return 30 * 1000;
   }
   if (path === "fixtures" || path.startsWith("fixtures/")) {
     return LIVE_CACHE_TTL;

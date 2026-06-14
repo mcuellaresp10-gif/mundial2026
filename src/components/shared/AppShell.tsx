@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { Footer } from "./Footer";
-import { useFixtures, useStandings, useRefreshAll } from "@/hooks/usePartidos";
+import { useFixtures, useStandings, useRefreshStandingsAndNext } from "@/hooks/usePartidos";
 import { LIVE_REFRESH_MS, shouldPollFixtures } from "@/lib/liveRefresh";
 import { isLiveSessionActive } from "@/services/liveSession";
 import { isWorldCupLive } from "@/services/tournamentPhase";
@@ -13,7 +13,7 @@ import { useUIStore } from "@/stores/useUIStore";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: fixtures = [] } = useFixtures();
   const { data: standings = [] } = useStandings();
-  const refresh = useRefreshAll();
+  const refresh = useRefreshStandingsAndNext();
   const setLastRefresh = useUIStore((s) => s.setLastRefresh);
 
   const shouldRefresh =

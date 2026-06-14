@@ -9,7 +9,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "sync:snapshot": "npx tsx scripts/sync-snapshot.ts"
+    "sync:snapshot": "npx tsx scripts/sync-snapshot.ts",
+    "telegram:worker": "npx tsx scripts/telegram-worker.ts",
+    "telegram:chat-id": "npx tsx scripts/telegram-get-chat-id.ts",
+    "telegram:worker:win": "scripts\\telegram-worker.cmd",
+    "telegram:chat-id:win": "scripts\\telegram-chat-id.cmd"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
@@ -24,6 +28,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "grammy": "^1.43.0",
     "idb-keyval": "^6.2.1",
     "lucide-react": "^0.475.0",
     "next": "^15.1.7",

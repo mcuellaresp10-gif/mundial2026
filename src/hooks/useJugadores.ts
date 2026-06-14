@@ -10,7 +10,7 @@ import { aggregateScorersFromEvents, mapSquadPlayersToWorldCupScorers, mergeTopS
 import { translateTeamName } from "@/utils/teamNames";
 import { useFixtures } from "./usePartidos";
 import { useMemo } from "react";
-import { isFixtureStarted, LIVE_REFRESH_MS } from "@/lib/liveRefresh";
+import { isFixtureLive, isFixtureStarted, LIVE_REFRESH_MS } from "@/lib/liveRefresh";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 
 export function usePlayers(params: { team?: number; page?: number; search?: string }) {
@@ -88,34 +88,36 @@ export function extractTopScorers(
     .sort((a, b) => b!.goals - a!.goals) as TopScorerEntry[];
 }
 
-/** Goleadores del torneo — API oficial, eventos de partidos y stats de plantilla. */
+/** Goleadores del torneo — API oficial primero; eventos solo de partidos en vivo. */
 export function useWorldCupTopScorers(limit = 10) {
   const { data: fixtures = [] } = useFixtures();
-  const startedFixtureIds = useMemo(
+  const liveFixtureIds = useMemo(
     () =>
       fixtures
-        .filter((f) => isFixtureStarted(f.fixture.status.short))
+        .filter((f) => isFixtureLive(f.fixture.status.short))
         .map((f) => f.fixture.id),
     [fixtures]
   );
 
-  const tournamentLive = getClientTournamentPhase() === "live" || startedFixtureIds.length > 0;
-  const refreshMs = tournamentLive ? LIVE_REFRESH_MS.fixtures : false;
+  const tournamentStarted =
+    getClientTournamentPhase() === "live" ||
+    fixtures.some((f) => isFixtureStarted(f.fixture.status.short));
+  const hasLiveFixtures = liveFixtureIds.length > 0;
 
   const apiScorers = useQuery({
     queryKey: ["worldCupTopScorers", DEFAULT_SEASON],
     queryFn: () => getWorldCupTopScorers(),
-    staleTime: LIVE_REFRESH_MS.fixtureDetail,
-    refetchInterval: refreshMs,
+    staleTime: LIVE_REFRESH_MS.topScorers,
+    refetchInterval: tournamentStarted ? LIVE_REFRESH_MS.topScorers : false,
   });
 
   const eventQueries = useQueries({
-    queries: startedFixtureIds.map((fixtureId) => ({
+    queries: liveFixtureIds.map((fixtureId) => ({
       queryKey: ["fixtureEvents", fixtureId],
       queryFn: () => getFixtureEvents(fixtureId),
-      staleTime: LIVE_REFRESH_MS.fixtureDetail,
-      refetchInterval: refreshMs,
-      enabled: tournamentLive,
+      staleTime: LIVE_REFRESH_MS.topScorers,
+      refetchInterval: hasLiveFixtures ? LIVE_REFRESH_MS.topScorers : false,
+      enabled: hasLiveFixtures,
     })),
   });
 
@@ -131,7 +133,7 @@ export function useWorldCupTopScorers(limit = 10) {
 
   return {
     scorers: merged,
-    isLoading: apiScorers.isLoading || (tournamentLive && eventsLoading && merged.length === 0),
+    isLoading: apiScorers.isLoading || (hasLiveFixtures && eventsLoading && merged.length === 0),
   };
 }
 

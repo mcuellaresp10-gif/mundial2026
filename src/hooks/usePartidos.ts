@@ -71,6 +71,14 @@ export function useFixtures(params?: {
     },
     refetchInterval: (query) => {
       const fixtures = query.state.data;
+      if (isSingle) {
+        if (shouldFastRefreshFixtures(fixtures)) {
+          return fixturesPollInterval();
+        }
+        return false;
+      }
+      // useLiveScoreSync fusiona live=all en la lista; evita polling duplicado.
+      if (isLiveSessionActive()) return false;
       if (shouldFastRefreshFixtures(fixtures)) {
         return fixturesPollInterval();
       }
@@ -197,6 +205,15 @@ export function useRefreshAll() {
   const qc = useQueryClient();
   return () => {
     qc.invalidateQueries();
+  };
+}
+
+/** Refresco ligero durante partidos — solo tabla y próximo partido. */
+export function useRefreshStandingsAndNext() {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: ["standings"] });
+    qc.invalidateQueries({ queryKey: ["nextFixture"] });
   };
 }
 

@@ -240,9 +240,10 @@ async function refreshMissingKickoffFixtures(
   );
   if (missing.length === 0) return fixtures;
 
+  const toRefresh = missing.slice(0, 2);
   const byId = new Map(fixtures.map((f) => [f.fixture.id, f]));
   await Promise.all(
-    missing.map(async (f) => {
+    toRefresh.map(async (f) => {
       const fresh = await fetchFixtureFromApiById(f.fixture.id, { force: true });
       if (fresh) byId.set(f.fixture.id, fresh);
     })
@@ -295,8 +296,10 @@ async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]>
 
   let list: Fixture[];
   if (sessionActive || isLiveSessionActive()) {
-    const all = await fetchAllWorldCupFixturesFromApi(season);
-    list = mergeLiveIntoFixtures(all, live);
+    const snap = await resolveFixturesFromSnapshotOr(() =>
+      fetchAllWorldCupFixturesFromApi(season)
+    );
+    list = mergeLiveIntoFixtures(snap, live);
   } else {
     const snap = await resolveFixturesFromSnapshotOr(() =>
       fetchApi<Fixture[]>("fixtures", { league: LEAGUE_ID, season })

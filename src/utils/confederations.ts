@@ -22,66 +22,130 @@ function normalizeKey(value: string): string {
   return value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ")
     .toLowerCase()
     .trim();
 }
 
-const COUNTRY_TO_CONFED: Record<string, Confederation> = {
-  // UEFA
-  albania: "UEFA", andorra: "UEFA", armenia: "UEFA", austria: "UEFA", azerbaijan: "UEFA",
-  belarus: "UEFA", belgium: "UEFA", "bosnia and herzegovina": "UEFA", "bosnia & herzegovina": "UEFA",
-  bulgaria: "UEFA", croatia: "UEFA", cyprus: "UEFA", "czech republic": "UEFA", czechia: "UEFA",
-  denmark: "UEFA", england: "UEFA", estonia: "UEFA", "faroe islands": "UEFA", finland: "UEFA",
-  france: "UEFA", georgia: "UEFA", germany: "UEFA", gibraltar: "UEFA", greece: "UEFA",
-  hungary: "UEFA", iceland: "UEFA", ireland: "UEFA", israel: "UEFA", italy: "UEFA",
-  kazakhstan: "UEFA", kosovo: "UEFA", latvia: "UEFA", liechtenstein: "UEFA", lithuania: "UEFA",
-  luxembourg: "UEFA", malta: "UEFA", moldova: "UEFA", montenegro: "UEFA", netherlands: "UEFA",
-  "north macedonia": "UEFA", "northern ireland": "UEFA", norway: "UEFA", poland: "UEFA",
-  portugal: "UEFA", romania: "UEFA", russia: "UEFA", "san marino": "UEFA", scotland: "UEFA",
-  serbia: "UEFA", slovakia: "UEFA", slovenia: "UEFA", spain: "UEFA", sweden: "UEFA",
-  switzerland: "UEFA", turkey: "UEFA", turkiye: "UEFA", ukraine: "UEFA", wales: "UEFA",
-  // CONMEBOL
-  argentina: "CONMEBOL", bolivia: "CONMEBOL", brazil: "CONMEBOL", chile: "CONMEBOL",
-  colombia: "CONMEBOL", ecuador: "CONMEBOL", paraguay: "CONMEBOL", peru: "CONMEBOL",
-  uruguay: "CONMEBOL", venezuela: "CONMEBOL",
-  // CONCACAF
-  canada: "CONCACAF", "costa rica": "CONCACAF", cuba: "CONCACAF", curacao: "CONCACAF",
-  "el salvador": "CONCACAF", guatemala: "CONCACAF", haiti: "CONCACAF", honduras: "CONCACAF",
-  jamaica: "CONCACAF", mexico: "CONCACAF", panama: "CONCACAF", "trinidad and tobago": "CONCACAF",
-  usa: "CONCACAF", "united states": "CONCACAF",
-  // CAF
-  algeria: "CAF", angola: "CAF", benin: "CAF", botswana: "CAF", "burkina faso": "CAF",
-  burundi: "CAF", cameroon: "CAF", "cape verde": "CAF", "central african republic": "CAF",
-  chad: "CAF", comoros: "CAF", congo: "CAF", "dr congo": "CAF", "democratic republic of the congo": "CAF",
-  djibouti: "CAF", egypt: "CAF", "equatorial guinea": "CAF", eritrea: "CAF", eswatini: "CAF",
-  ethiopia: "CAF", gabon: "CAF", gambia: "CAF", ghana: "CAF", guinea: "CAF",
-  "guinea-bissau": "CAF", "ivory coast": "CAF", "cote d'ivoire": "CAF", kenya: "CAF",
-  lesotho: "CAF", liberia: "CAF", libya: "CAF", madagascar: "CAF", malawi: "CAF",
-  mali: "CAF", mauritania: "CAF", mauritius: "CAF", morocco: "CAF", mozambique: "CAF",
-  namibia: "CAF", niger: "CAF", nigeria: "CAF", rwanda: "CAF", senegal: "CAF",
-  seychelles: "CAF", "sierra leone": "CAF", somalia: "CAF", "south africa": "CAF",
-  "south sudan": "CAF", sudan: "CAF", tanzania: "CAF", togo: "CAF", tunisia: "CAF",
-  uganda: "CAF", zambia: "CAF", zimbabwe: "CAF",
-  // AFC
-  afghanistan: "AFC", australia: "AFC", bahrain: "AFC", bangladesh: "AFC", bhutan: "AFC",
-  brunei: "AFC", cambodia: "AFC", china: "AFC", "chinese taipei": "AFC", "hong kong": "AFC",
-  india: "AFC", indonesia: "AFC", iran: "AFC", iraq: "AFC", japan: "AFC", jordan: "AFC",
-  kuwait: "AFC", kyrgyzstan: "AFC", laos: "AFC", lebanon: "AFC", macau: "AFC",
-  malaysia: "AFC", maldives: "AFC", mongolia: "AFC", myanmar: "AFC", nepal: "AFC",
-  "north korea": "AFC", oman: "AFC", pakistan: "AFC", palestine: "AFC", philippines: "AFC",
-  qatar: "AFC", "saudi arabia": "AFC", singapore: "AFC", "south korea": "AFC",
-  "korea republic": "AFC", "republic of korea": "AFC", "sri lanka": "AFC", syria: "AFC",
-  tajikistan: "AFC", thailand: "AFC", "timor-leste": "AFC", turkmenistan: "AFC",
-  uae: "AFC", "united arab emirates": "AFC", uzbekistan: "AFC", vietnam: "AFC", yemen: "AFC",
-  // OFC
-  "american samoa": "OFC", "cook islands": "OFC", fiji: "OFC", "new caledonia": "OFC",
-  "new zealand": "OFC", "papua new guinea": "OFC", samoa: "OFC", "solomon islands": "OFC",
-  tahiti: "OFC", tonga: "OFC", vanuatu: "OFC",
+/**
+ * Clasificación oficial — Mundial 2026.
+ * Incluye nombres API (inglés), country con guiones y alias en español.
+ */
+const WORLD_CUP_2026_CONFEDERATIONS: Record<string, Confederation> = {
+  // UEFA (16)
+  england: "UEFA",
+  inglaterra: "UEFA",
+  france: "UEFA",
+  francia: "UEFA",
+  croatia: "UEFA",
+  croacia: "UEFA",
+  portugal: "UEFA",
+  norway: "UEFA",
+  noruega: "UEFA",
+  germany: "UEFA",
+  alemania: "UEFA",
+  netherlands: "UEFA",
+  "paises bajos": "UEFA",
+  belgium: "UEFA",
+  belgica: "UEFA",
+  austria: "UEFA",
+  spain: "UEFA",
+  espana: "UEFA",
+  switzerland: "UEFA",
+  suiza: "UEFA",
+  scotland: "UEFA",
+  escocia: "UEFA",
+  "czech republic": "UEFA",
+  czechia: "UEFA",
+  chequia: "UEFA",
+  "republica checa": "UEFA",
+  sweden: "UEFA",
+  suecia: "UEFA",
+  "bosnia and herzegovina": "UEFA",
+  "bosnia & herzegovina": "UEFA",
+  bosnia: "UEFA",
+  "bosnia y herzegovina": "UEFA",
+  turkey: "UEFA",
+  turkiye: "UEFA",
+  turquia: "UEFA",
+
+  // CAF (9)
+  algeria: "CAF",
+  argelia: "CAF",
+  "cape verde": "CAF",
+  "cape verde islands": "CAF",
+  "cabo verde": "CAF",
+  "ivory coast": "CAF",
+  "cote d'ivoire": "CAF",
+  "costa de marfil": "CAF",
+  egypt: "CAF",
+  egipto: "CAF",
+  ghana: "CAF",
+  morocco: "CAF",
+  marruecos: "CAF",
+  "dr congo": "CAF",
+  "congo dr": "CAF",
+  "democratic republic of the congo": "CAF",
+  "congo democratic republic": "CAF",
+  "republica democratica del congo": "CAF",
+  "south africa": "CAF",
+  "sudáfrica": "CAF",
+  sudfrica: "CAF",
+  tunisia: "CAF",
+  tunez: "CAF",
+  senegal: "CAF",
+
+  // AFC (9)
+  "saudi arabia": "AFC",
+  "arabia saudi": "AFC",
+  "arabia saudita": "AFC",
+  australia: "AFC",
+  qatar: "AFC",
+  catar: "AFC",
+  uae: "AFC",
+  "united arab emirates": "AFC",
+  "emiratos arabes unidos": "AFC",
+  iraq: "AFC",
+  irak: "AFC",
+  iran: "AFC",
+  japan: "AFC",
+  japon: "AFC",
+  jordan: "AFC",
+  jordania: "AFC",
+  uzbekistan: "AFC",
+  "south korea": "AFC",
+  "korea republic": "AFC",
+  "republic of korea": "AFC",
+  "corea del sur": "AFC",
+
+  // CONCACAF (6)
+  canada: "CONCACAF",
+  "united states": "CONCACAF",
+  usa: "CONCACAF",
+  "estados unidos": "CONCACAF",
+  mexico: "CONCACAF",
+  curacao: "CONCACAF",
+  haiti: "CONCACAF",
+  panama: "CONCACAF",
+
+  // CONMEBOL (6)
+  argentina: "CONMEBOL",
+  brazil: "CONMEBOL",
+  brasil: "CONMEBOL",
+  colombia: "CONMEBOL",
+  ecuador: "CONMEBOL",
+  paraguay: "CONMEBOL",
+  uruguay: "CONMEBOL",
+
+  // OFC (1)
+  "new zealand": "OFC",
+  "nueva zelanda": "OFC",
 };
 
 export function getConfederation(countryOrTeamName: string): Confederation {
   const key = normalizeKey(countryOrTeamName);
-  return COUNTRY_TO_CONFED[key] ?? "UEFA";
+  return WORLD_CUP_2026_CONFEDERATIONS[key] ?? "UEFA";
 }
 
 export function buildTeamConfederationMap(
@@ -89,7 +153,9 @@ export function buildTeamConfederationMap(
 ): Map<number, Confederation> {
   const map = new Map<number, Confederation>();
   for (const t of teams) {
-    map.set(t.id, getConfederation(t.country || t.name));
+    const fromName = WORLD_CUP_2026_CONFEDERATIONS[normalizeKey(t.name)];
+    const fromCountry = WORLD_CUP_2026_CONFEDERATIONS[normalizeKey(t.country)];
+    map.set(t.id, fromName ?? fromCountry ?? getConfederation(t.name));
   }
   return map;
 }

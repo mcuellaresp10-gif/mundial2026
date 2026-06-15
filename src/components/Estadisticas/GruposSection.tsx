@@ -100,43 +100,29 @@ export function GruposSection() {
 
   if (isLoading) {
     return (
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Grupos del torneo</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 rounded-xl" />
-          ))}
-        </div>
-      </section>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-64 rounded-xl" />
+        ))}
+      </div>
     );
   }
 
   if (groups.length === 0) {
     return (
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Grupos del torneo</h2>
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            Las tablas de grupos aparecerán cuando comience la fase de grupos.
-          </CardContent>
-        </Card>
-      </section>
+      <Card>
+        <CardContent className="py-8 text-center text-sm text-muted-foreground">
+          Las tablas de grupos aparecerán cuando comience la fase de grupos.
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Grupos del torneo</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Posiciones actuales de las 12 fases de grupos · Los 2 primeros clasifican
-        </p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {groups.map(({ groupLabel, table, letter }) => (
-          <GroupTable key={letter ?? groupLabel} groupLabel={groupLabel} table={table} />
-        ))}
-      </div>
-    </section>
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {groups.map(({ groupLabel, table, letter }) => (
+        <GroupTable key={letter ?? groupLabel} groupLabel={groupLabel} table={table} />
+      ))}
+    </div>
   );
 }

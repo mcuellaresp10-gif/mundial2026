@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/", label: "Dashboard", icon: "🏠" },
   { href: "/calendario", label: "Calendario", icon: "📅" },
   { href: "/selecciones", label: "Selecciones", icon: "🌍" },
+  { href: "/grupos", label: "Grupos", icon: "🏆" },
   { href: "/jugadores", label: "Jugadores", icon: "👤" },
   { href: "/once-ideal", label: "Once Ideal", icon: "⭐" },
   { href: "/comparativas", label: "Comparativas", icon: "⚔️" },

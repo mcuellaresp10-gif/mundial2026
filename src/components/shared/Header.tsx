@@ -16,6 +16,7 @@ const NAV = [
   { href: "/", label: "Dashboard" },
   { href: "/calendario", label: "Calendario" },
   { href: "/selecciones", label: "Selecciones" },
+  { href: "/grupos", label: "Grupos" },
   { href: "/jugadores", label: "Jugadores" },
   { href: "/once-ideal", label: "Once Ideal" },
   { href: "/comparativas", label: "Comparativas" },

@@ -8,6 +8,8 @@ import { MatchResultChart, ScoreDistributionChart } from "./charts/MatchResultCh
 import {
   GoalsByConfederationChart,
   ConfederacionEfficiencyChart,
+  PointsByConfederationChart,
+  ConfederationPointsEfficiencyChart,
 } from "./charts/GoalsByConfederationChart";
 import { HomeAwayChart, GoalsByPhaseChart } from "./charts/HomeAwayChart";
 import {
@@ -63,6 +65,8 @@ export function EstadisticasDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <GoalsByConfederationChart data={stats.goalsByConfederation} />
           <ConfederacionEfficiencyChart data={stats.confederationEfficiency} />
+          <PointsByConfederationChart data={stats.pointsByConfederation} />
+          <ConfederationPointsEfficiencyChart data={stats.pointsEfficiencyByConfederation} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <HomeAwayChart data={stats.homeAwayGoals} />

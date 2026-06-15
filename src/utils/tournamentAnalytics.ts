@@ -1,6 +1,6 @@
 import type { Confederation } from "./confederations";
-import { CONFEDERATION_LABELS } from "./confederations";
-import type { Fixture, FixtureEvent, Lineup, Team } from "@/types";
+import { CONFEDERATION_LABELS, getConfederation } from "./confederations";
+import type { Fixture, FixtureEvent, Lineup, StandingsGroup, Team } from "@/types";
 import { isFixtureFinished, isFixtureStarted, getLocalDayKey } from "@/lib/liveRefresh";
 import { formatRoundLabel, formatShortDate } from "@/utils/formatters";
 import { positionToCode } from "@/utils/squad";
@@ -171,6 +171,70 @@ export function aggregateConfederationEfficiency(
       };
     })
     .sort((a, b) => b.value - a.value);
+}
+
+/** Puntos acumulados en fase de grupos por confederación (desde standings). */
+export function aggregatePointsByConfederation(
+  standings: StandingsGroup[],
+  teamConfed: Map<number, Confederation>
+): ChartDatum[] {
+  const points = new Map<Confederation, number>();
+
+  for (const sg of standings) {
+    for (const group of sg.league.standings) {
+      for (const row of group) {
+        const c = teamConfed.get(row.team.id) ?? getConfederationFromTeam(row.team);
+        points.set(c, (points.get(c) ?? 0) + row.points);
+      }
+    }
+  }
+
+  return [...points.entries()]
+    .sort(([, a], [, b]) => b - a)
+    .map(([confed, value]) => ({
+      label: CONFEDERATION_LABELS[confed],
+      value,
+      confed,
+    }));
+}
+
+/** % eficiencia de puntos: puntos obtenidos / máximo posible (3 por partido). */
+export function aggregatePointsEfficiencyByConfederation(
+  standings: StandingsGroup[],
+  teamConfed: Map<number, Confederation>
+): ChartDatum[] {
+  const points = new Map<Confederation, number>();
+  const maxPoints = new Map<Confederation, number>();
+
+  for (const sg of standings) {
+    for (const group of sg.league.standings) {
+      for (const row of group) {
+        const c = teamConfed.get(row.team.id) ?? getConfederationFromTeam(row.team);
+        const played = row.all.played ?? 0;
+        points.set(c, (points.get(c) ?? 0) + row.points);
+        maxPoints.set(c, (maxPoints.get(c) ?? 0) + played * 3);
+      }
+    }
+  }
+
+  return [...points.entries()]
+    .map(([confed, pts]) => {
+      const max = maxPoints.get(confed) ?? 0;
+      const pct = max > 0 ? Math.round((pts / max) * 1000) / 10 : 0;
+      return {
+        label: CONFEDERATION_LABELS[confed],
+        value: pct,
+        confed,
+        points: pts,
+        maxPoints: max,
+      };
+    })
+    .filter((d) => d.maxPoints > 0)
+    .sort((a, b) => b.value - a.value);
+}
+
+function getConfederationFromTeam(team: Team): Confederation {
+  return getConfederation(team.country || team.name);
 }
 
 export function aggregateHomeAwayGoals(fixtures: Fixture[]): ChartDatum[] {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useFixtures, useTeams } from "./usePartidos";
+import { useFixtures, useTeams, useStandings } from "./usePartidos";
 import { useTournamentEventData } from "./useTournamentEventData";
 import { buildTeamConfederationMap } from "@/utils/confederations";
 import {
@@ -12,6 +12,8 @@ import {
   aggregateScoreDistribution,
   aggregateGoalsByConfederation,
   aggregateConfederationEfficiency,
+  aggregatePointsByConfederation,
+  aggregatePointsEfficiencyByConfederation,
   aggregateHomeAwayGoals,
   aggregateGoalsByPhase,
   aggregateGoalsByMinute,
@@ -40,6 +42,7 @@ import { translateTeamName } from "@/utils/teamNames";
 export function useTournamentAnalytics(loadEvents = true) {
   const { data: fixtures = [] } = useFixtures();
   const { data: teams = [] } = useTeams();
+  const { data: standings = [] } = useStandings();
   const { eventsByFixture, lineupsByFixture, isLoading: eventsLoading, hasFinished } =
     useTournamentEventData(fixtures, loadEvents);
 
@@ -89,6 +92,8 @@ export function useTournamentAnalytics(loadEvents = true) {
       scoreDistribution: aggregateScoreDistribution(fixtures),
       goalsByConfederation: aggregateGoalsByConfederation(fixtures, teamConfed),
       confederationEfficiency: aggregateConfederationEfficiency(fixtures, teamConfed),
+      pointsByConfederation: aggregatePointsByConfederation(standings, teamConfed),
+      pointsEfficiencyByConfederation: aggregatePointsEfficiencyByConfederation(standings, teamConfed),
       homeAwayGoals: aggregateHomeAwayGoals(fixtures),
       goalsByPhase: aggregateGoalsByPhase(fixtures),
       goalsByMinute: aggregateGoalsByMinute(allEvents),
@@ -102,5 +107,5 @@ export function useTournamentAnalytics(loadEvents = true) {
       earlyVsLateFirstGoal: aggregateEarlyVsLateFirstGoal(eventsByFixture),
       dynamicInsight: generateDynamicInsight(fixtures, teamConfed, allEvents),
     };
-  }, [fixtures, teams, eventsByFixture, lineupsByFixture, eventsLoading, hasFinished]);
+  }, [fixtures, teams, standings, eventsByFixture, lineupsByFixture, eventsLoading, hasFinished]);
 }

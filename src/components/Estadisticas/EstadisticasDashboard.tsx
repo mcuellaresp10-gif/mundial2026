@@ -18,6 +18,7 @@ import {
   GoalTypeChart,
 } from "./charts/GoalsByPositionChart";
 import { InsightsPanel } from "./InsightsPanel";
+import { GruposSection } from "./GruposSection";
 
 function MiniCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   return (
@@ -45,6 +46,8 @@ export function EstadisticasDashboard() {
         <MiniCard label="Promedio goles/partido" value={stats.avgGoalsPerMatch} />
         <MiniCard label="Pendientes" value={stats.pendingCount} />
       </div>
+
+      <GruposSection />
 
       {/* Sección A — Ritmo del torneo */}
       <section className="space-y-4">

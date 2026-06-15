@@ -1,25 +1,11 @@
 import type { StandingTeam, StandingsGroup } from "@/types";
-import { formatGroupFromRound } from "@/utils/formatters";
+import {
+  iterateStandingsTables,
+  type StandingTableSlice,
+} from "@/utils/standingsTables";
 
-export interface StandingTableSlice {
-  table: StandingTeam[];
-  groupLabel: string;
-  letter?: string;
-}
-
-/** Cada grupo del Mundial viene en league.standings[i], no solo standings[0]. */
-export function iterateStandingsTables(groups: StandingsGroup[]): StandingTableSlice[] {
-  const slices: StandingTableSlice[] = [];
-  for (const g of groups) {
-    for (const table of g.league.standings) {
-      if (!table?.length) continue;
-      const groupLabel = formatGroupFromRound(table[0]?.group ?? g.league.name);
-      const letter = groupLabel.match(/Grupo\s+([A-L])/i)?.[1]?.toUpperCase();
-      slices.push({ table, groupLabel, letter });
-    }
-  }
-  return slices.sort((a, b) => (a.letter ?? a.groupLabel).localeCompare(b.letter ?? b.groupLabel, "es"));
-}
+export type { StandingTableSlice };
+export { iterateStandingsTables };
 
 export function findStandingTeam(
   groups: StandingsGroup[],

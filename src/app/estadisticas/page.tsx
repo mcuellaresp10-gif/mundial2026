@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { TopScorers, TopAsistentes } from "@/components/Estadisticas/TopScorers";
-import { EstadisticasAgregadas } from "@/components/Estadisticas/EstadisticasAgregadas";
+import { EstadisticasDashboard } from "@/components/Estadisticas/EstadisticasDashboard";
 import { useTeams } from "@/hooks/usePartidos";
 import { useAllPlayers, extractTopScorers, extractTopAssists } from "@/hooks/useJugadores";
 import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
@@ -30,7 +30,7 @@ export default function EstadisticasPage() {
         </p>
       </div>
 
-      <EstadisticasAgregadas />
+      <EstadisticasDashboard />
 
       <Tabs defaultValue="worldcup" onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
         <TabsList className="flex-wrap h-auto">

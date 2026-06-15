@@ -6,12 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEstadisticasAggregadas } from "@/hooks/useEstadisticasAggregadas";
 import { useWorldCupTopScorers } from "@/hooks/useJugadores";
+import { GoalsByDayChart } from "@/components/Estadisticas/charts/GoalsByDayChart";
+import { aggregateGoalsByDayLastN } from "@/utils/tournamentAnalytics";
+import { useMemo } from "react";
 import { formatRoundLabel } from "@/utils/formatters";
 import { translateTeamName } from "@/utils/teamNames";
 
 export function EstadisticasGlobales() {
   const stats = useEstadisticasAggregadas();
   const { scorers: topScorers, isLoading: loadingScorers } = useWorldCupTopScorers(10);
+  const goalsByDay = useMemo(
+    () => aggregateGoalsByDayLastN(stats.fixtures ?? [], 7),
+    [stats.fixtures]
+  );
 
   if (loadingScorers && topScorers.length === 0) {
     return (
@@ -41,6 +48,10 @@ export function EstadisticasGlobales() {
         <StatCard label="Goles totales" value={stats.totalGoals} highlight />
         <StatCard label="Promedio goles/partido" value={stats.avgGoalsPerMatch} />
       </div>
+
+      {goalsByDay.length > 0 && (
+        <GoalsByDayChart data={goalsByDay} compact />
+      )}
 
       {/* Two-column section — container-query responsive */}
       <div className="grid grid-cols-1 gap-4 @lg/stats:grid-cols-2 @lg/stats:gap-6 min-w-0">

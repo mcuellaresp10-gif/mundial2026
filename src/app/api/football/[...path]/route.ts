@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 const CACHE_TTL = 4 * 60 * 60 * 1000;
 const LIVE_CACHE_TTL = 60 * 1000;
-const LIVE_DETAIL_CACHE_TTL = 60 * 1000;
+const LIVE_DETAIL_CACHE_TTL = 25 * 1000;
 const LIVE_STANDINGS_CACHE_TTL = 2 * 60 * 1000;
 
 const LIVE_SESSION_LIVE_TTL = 40 * 1000;
 const LIVE_SESSION_FIXTURE_TTL = 30 * 1000;
 const LIVE_SESSION_LEAGUE_TTL = 5 * 60 * 1000;
-const LIVE_SESSION_DETAIL_TTL = 60 * 1000;
+const LIVE_SESSION_DETAIL_TTL = 25 * 1000;
 
 function isLiveSessionRequest(request: NextRequest): boolean {
   return request.headers.get("X-Mundial-Live") === "1";

@@ -180,7 +180,7 @@ export const LIVE_REFRESH_MS = {
   /** Marcador, calendario, detalle de partido. */
   fixtures: 20 * 1000,
   /** Eventos y stats dentro de un partido en vivo. */
-  fixtureDetail: 45 * 1000,
+  fixtureDetail: 30 * 1000,
   /** Tabla de posiciones durante el torneo. */
   standings: 2 * 60 * 1000,
   /** Próximo partido cuando hay juego en curso. */

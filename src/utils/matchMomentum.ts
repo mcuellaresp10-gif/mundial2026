@@ -7,21 +7,31 @@ export interface MomentumPoint {
   momentum: number;
   homePressure: number;
   awayPressure: number;
+  homePossession?: number;
+  awayPossession?: number;
 }
 
-export interface StatTimelineSnapshot {
+export interface MomentumSnapshot {
+  ts: number;
   minute: number;
   home: MatchStatProfile;
   away: MatchStatProfile;
+  eventKeys: string[];
+  statsFingerprint: string;
 }
+
+/** @deprecated Use MomentumSnapshot */
+export type StatTimelineSnapshot = Pick<MomentumSnapshot, "minute" | "home" | "away">;
 
 const WINDOW_MINUTES = 5;
 const DECAY_RATE = 2;
 const SMOOTH_WINDOW = 3;
+const SNAPSHOT_SMOOTH = 5;
 const MAX_MOMENTUM = 100;
-const EVENT_WEIGHT = 0.45;
-const STAT_WEIGHT = 0.55;
+const EVENT_WEIGHT = 0.35;
+const SNAPSHOT_WEIGHT = 0.65;
 const GAUSSIAN_SIGMA = 3;
+const STEP = 0.5;
 
 export function eventMinute(event: FixtureEvent): number {
   return event.time.elapsed + (event.time.extra ?? 0);
@@ -90,12 +100,16 @@ function movingAverage(values: number[], window: number): number[] {
   });
 }
 
-function toMomentumPoints(values: number[]): MomentumPoint[] {
-  return values.map((momentum, minute) => ({
+function toMomentumPoints(
+  series: { minute: number; momentum: number; homePoss?: number; awayPoss?: number }[]
+): MomentumPoint[] {
+  return series.map(({ minute, momentum, homePoss, awayPoss }) => ({
     minute,
     momentum,
     homePressure: Math.max(0, momentum),
     awayPressure: Math.min(0, momentum),
+    homePossession: homePoss,
+    awayPossession: awayPoss,
   }));
 }
 
@@ -109,18 +123,33 @@ export function resolveMaxMinute(
     const lastEvent = events.reduce((max, e) => Math.max(max, eventMinute(e)), 0);
     return Math.max(90, lastEvent, elapsed ?? 90);
   }
-  return Math.max(1, elapsed ?? 1);
+  return Math.max(STEP, elapsed ?? STEP);
+}
+
+export function resolveChartMaxMinute(
+  isLive: boolean,
+  statusShort: string,
+  elapsed: number | null | undefined,
+  events: FixtureEvent[]
+): number {
+  if (isLive && statusShort !== "HT") {
+    return Math.max(STEP, elapsed ?? STEP);
+  }
+  return resolveMaxMinute(statusShort, elapsed, events);
 }
 
 function computeRawEventMomentum(
   events: FixtureEvent[],
   homeTeamId: number,
   awayTeamId: number,
-  maxMinute: number
-): number[] {
-  const raw: number[] = [];
+  maxMinute: number,
+  step = 1
+): Map<number, number> {
+  const steps = Math.ceil(maxMinute / step);
+  const raw = new Map<number, number>();
 
-  for (let minute = 0; minute <= maxMinute; minute++) {
+  for (let i = 0; i <= steps; i++) {
+    const minute = Math.round(i * step * 10) / 10;
     let homeThreat = 0;
     let awayThreat = 0;
 
@@ -136,10 +165,127 @@ function computeRawEventMomentum(
       awayThreat += impact.awayDelta * decay;
     }
 
-    raw.push(clamp(homeThreat - awayThreat, -MAX_MOMENTUM, MAX_MOMENTUM));
+    raw.set(minute, clamp(homeThreat - awayThreat, -MAX_MOMENTUM, MAX_MOMENTUM));
   }
 
-  return movingAverage(raw, SMOOTH_WINDOW);
+  const keys = [...raw.keys()].sort((a, b) => a - b);
+  const values = keys.map((k) => raw.get(k)!);
+  const smoothed = movingAverage(values, SMOOTH_WINDOW);
+  const result = new Map<number, number>();
+  keys.forEach((k, i) => result.set(k, smoothed[i]));
+  return result;
+}
+
+function intervalAttackDelta(prev: MatchStatProfile, next: MatchStatProfile): number {
+  const dShots = (next.shotsOn - prev.shotsOn) * 4;
+  const dDanger = (next.dangerousAttacks - prev.dangerousAttacks) * 0.5;
+  const dCorners = (next.corners - prev.corners) * 0.3;
+  const dInside = (next.shotsInside - prev.shotsInside) * 0.4;
+  return dShots + dDanger + dCorners + dInside;
+}
+
+/** Serie de momentum desde snapshots cada ~30s (prioridad en vivo). */
+export function buildMomentumFromSnapshots(
+  snapshots: MomentumSnapshot[],
+  maxMinute: number
+): MomentumPoint[] {
+  if (snapshots.length === 0) return [];
+
+  const sorted = [...snapshots].sort((a, b) => a.minute - b.minute || a.ts - b.ts);
+  const pointMap = new Map<number, { momentum: number; homePoss: number; awayPoss: number }>();
+
+  const seed = sorted[0];
+  pointMap.set(0, {
+    momentum: ((seed.home.possession - seed.away.possession) / 100) * 20,
+    homePoss: seed.home.possession,
+    awayPoss: seed.away.possession,
+  });
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const next = sorted[i];
+    const span = Math.max(STEP, next.minute - prev.minute);
+
+    const possessionSignal = (next.home.possession - prev.home.possession) * 2;
+    const attackSignal =
+      intervalAttackDelta(prev.home, next.home) - intervalAttackDelta(prev.away, next.away);
+    const intervalMomentum = clamp(
+      possessionSignal * 0.5 + attackSignal * 0.5,
+      -MAX_MOMENTUM,
+      MAX_MOMENTUM
+    );
+
+    const steps = Math.max(1, Math.round(span / STEP));
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      const minute = Math.min(
+        maxMinute,
+        Math.round((prev.minute + span * t) * 2) / 2
+      );
+      const homePoss = prev.home.possession + (next.home.possession - prev.home.possession) * t;
+      const awayPoss = prev.away.possession + (next.away.possession - prev.away.possession) * t;
+      pointMap.set(minute, { momentum: intervalMomentum, homePoss, awayPoss });
+    }
+  }
+
+  const last = sorted[sorted.length - 1];
+  pointMap.set(Math.min(maxMinute, last.minute), {
+    momentum:
+      ((last.home.possession - last.away.possession) / 100) * 30 +
+      (intervalAttackDelta(
+        { ...last.home, shotsOn: 0, dangerousAttacks: 0, corners: 0, shotsInside: 0 },
+        last.home
+      ) || 0),
+    homePoss: last.home.possession,
+    awayPoss: last.away.possession,
+  });
+
+  const minutes = [...pointMap.keys()].sort((a, b) => a - b);
+  if (minutes.length === 0) return [];
+
+  const filled: { minute: number; momentum: number; homePoss: number; awayPoss: number }[] = [];
+  for (let m = 0; m <= maxMinute; m = Math.round((m + STEP) * 10) / 10) {
+    let closest = minutes[0];
+    for (const min of minutes) {
+      if (min <= m) closest = min;
+      else break;
+    }
+    const pt = pointMap.get(closest)!;
+    filled.push({ minute: m, momentum: pt.momentum, homePoss: pt.homePoss, awayPoss: pt.awayPoss });
+  }
+
+  const smoothed = movingAverage(
+    filled.map((p) => p.momentum),
+    SNAPSHOT_SMOOTH
+  );
+  return toMomentumPoints(
+    filled.map((p, i) => ({ ...p, momentum: smoothed[i] }))
+  );
+}
+
+export function buildPossessionSeries(
+  snapshots: MomentumSnapshot[],
+  maxMinute: number
+): { minute: number; homePoss: number; awayPoss: number }[] {
+  if (snapshots.length === 0) return [];
+
+  const sorted = [...snapshots].sort((a, b) => a.minute - b.minute || a.ts - b.ts);
+  const series: { minute: number; homePoss: number; awayPoss: number }[] = [];
+
+  for (let m = 0; m <= maxMinute; m = Math.round((m + STEP) * 10) / 10) {
+    let snap = sorted[0];
+    for (const s of sorted) {
+      if (s.minute <= m) snap = s;
+      else break;
+    }
+    series.push({
+      minute: m,
+      homePoss: snap.home.possession,
+      awayPoss: snap.away.possession,
+    });
+  }
+
+  return series;
 }
 
 function gaussianKernel(minute: number, center: number, sigma: number): number {
@@ -158,12 +304,13 @@ function eventActivityAtMinute(
     const eventMin = eventMinute(event);
     const impact = getEventImpact(event, homeTeamId, awayTeamId);
     if (!impact) continue;
-    activity += Math.abs(impact.homeDelta - impact.awayDelta) * gaussianKernel(minute, eventMin, GAUSSIAN_SIGMA);
+    activity +=
+      Math.abs(impact.homeDelta - impact.awayDelta) *
+      gaussianKernel(minute, eventMin, GAUSSIAN_SIGMA);
   }
   return activity;
 }
 
-/** Distribuye stats acumuladas minuto a minuto (partidos sin snapshots). */
 export function computeStatMomentumFromAggregate(
   parsed: ParsedFixtureStats,
   events: FixtureEvent[],
@@ -173,7 +320,11 @@ export function computeStatMomentumFromAggregate(
 ): number[] {
   const possessionTilt = ((parsed.home.possession - parsed.away.possession) / 100) * 40;
   const threatDiff = computeStatThreat(parsed.home) - computeStatThreat(parsed.away);
-  const threatTilt = clamp((threatDiff / Math.max(computeStatThreat(parsed.home) + computeStatThreat(parsed.away), 1)) * 60, -60, 60);
+  const threatTilt = clamp(
+    (threatDiff / Math.max(computeStatThreat(parsed.home) + computeStatThreat(parsed.away), 1)) * 60,
+    -60,
+    60
+  );
 
   const raw: number[] = [];
   let totalActivity = 0;
@@ -186,7 +337,8 @@ export function computeStatMomentumFromAggregate(
   }
 
   for (let minute = 0; minute <= maxMinute; minute++) {
-    const activityShare = totalActivity > 0 ? activities[minute] / totalActivity : 1 / (maxMinute + 1);
+    const activityShare =
+      totalActivity > 0 ? activities[minute] / totalActivity : 1 / (maxMinute + 1);
     const dynamic = (activityShare - 1 / (maxMinute + 1)) * threatTilt * 2;
     raw.push(clamp(possessionTilt + dynamic + threatTilt * 0.3, -MAX_MOMENTUM, MAX_MOMENTUM));
   }
@@ -194,57 +346,112 @@ export function computeStatMomentumFromAggregate(
   return movingAverage(raw, SMOOTH_WINDOW + 2);
 }
 
-function profileDeltaThreat(prev: MatchStatProfile, next: MatchStatProfile): number {
-  const prevT = computeStatThreat(prev);
-  const nextT = computeStatThreat(next);
-  return nextT - prevT;
-}
-
-/** Construye capa stat desde snapshots en vivo (deltas entre polls). */
-export function computeStatMomentumFromTimeline(
-  snapshots: StatTimelineSnapshot[],
+function mergeSeriesAtStep(
+  snapshotPoints: MomentumPoint[],
+  eventMap: Map<number, number>,
   maxMinute: number
-): number[] {
-  if (snapshots.length === 0) {
-    return Array.from({ length: maxMinute + 1 }, () => 0);
+): MomentumPoint[] {
+  const result: MomentumPoint[] = [];
+
+  for (let m = 0; m <= maxMinute; m = Math.round((m + STEP) * 10) / 10) {
+    const snap =
+      snapshotPoints.find((p) => p.minute === m) ??
+      snapshotPoints.reduce((best, p) =>
+        Math.abs(p.minute - m) < Math.abs(best.minute - m) ? p : best
+      , snapshotPoints[0]);
+
+    const ev = eventMap.get(m) ?? 0;
+    const snapMom = snap?.momentum ?? 0;
+    const momentum = clamp(
+      SNAPSHOT_WEIGHT * snapMom + EVENT_WEIGHT * ev,
+      -MAX_MOMENTUM,
+      MAX_MOMENTUM
+    );
+
+    result.push({
+      minute: m,
+      momentum,
+      homePressure: Math.max(0, momentum),
+      awayPressure: Math.min(0, momentum),
+      homePossession: snap?.homePossession,
+      awayPossession: snap?.awayPossession,
+    });
   }
 
-  const sorted = [...snapshots].sort((a, b) => a.minute - b.minute);
-  const raw = Array.from({ length: maxMinute + 1 }, () => 0);
-
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
-    const next = sorted[i];
-    const homeDelta = profileDeltaThreat(prev.home, next.home);
-    const awayDelta = profileDeltaThreat(prev.away, next.away);
-    const diff = homeDelta - awayDelta;
-    const span = Math.max(1, next.minute - prev.minute);
-
-    for (let m = prev.minute; m <= Math.min(next.minute, maxMinute); m++) {
-      raw[m] += diff / span;
-    }
-  }
-
-  const last = sorted[sorted.length - 1];
-  const possessionTilt = ((last.home.possession - last.away.possession) / 100) * 25;
-  for (let m = 0; m <= maxMinute; m++) {
-    raw[m] = clamp(raw[m] * 3 + possessionTilt, -MAX_MOMENTUM, MAX_MOMENTUM);
-  }
-
-  return movingAverage(raw, SMOOTH_WINDOW + 2);
+  const smoothed = movingAverage(
+    result.map((p) => p.momentum),
+    SMOOTH_WINDOW
+  );
+  return result.map((p, i) => ({
+    ...p,
+    momentum: smoothed[i],
+    homePressure: Math.max(0, smoothed[i]),
+    awayPressure: Math.min(0, smoothed[i]),
+  }));
 }
 
-function mergeLayers(eventLayer: number[], statLayer: number[]): number[] {
-  const len = Math.max(eventLayer.length, statLayer.length);
-  const merged: number[] = [];
+/** Entrada principal: snapshots en vivo + capa de eventos + fallback FT. */
+export function computeLiveMomentum(
+  events: FixtureEvent[],
+  homeTeamId: number,
+  awayTeamId: number,
+  maxMinute: number,
+  parsedStats: ParsedFixtureStats | null,
+  snapshots: MomentumSnapshot[] = []
+): MomentumPoint[] {
+  if (maxMinute <= 0) return [];
 
-  for (let i = 0; i < len; i++) {
-    const ev = eventLayer[i] ?? 0;
-    const st = statLayer[i] ?? 0;
-    merged.push(clamp(EVENT_WEIGHT * ev + STAT_WEIGHT * st, -MAX_MOMENTUM, MAX_MOMENTUM));
+  const eventMap = computeRawEventMomentum(events, homeTeamId, awayTeamId, maxMinute, STEP);
+
+  if (snapshots.length >= 2) {
+    const fromSnapshots = buildMomentumFromSnapshots(snapshots, maxMinute);
+    return mergeSeriesAtStep(fromSnapshots, eventMap, maxMinute);
   }
 
-  return movingAverage(merged, SMOOTH_WINDOW);
+  if (parsedStats) {
+    const aggregate = computeStatMomentumFromAggregate(
+      parsedStats,
+      events,
+      homeTeamId,
+      awayTeamId,
+      maxMinute
+    );
+    const merged: MomentumPoint[] = [];
+    for (let m = 0; m <= maxMinute; m = Math.round((m + STEP) * 10) / 10) {
+      const ev = eventMap.get(m) ?? eventMap.get(Math.floor(m)) ?? 0;
+      const st = aggregate[Math.floor(m)] ?? 0;
+      const momentum = clamp(EVENT_WEIGHT * ev + SNAPSHOT_WEIGHT * st, -MAX_MOMENTUM, MAX_MOMENTUM);
+      merged.push({
+        minute: m,
+        momentum,
+        homePressure: Math.max(0, momentum),
+        awayPressure: Math.min(0, momentum),
+        homePossession: parsedStats.home.possession,
+        awayPossession: parsedStats.away.possession,
+      });
+    }
+    const smoothed = movingAverage(
+      merged.map((p) => p.momentum),
+      SMOOTH_WINDOW
+    );
+    return merged.map((p, i) => ({
+      ...p,
+      momentum: smoothed[i],
+      homePressure: Math.max(0, smoothed[i]),
+      awayPressure: Math.min(0, smoothed[i]),
+    }));
+  }
+
+  const keys = [...eventMap.keys()].sort((a, b) => a - b);
+  return keys.map((minute) => {
+    const momentum = eventMap.get(minute)!;
+    return {
+      minute,
+      momentum,
+      homePressure: Math.max(0, momentum),
+      awayPressure: Math.min(0, momentum),
+    };
+  });
 }
 
 export function computeMatchMomentum(
@@ -253,9 +460,7 @@ export function computeMatchMomentum(
   awayTeamId: number,
   maxMinute: number
 ): MomentumPoint[] {
-  if (maxMinute <= 0) return [];
-  const eventLayer = computeRawEventMomentum(events, homeTeamId, awayTeamId, maxMinute);
-  return toMomentumPoints(eventLayer);
+  return computeLiveMomentum(events, homeTeamId, awayTeamId, maxMinute, null, []);
 }
 
 export function computeEnrichedMatchMomentum(
@@ -264,34 +469,25 @@ export function computeEnrichedMatchMomentum(
   awayTeamId: number,
   maxMinute: number,
   parsedStats: ParsedFixtureStats | null,
-  statTimeline: StatTimelineSnapshot[] = []
+  snapshots: MomentumSnapshot[] = []
 ): MomentumPoint[] {
-  if (maxMinute <= 0) return [];
-
-  const eventLayer = computeRawEventMomentum(events, homeTeamId, awayTeamId, maxMinute);
-
-  if (!parsedStats && statTimeline.length === 0) {
-    return toMomentumPoints(eventLayer);
-  }
-
-  const statLayer =
-    statTimeline.length >= 2
-      ? computeStatMomentumFromTimeline(statTimeline, maxMinute)
-      : parsedStats
-        ? computeStatMomentumFromAggregate(parsedStats, events, homeTeamId, awayTeamId, maxMinute)
-        : Array.from({ length: maxMinute + 1 }, () => 0);
-
-  return toMomentumPoints(mergeLayers(eventLayer, statLayer));
+  return computeLiveMomentum(
+    events,
+    homeTeamId,
+    awayTeamId,
+    maxMinute,
+    parsedStats,
+    snapshots
+  );
 }
 
-/** Resumen de dominio para vista colapsada. */
 export function summarizeMomentum(points: MomentumPoint[]): {
   leader: "home" | "away" | "even";
   dominancePct: number;
 } {
   if (points.length === 0) return { leader: "even", dominancePct: 0 };
 
-  const recent = points.slice(-15);
+  const recent = points.slice(-Math.min(15, points.length));
   const avg = recent.reduce((s, p) => s + p.momentum, 0) / recent.length;
 
   if (Math.abs(avg) < 5) return { leader: "even", dominancePct: 50 };

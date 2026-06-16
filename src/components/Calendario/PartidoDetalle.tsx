@@ -11,7 +11,7 @@ import {
   translateEventDetail,
   translateFixtureStatType,
 } from "@/utils/statLabels";
-import { formatPosition } from "@/utils/formatters";
+import { LineupSection } from "@/components/Calendario/LineupSection";
 
 interface PartidoDetalleProps {
   fixtureId: number;
@@ -73,26 +73,7 @@ export function PartidoDetalle({ fixtureId, fixture }: PartidoDetalleProps) {
       </TabsContent>
 
       <TabsContent value="lineups">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {lineups.data?.map((lu) => (
-            <div key={lu.team.id}>
-              <p className="font-semibold mb-2">{translateTeamName(lu.team.name)} — {lu.formation}</p>
-              <p className="text-xs text-muted-foreground mb-2">DT: {lu.coach.name}</p>
-              <div className="space-y-1">
-                {lu.startXI.map((p) => (
-                  <div key={p.player.id} className="flex items-center gap-2 text-sm">
-                    <span className="font-mono w-6 text-muted-foreground">{p.player.number}</span>
-                    <span>{p.player.name}</span>
-                    <span className="text-xs text-muted-foreground ml-auto">{formatPosition(p.player.pos)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-          {!lineups.data?.length && (
-            <p className="text-sm text-muted-foreground col-span-2">Alineaciones no confirmadas</p>
-          )}
-        </div>
+        <LineupSection lineups={lineups.data ?? []} />
       </TabsContent>
     </Tabs>
   );

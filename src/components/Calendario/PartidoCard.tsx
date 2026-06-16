@@ -7,10 +7,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PartidoDetalle } from "./PartidoDetalle";
+import { MatchMomentumChart } from "@/components/Analisis/MatchMomentumChart";
 import { TeamLink } from "@/components/shared/TeamLink";
 import type { Fixture } from "@/types";
 import { formatFixtureDate, formatStatus, getFixtureScore, formatRoundLabel } from "@/utils/formatters";
-import { isPlausibleLiveFixture, isWithinKickoffWindow } from "@/lib/liveRefresh";
+import { isPlausibleLiveFixture, isWithinKickoffWindow, isFixtureStarted } from "@/lib/liveRefresh";
 import { cn } from "@/lib/utils";
 
 interface PartidoCardProps {
@@ -24,6 +25,9 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
     fixture.teams.away.name.toLowerCase().includes("colombia");
   const isLive =
     isPlausibleLiveFixture(fixture) ||
+    isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short);
+  const hasStarted =
+    isFixtureStarted(fixture.fixture.status.short) ||
     isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short);
   const elapsed = fixture.fixture.status.elapsed;
   const statusLabel =
@@ -91,7 +95,10 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
         </div>
 
         {expanded && (
-          <div className="mt-4 pt-4 border-t animate-in fade-in duration-300">
+          <div className="mt-4 pt-4 border-t animate-in fade-in duration-300 space-y-4">
+            {hasStarted && (
+              <MatchMomentumChart fixture={fixture} defaultExpanded={false} compact />
+            )}
             <PartidoDetalle fixtureId={fixture.fixture.id} fixture={fixture} />
           </div>
         )}

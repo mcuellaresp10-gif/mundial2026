@@ -108,7 +108,7 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
         </CardContent>
       </Card>
 
-      {hasStarted && <MatchMomentumChart fixture={fixture} />}
+      {hasStarted && <MatchMomentumChart fixture={fixture} defaultExpanded={false} />}
 
       <Tabs defaultValue={isFinished ? "post" : "pre"}>
         <TabsList>

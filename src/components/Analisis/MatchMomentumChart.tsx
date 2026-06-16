@@ -169,6 +169,18 @@ export function MatchMomentumChart({
   ]);
 
   const summary = useMemo(() => summarizeMomentum(chartData), [chartData]);
+
+  const yLimit = useMemo(() => {
+    const peak = chartData.reduce((max, p) => Math.max(max, Math.abs(p.momentum)), 0);
+    const padded = Math.ceil((peak * 1.15) / 10) * 10;
+    return Math.min(100, Math.max(40, padded || 40));
+  }, [chartData]);
+
+  const yTicks = useMemo(() => {
+    const half = yLimit / 2;
+    return [-yLimit, -half, 0, half, yLimit];
+  }, [yLimit]);
+
   const currentMinute = isLiveOrHt ? (elapsed ?? chartData.at(-1)?.minute ?? 0) : null;
   const hasData =
     chartData.some((p) => p.momentum !== 0) ||
@@ -240,7 +252,7 @@ export function MatchMomentumChart({
             ) : (
               <>
                 <div className="relative">
-                  <div className="absolute left-1 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-6">
+                  <div className="absolute left-10 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-6">
                     <Image
                       src={fixture.teams.home.logo}
                       alt={translateTeamName(fixture.teams.home.name)}
@@ -262,7 +274,7 @@ export function MatchMomentumChart({
                   <ResponsiveContainer width="100%" height={compact ? 200 : 260}>
                     <ComposedChart
                       data={chartData}
-                      margin={{ top: 8, right: 12, left: 32, bottom: 4 }}
+                      margin={{ top: 8, right: 12, left: 8, bottom: 4 }}
                     >
                       <XAxis
                         dataKey="minute"
@@ -273,7 +285,15 @@ export function MatchMomentumChart({
                         axisLine={{ stroke: "#52525b" }}
                         tickLine={false}
                       />
-                      <YAxis hide domain={[-100, 100]} />
+                      <YAxis
+                        domain={[-yLimit, yLimit]}
+                        ticks={yTicks}
+                        width={40}
+                        tick={{ fill: "#a1a1aa", fontSize: 10 }}
+                        axisLine={{ stroke: "#52525b" }}
+                        tickLine={{ stroke: "#52525b" }}
+                        tickFormatter={(v) => (v > 0 ? `+${v}` : String(v))}
+                      />
                       <Tooltip content={<MomentumTooltip />} />
                       <ReferenceLine y={0} stroke="#ffffff40" strokeWidth={1} />
                       <ReferenceLine

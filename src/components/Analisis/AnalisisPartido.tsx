@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PartidoDetalle } from "@/components/Calendario/PartidoDetalle";
+import { MatchMomentumChart } from "@/components/Analisis/MatchMomentumChart";
 import type { Fixture, AnalysisPre, AnalysisPost } from "@/types";
 import {
   buildPreMatchPrompt,
@@ -13,7 +14,7 @@ import {
 } from "@/services/analysisAI";
 import { useColombiaModeStore } from "@/stores/useColombiaModeStore";
 import { formatFixtureDate, getFixtureScore, formatStatus } from "@/utils/formatters";
-import { isFixtureLive } from "@/lib/liveRefresh";
+import { isFixtureLive, isFixtureStarted, isWithinKickoffWindow } from "@/lib/liveRefresh";
 import { TeamLink } from "@/components/shared/TeamLink";
 import { cn } from "@/lib/utils";
 
@@ -30,8 +31,12 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
   const isColombia =
     fixture.teams.home.name.toLowerCase().includes("colombia") ||
     fixture.teams.away.name.toLowerCase().includes("colombia");
-  const isFinished = fixture.fixture.status.short === "FT";
-  const live = isFixtureLive(fixture.fixture.status.short);
+  const statusShort = fixture.fixture.status.short;
+  const isFinished = statusShort === "FT";
+  const live = isFixtureLive(statusShort);
+  const hasStarted =
+    isFixtureStarted(statusShort) ||
+    isWithinKickoffWindow(fixture.fixture.date, statusShort);
   const elapsed = fixture.fixture.status.elapsed;
   const statusLabel =
     live && elapsed != null
@@ -102,6 +107,8 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
           </div>
         </CardContent>
       </Card>
+
+      {hasStarted && <MatchMomentumChart fixture={fixture} />}
 
       <Tabs defaultValue={isFinished ? "post" : "pre"}>
         <TabsList>

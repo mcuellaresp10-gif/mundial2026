@@ -53,7 +53,7 @@ export default function PerfilSeleccionPage({
     : undefined;
 
   const { data: h2h = [] } = useH2H(teamId, rivalId);
-  const { probability: classProb, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
+  const { probability: classProb, outcomes, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
     useClasificacionProb(teamId);
 
   if (!team) return <GridSkeleton count={4} />;
@@ -77,6 +77,7 @@ export default function PerfilSeleccionPage({
         <InfoCard label="Puntos" value={standing?.points ?? 0} />
         <ProbInfoCard
           probability={classProb}
+          outcomes={outcomes}
           isLoading={loadingProb}
           pendingMatchesPerTeam={pendingMatchesPerTeam}
           isPreTournament={isPreTournament}
@@ -190,12 +191,14 @@ export default function PerfilSeleccionPage({
 
 function ProbInfoCard({
   probability,
+  outcomes,
   isLoading,
   pendingMatchesPerTeam,
   isPreTournament,
   hasCalendar,
 }: {
   probability: number | null;
+  outcomes: { probFirst: number; probSecond: number; probBestThird: number } | null;
   isLoading: boolean;
   pendingMatchesPerTeam: number;
   isPreTournament: boolean;
@@ -204,9 +207,10 @@ function ProbInfoCard({
   return (
     <Card>
       <CardContent className="p-4 text-center">
-        <p className="text-xs text-muted-foreground">Prob. clasificación</p>
+        <p className="text-xs text-muted-foreground">Prob. clasificar</p>
         <ClassificationProbDisplay
           probability={probability}
+          outcomes={outcomes}
           isLoading={isLoading}
           pendingMatchesPerTeam={pendingMatchesPerTeam}
           isPreTournament={isPreTournament}

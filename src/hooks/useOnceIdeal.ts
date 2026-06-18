@@ -1,23 +1,31 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getAllPlayersForTeams } from "@/services/apiFootball";
 import { buildOnceIdeal } from "@/utils/calculations";
 import type { FormationType, OnceIdealPlayer } from "@/types";
-import { useTeams } from "./usePartidos";
+import { useTeams, useFixtures } from "./usePartidos";
+import { useAllPlayers } from "./useJugadores";
+import { isFixtureStarted, LIVE_REFRESH_MS } from "@/lib/liveRefresh";
+import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 
 export function useOnceIdeal(formation: FormationType = "4-3-3") {
   const { data: teams } = useTeams();
+  const { data: fixtures = [] } = useFixtures();
 
-  const teamIds = useMemo(() => teams?.slice(0, 8).map((t) => t.id) ?? [], [teams]);
+  const teamIds = useMemo(() => teams?.map((t) => t.id) ?? [], [teams]);
 
-  const { data: players, isLoading } = useQuery({
-    queryKey: ["onceIdealPlayers", teamIds],
-    queryFn: () => getAllPlayersForTeams(teamIds),
-    enabled: teamIds.length > 0,
-    staleTime: 4 * 60 * 60 * 1000,
-  });
+  const tournamentStarted =
+    getClientTournamentPhase() === "live" ||
+    fixtures.some((f) => isFixtureStarted(f.fixture.status.short));
+
+  const liveRefreshMs = tournamentStarted ? LIVE_REFRESH_MS.topScorers : undefined;
+
+  const { data: players, isLoading } = useAllPlayers(
+    teamIds,
+    false,
+    teamIds.length > 0,
+    liveRefreshMs
+  );
 
   const onceIdeal: OnceIdealPlayer[] = useMemo(() => {
     if (!players) return [];

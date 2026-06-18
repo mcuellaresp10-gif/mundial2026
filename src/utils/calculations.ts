@@ -12,6 +12,7 @@ import {
   computePlayerRadarFromPlayer,
   mundialAverageRadar,
 } from "./radarMetrics";
+import { getWorldCupTournamentStat } from "./playerStats";
 
 export function averageRating(ratings: number[]): number {
   if (ratings.length === 0) return 0;
@@ -96,23 +97,29 @@ export function buildOnceIdeal(
   for (const slot of slots) {
     const candidates = players
       .filter((p) => {
-        const pos = p.statistics[0]?.games.position;
+        const wc = getWorldCupTournamentStat(p);
+        if (!wc) return false;
+        const pos = wc.games.position;
         return pos === slot.pos && !used.has(p.player.id);
       })
-      .sort((a, b) => parseRating(b.statistics[0]?.games.rating) - parseRating(a.statistics[0]?.games.rating));
+      .sort(
+        (a, b) =>
+          parseRating(getWorldCupTournamentStat(b)?.games.rating) -
+          parseRating(getWorldCupTournamentStat(a)?.games.rating)
+      );
 
     const pick = candidates[0];
     if (pick) {
       used.add(pick.player.id);
-      const stat = pick.statistics[0];
+      const stat = getWorldCupTournamentStat(pick)!;
       result.push({
         id: pick.player.id,
         name: pick.player.name,
         photo: pick.player.photo,
-        team: translateTeamName(stat?.team.name ?? ""),
-        teamLogo: stat?.team.logo ?? "",
+        team: translateTeamName(stat.team.name),
+        teamLogo: stat.team.logo,
         position: slot.pos,
-        rating: parseRating(stat?.games.rating),
+        rating: parseRating(stat.games.rating),
         gridPosition: { x: slot.x, y: slot.y },
       });
     }

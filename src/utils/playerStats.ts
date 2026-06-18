@@ -214,6 +214,23 @@ export function getStatBundle(player: {
   };
 }
 
+/** Stats del Mundial 2026 solo si el jugador ha participado en el torneo. */
+export function getWorldCupTournamentStat(player: {
+  statBundle?: PlayerStatBundle;
+  statistics: PlayerStatistics[];
+}): PlayerStatistics | null {
+  const wc = getStatBundle(player).worldCup;
+  if (!wc) return null;
+
+  const appearances = wc.games.appearences ?? 0;
+  const minutes = wc.games.minutes ?? 0;
+  if (appearances <= 0 && minutes <= 0) return null;
+
+  if (parseRating(wc.games.rating) <= 0) return null;
+
+  return wc;
+}
+
 export function statSummary(stat: PlayerStatistics | null | undefined) {
   if (!stat) {
     return {

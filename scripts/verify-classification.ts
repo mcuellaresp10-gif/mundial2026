@@ -1,14 +1,16 @@
 /**
- * Verificación local pre-Mundial: Colombia ≥55%, débiles ≥5%, ningún 0%.
+ * Verificación local pre-Mundial: Colombia ≥55%, débiles ≥5%, breakdown coherente.
  */
 import {
   getUniqueGroupPairs,
   pairKey,
   simulateClassificationProbability,
+  simulateTournamentOutcomeProbabilities,
   type H2HMap,
+  type TournamentGroupInput,
 } from "../src/utils/groupClassification";
 import type { Fixture, StandingTeam } from "../src/types";
-import { MIN_CLASSIFICATION_PROB } from "../src/lib/utils";
+import { MAX_CLASSIFICATION_PROB, MIN_CLASSIFICATION_PROB } from "../src/lib/utils";
 
 function mockStanding(
   id: number,
@@ -126,6 +128,19 @@ for (const [a, b] of getUniqueGroupPairs([colombiaId, franceId, jordanId, capeVe
   h2hMap.set(pairKey(a, b), []);
 }
 
+const tournamentGroup: TournamentGroupInput = {
+  groupStandings: group,
+  groupFixturesForSim: fixtures,
+  groupLabel: "Group K",
+  isPreTournament: true,
+};
+
+const tournamentMap = simulateTournamentOutcomeProbabilities(
+  [tournamentGroup],
+  h2hMap,
+  2000
+);
+
 const cases = [
   { id: colombiaId, name: "Colombia", min: 55 },
   { id: jordanId, name: "Jordan", min: MIN_CLASSIFICATION_PROB },
@@ -134,18 +149,31 @@ const cases = [
 
 let ok = true;
 for (const c of cases) {
+  const outcomes = tournamentMap.get(c.id);
   const r = simulateClassificationProbability(
     c.id,
     group,
     fixtures,
     h2hMap,
     { isPreTournament: true, pendingMatchesPerTeam: 3, teamName: c.name },
-    2000
+    2000,
+    [tournamentGroup]
   );
-  const p = r?.probability ?? -1;
-  const pass = p >= c.min && p <= 95;
+  const p = outcomes?.probClassify ?? r?.probability ?? -1;
+  const sum =
+    (outcomes?.probFirst ?? 0) +
+    (outcomes?.probSecond ?? 0) +
+    (outcomes?.probBestThird ?? 0);
+  const sumOk = Math.abs(sum - p) <= 8;
+  const pass =
+    p >= c.min &&
+    p <= MAX_CLASSIFICATION_PROB &&
+    sumOk &&
+    (outcomes?.probFirst ?? 0) >= 0 &&
+    (outcomes?.probSecond ?? 0) >= 0 &&
+    (outcomes?.probBestThird ?? 0) >= 0;
   console.log(
-    `${pass ? "OK" : "FAIL"} ${c.name}: ${p}% (min ${c.min}%, pending=${r?.pendingMatchesPerTeam})`
+    `${pass ? "OK" : "FAIL"} ${c.name}: clasificar=${p}% (1º=${outcomes?.probFirst}% 2º=${outcomes?.probSecond}% 3º*=${outcomes?.probBestThird}%, sum=${sum}%)`
   );
   if (!pass) ok = false;
 }

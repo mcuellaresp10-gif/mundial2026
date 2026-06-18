@@ -18,6 +18,27 @@ export function OnceIdealDisplay() {
 
   if (isLoading) return <Skeleton className="h-96 w-full max-w-lg mx-auto" />;
 
+  if (onceIdeal.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Once Ideal del Torneo</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Solo jugadores con minutos en el Mundial 2026
+          </p>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Aún no hay valoraciones del Mundial 2026. El once se formará cuando haya jugadores con
+            minutos en el torneo.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const isPartial = onceIdeal.length < 11;
+
   return (
     <Card>
       <CardHeader>
@@ -25,8 +46,15 @@ export function OnceIdealDisplay() {
           <div>
             <CardTitle>Once Ideal del Torneo</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Valoración promedio: <span className="font-bold font-mono text-mundial-gold">{averageRating}</span>
+              Solo jugadores con minutos en el Mundial 2026 · Valoración promedio:{" "}
+              <span className="font-bold font-mono text-mundial-gold">{averageRating}</span>
             </p>
+            {isPartial && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Once parcial ({onceIdeal.length}/11) — faltan posiciones con jugadores que hayan
+                jugado en el torneo.
+              </p>
+            )}
           </div>
           <SelectorFormacion value={formation} onChange={setFormation} />
         </div>

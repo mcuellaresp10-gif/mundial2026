@@ -27,7 +27,7 @@ export function ColombiaFocus() {
   const keyPlayer = useMemo(() => getKeyPlayerByNationalRating(players), [players]);
   const keyNat = keyPlayer ? statSummary(getStatBundle(keyPlayer).national) : null;
 
-  const { probability: classProb, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
+  const { probability: classProb, outcomes, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
     useClasificacionProb(colombiaTeam?.id);
 
   if (!colombiaTeam) {
@@ -70,18 +70,38 @@ export function ColombiaFocus() {
             <div className="grid grid-cols-2 gap-3 @md/colombia:grid-cols-4 @md/colombia:gap-4">
               <MiniStat label="Posición en grupo" value={standing ? `#${standing.rank}` : "N/D"} />
               <div className="flex flex-col items-center justify-center text-center min-w-0">
-                <p className="text-xs text-muted-foreground mb-1">Prob. clasificación</p>
+                <p className="text-xs text-muted-foreground mb-1">Prob. clasificar</p>
                 <ClassificationProbDisplay
                   probability={classProb}
+                  outcomes={outcomes}
                   isLoading={loadingProb}
                   pendingMatchesPerTeam={pendingMatchesPerTeam}
                   isPreTournament={isPreTournament}
                   hasCalendar={hasCalendar}
+                  compact
+                  showBreakdown={false}
                 />
               </div>
               <MiniStat label="Puntos" value={standing?.points ?? 0} />
               <MiniStat label="Dif. goles" value={standing?.goalsDiff ?? 0} />
             </div>
+
+            {outcomes && !loadingProb && (
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-lg bg-muted/40 px-2 py-2">
+                  <p className="text-muted-foreground">1º grupo</p>
+                  <p className="font-mono font-bold">{outcomes.probFirst}%</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 px-2 py-2">
+                  <p className="text-muted-foreground">2º grupo</p>
+                  <p className="font-mono font-bold">{outcomes.probSecond}%</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 px-2 py-2">
+                  <p className="text-muted-foreground">Mejor 3º</p>
+                  <p className="font-mono font-bold">{outcomes.probBestThird}%</p>
+                </div>
+              </div>
+            )}
 
             {colombiaData.nextMatch && (
               <div className="rounded-xl border border-colombia-yellow/20 bg-white/50 dark:bg-white/5 p-4">

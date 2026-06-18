@@ -5,16 +5,32 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStandings } from "@/hooks/usePartidos";
+import { useTournamentClassificationProbs } from "@/hooks/useTournamentClassificationProbs";
+import { ClassificationProbCells } from "@/components/shared/ClassificationProbDisplay";
 import { iterateStandingsTables } from "@/utils/standingsTables";
 import { translateTeamName } from "@/utils/teamNames";
 import type { StandingTeam } from "@/types";
+import type { TeamOutcomeProbs } from "@/utils/groupClassification";
 import { cn } from "@/lib/utils";
 
-function GroupTable({ groupLabel, table }: { groupLabel: string; table: StandingTeam[] }) {
+function GroupTable({
+  groupLabel,
+  table,
+  probMap,
+  loadingProbs,
+}: {
+  groupLabel: string;
+  table: StandingTeam[];
+  probMap: Map<number, TeamOutcomeProbs>;
+  loadingProbs: boolean;
+}) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-2 pt-4 px-4">
         <CardTitle className="text-base">{groupLabel}</CardTitle>
+        <p className="text-[10px] text-muted-foreground mt-0.5">
+          Prob. Monte Carlo: 1º · 2º · mejor 3º
+        </p>
       </CardHeader>
       <CardContent className="px-0 pb-3">
         <div className="overflow-x-auto">
@@ -30,12 +46,22 @@ function GroupTable({ groupLabel, table }: { groupLabel: string; table: Standing
                 <th className="py-2 px-1 text-center">GF</th>
                 <th className="py-2 px-1 text-center">GC</th>
                 <th className="py-2 px-1 text-center">DIF</th>
-                <th className="py-2 pr-4 pl-1 text-center font-semibold">PTS</th>
+                <th className="py-2 px-1 text-center font-semibold">PTS</th>
+                <th className="py-2 px-1 text-center" title="Probabilidad de quedar 1º">
+                  1º
+                </th>
+                <th className="py-2 px-1 text-center" title="Probabilidad de quedar 2º">
+                  2º
+                </th>
+                <th className="py-2 pr-4 pl-1 text-center" title="Probabilidad de clasificar como mejor tercero">
+                  3º*
+                </th>
               </tr>
             </thead>
             <tbody>
               {table.map((row) => {
                 const qualifies = row.rank <= 2 && row.all.played > 0;
+                const outcomes = probMap.get(row.team.id);
                 return (
                   <tr
                     key={row.team.id}
@@ -80,9 +106,10 @@ function GroupTable({ groupLabel, table }: { groupLabel: string; table: Standing
                     <td className="py-2.5 px-1 text-center tabular-nums">
                       {row.goalsDiff > 0 ? `+${row.goalsDiff}` : row.goalsDiff}
                     </td>
-                    <td className="py-2.5 pr-4 pl-1 text-center tabular-nums font-bold text-mundial-gold">
+                    <td className="py-2.5 px-1 text-center tabular-nums font-bold text-mundial-gold">
                       {row.points}
                     </td>
+                    <ClassificationProbCells outcomes={outcomes} isLoading={loadingProbs} />
                   </tr>
                 );
               })}
@@ -96,6 +123,7 @@ function GroupTable({ groupLabel, table }: { groupLabel: string; table: Standing
 
 export function GruposSection() {
   const { data: standings = [], isLoading } = useStandings();
+  const { probMap, isLoading: loadingProbs } = useTournamentClassificationProbs();
   const groups = iterateStandingsTables(standings);
 
   if (isLoading) {
@@ -121,7 +149,13 @@ export function GruposSection() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {groups.map(({ groupLabel, table, letter }) => (
-        <GroupTable key={letter ?? groupLabel} groupLabel={groupLabel} table={table} />
+        <GroupTable
+          key={letter ?? groupLabel}
+          groupLabel={groupLabel}
+          table={table}
+          probMap={probMap}
+          loadingProbs={loadingProbs}
+        />
       ))}
     </div>
   );

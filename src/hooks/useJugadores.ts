@@ -39,13 +39,19 @@ export function useTeamPlayers(teamId?: number) {
   });
 }
 
-export function useAllPlayers(teamIds: number[], fullStats = false, enabled = true) {
+export function useAllPlayers(
+  teamIds: number[],
+  fullStats = false,
+  enabled = true,
+  liveRefreshMs?: number
+) {
   const teamKey = [...teamIds].sort((a, b) => a - b).join(",");
   return useQuery({
     queryKey: ["allPlayers", teamKey, fullStats ? "full" : "fast"],
     queryFn: () => getAllSquadsForTeams(teamIds, { fullStats }),
     enabled: enabled && teamIds.length > 0,
-    staleTime: 4 * 60 * 60 * 1000,
+    staleTime: liveRefreshMs ?? 4 * 60 * 60 * 1000,
+    refetchInterval: liveRefreshMs ?? false,
   });
 }
 

@@ -15,12 +15,18 @@ const LINKS = [
   { href: "/once-ideal", label: "Once Ideal", icon: "⭐" },
   { href: "/comparativas", label: "Comparativas", icon: "⚔️" },
   { href: "/estadisticas", label: "Estadísticas", icon: "📊" },
+  { href: "/simulacion", label: "Simulación", icon: "🎲" },
   { href: "/historico", label: "Histórico", icon: "📜" },
 ];
 
+function isNavLinkActive(pathname: string, href: string): boolean {
+  if (href === "/estadisticas") return pathname === "/estadisticas";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 const HIGHLIGHTS = [
-  { href: "/selecciones?team=colombia", label: "Colombia Focus", icon: Flag },
-  { href: "/estadisticas#scorers", label: "Top Scorers", icon: Trophy },
+  { href: "/selecciones?team=colombia", label: "Colombia Focus", icon: Flag, match: (p: string) => p.startsWith("/selecciones") },
+  { href: "/estadisticas#scorers", label: "Top Scorers", icon: Trophy, match: (p: string) => p === "/estadisticas" },
 ];
 
 export function Sidebar() {
@@ -56,7 +62,7 @@ export function Sidebar() {
               onClick={() => setSidebarOpen(false)}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                pathname === link.href
+                isNavLinkActive(pathname, link.href)
                   ? "bg-mundial-gold/20 text-mundial-gold"
                   : "text-white/70 hover:text-white hover:bg-white/5"
               )}
@@ -73,7 +79,12 @@ export function Sidebar() {
               key={link.href}
               href={link.href}
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/70 hover:text-mundial-gold hover:bg-white/5"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-white/5",
+                link.match(pathname)
+                  ? "text-mundial-gold"
+                  : "text-white/70 hover:text-mundial-gold"
+              )}
             >
               <link.icon className="h-4 w-4" />
               {link.label}

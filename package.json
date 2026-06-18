@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "npx tsx --test src/utils/fixtureMerge.test.ts src/utils/knockoutBracket.test.ts",
+    "test": "npx tsx --test src/utils/fixtureMerge.test.ts src/utils/knockoutBracket.test.ts src/utils/matchSimulation.test.ts",
     "sync:snapshot": "npx tsx scripts/sync-snapshot.ts",
     "telegram:worker": "npx tsx scripts/telegram-worker.ts",
     "telegram:chat-id": "npx tsx scripts/telegram-get-chat-id.ts",

@@ -65,12 +65,9 @@ export type H2HMap = Map<string, Fixture[]>;
 const DEFAULT_SIMULATIONS = 1000;
 const DIRECT_QUALIFY_SPOTS = 2;
 const BEST_THIRD_SPOTS = 8;
-/** @deprecated use DIRECT_QUALIFY_SPOTS */
-const QUALIFY_SPOTS = DIRECT_QUALIFY_SPOTS;
 const BASE_DRAW = 0.12;
 const HOME_ADVANTAGE = 1.5;
 const H2H_WEIGHT_PRE_TOURNAMENT = 0.4;
-const PRIOR_WEIGHT_PRE_TOURNAMENT = 0.6;
 
 export function pairKey(a: number, b: number): string {
   return a < b ? `${a}-${b}` : `${b}-${a}`;
@@ -760,7 +757,7 @@ export function simulateClassificationProbability(
   const teamInGroup = groupStandings.some((s) => s.team.id === teamId);
   if (!teamInGroup) return null;
 
-  const { isPreTournament, pendingMatchesPerTeam, teamName } = options;
+  const { isPreTournament, pendingMatchesPerTeam } = options;
 
   const baseStates = groupStandings.map((s) =>
     standingToState(s, isPreTournament)
@@ -825,7 +822,7 @@ export function simulateClassificationProbability(
   const outcomes = tournamentMap.get(teamId);
   if (!outcomes) return null;
 
-  let method: ClassificationSimResult["method"] = "monte_carlo";
+  const method: ClassificationSimResult["method"] = "monte_carlo";
   const runs = groups.some((g) => getFixturesForSimulation(g).length > 0)
     ? simulations
     : 0;

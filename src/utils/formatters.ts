@@ -95,6 +95,7 @@ export function formatRoundLabel(round: string): string {
   const groupMatch = round.match(/Group\s+([A-L])/i);
   if (groupMatch) return `Grupo ${groupMatch[1].toUpperCase()}`;
 
+  if (/Round of 32|Round of thirty-two/i.test(round)) return "16avos de final";
   if (/Round of 16|8th Finals|Round of sixteen/i.test(round)) return "Octavos de final";
   if (/Quarter[- ]finals?/i.test(round)) return "Cuartos de final";
   if (/Semi[- ]finals?/i.test(round)) return "Semifinal";

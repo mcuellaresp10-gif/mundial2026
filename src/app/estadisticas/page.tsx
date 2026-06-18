@@ -4,21 +4,34 @@ import { useMemo, useState } from "react";
 import { TopScorers, TopAsistentes } from "@/components/Estadisticas/TopScorers";
 import { EstadisticasDashboard } from "@/components/Estadisticas/EstadisticasDashboard";
 import { useTeams } from "@/hooks/usePartidos";
-import { useAllPlayers, extractTopScorers, extractTopAssists } from "@/hooks/useJugadores";
+import {
+  useAllPlayers,
+  useWorldCupTopScorers,
+  extractTopScorers,
+  extractTopAssists,
+} from "@/hooks/useJugadores";
 import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function EstadisticasPage() {
   const { data: teams = [] } = useTeams();
-  const teamIds = useMemo(() => teams.slice(0, 16).map((t) => t.id), [teams]);
+  const teamIds = useMemo(() => teams.map((t) => t.id), [teams]);
   const [activeTab, setActiveTab] = useState<"worldcup" | "national" | "club">("worldcup");
   const needsClubStats = activeTab === "club";
-  const { data: players = [], isFetching } = useAllPlayers(teamIds, needsClubStats);
+  const needsSquadStats = activeTab === "national" || activeTab === "club";
+  const { data: players = [], isFetching } = useAllPlayers(
+    teamIds,
+    needsClubStats,
+    needsSquadStats
+  );
 
-  const wcScorers = useMemo(() => extractTopScorers(players, "worldcup"), [players]);
+  const {
+    scorers: wcScorers,
+    assists: wcAssists,
+    isLoading: loadingWcScorers,
+  } = useWorldCupTopScorers(50);
   const natScorers = useMemo(() => extractTopScorers(players, "national"), [players]);
   const clubScorers = useMemo(() => extractTopScorers(players, "club"), [players]);
-  const wcAssists = useMemo(() => extractTopAssists(players, "worldcup"), [players]);
   const natAssists = useMemo(() => extractTopAssists(players, "national"), [players]);
 
   return (
@@ -40,7 +53,9 @@ export default function EstadisticasPage() {
         </TabsList>
 
         <TabsContent value="worldcup">
-          {wcScorers.length === 0 ? (
+          {loadingWcScorers && wcScorers.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Cargando goleadores del Mundial…</p>
+          ) : wcScorers.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">
               Aún no hay goles registrados en el Mundial 2026. El torneo no ha comenzado o no hay datos disponibles.
             </p>

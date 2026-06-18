@@ -129,12 +129,19 @@ export function useWorldCupTopScorers(limit = 10) {
   const merged = mergeTopScorerLists(
     apiScorers.data ?? [],
     scorersFromEvents
-  ).slice(0, limit);
+  );
 
   return {
-    scorers: merged,
+    scorers: merged.slice(0, limit),
+    assists: extractTopAssistsFromScorers(merged),
     isLoading: apiScorers.isLoading || (hasLiveFixtures && eventsLoading && merged.length === 0),
   };
+}
+
+export function extractTopAssistsFromScorers(scorers: TopScorerEntry[]): TopScorerEntry[] {
+  return [...scorers]
+    .filter((s) => s.assists > 0)
+    .sort((a, b) => b.assists - a.assists);
 }
 
 export function extractTopAssists(

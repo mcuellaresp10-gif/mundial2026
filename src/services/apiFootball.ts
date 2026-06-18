@@ -33,6 +33,11 @@ import {
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
 import { pickClubStat } from "@/utils/playerStats";
 import { mapPlayersToTopScorers } from "@/utils/tournamentScorers";
+import { mergeLiveIntoFixtures } from "@/utils/fixtureMerge";
+import {
+  applyFixtureHistory,
+  upsertFixtureHistory,
+} from "@/services/fixtureHistory";
 
 const client = axios.create({ baseURL: "/api/football" });
 const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
@@ -177,15 +182,7 @@ async function fetchFixtureFromApiById(
   }
 }
 
-export function mergeLiveIntoFixtures(fixtures: Fixture[], live: Fixture[]): Fixture[] {
-  if (live.length === 0) return fixtures;
-  const liveById = new Map(live.map((f) => [f.fixture.id, f]));
-  const merged = fixtures.map((f) => liveById.get(f.fixture.id) ?? f);
-  for (const lf of live) {
-    if (!merged.some((f) => f.fixture.id === lf.fixture.id)) merged.push(lf);
-  }
-  return merged;
-}
+export { mergeLiveIntoFixtures } from "@/utils/fixtureMerge";
 
 /** Detalle de un partido — API fresca primero (status FT/live real). */
 export async function getFixtureById(id: number): Promise<Fixture | null> {
@@ -200,6 +197,30 @@ export async function getFixtureById(id: number): Promise<Fixture | null> {
   return snapList.find((f) => f.fixture.id === id) ?? null;
 }
 
+async function fetchFixturesPaginated(season: number = DEFAULT_SEASON): Promise<Fixture[]> {
+  let page = 1;
+  let totalPages = 1;
+  const all: Fixture[] = [];
+
+  while (page <= totalPages) {
+    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
+      params: { league: LEAGUE_ID, season, page },
+      ...liveRequestConfig(),
+    });
+
+    if (data.errors && Object.keys(data.errors).length > 0) {
+      if (all.length > 0) break;
+      throw new Error(`[API-Football] fixtures page ${page}`);
+    }
+
+    all.push(...(data.response ?? []));
+    totalPages = data.paging?.total ?? 1;
+    page++;
+  }
+
+  return all;
+}
+
 async function fetchAllWorldCupFixturesFromApi(
   season: number = DEFAULT_SEASON
 ): Promise<Fixture[]> {
@@ -209,12 +230,15 @@ async function fetchAllWorldCupFixturesFromApi(
   const kickoffSoon = cached?.some((f) => fixtureNeedsFreshScore(f)) ?? false;
   if (cached && !kickoffSoon) return cached;
 
+  const fallbackWithHistory = async (): Promise<Fixture[]> => {
+    const stale = getStaleLocalCache<Fixture[]>(key) ?? cached ?? [];
+    return applyFixtureHistory(stale);
+  };
+
   try {
-    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
-      params: { league: LEAGUE_ID, season },
-      ...liveRequestConfig(),
-    });
-    const list = data.response ?? [];
+    const list = await fetchFixturesPaginated(season);
+    if (list.length === 0) return fallbackWithHistory();
+
     const ttl = bypassCache
       ? LIVE_SESSION_LIST_CACHE_MS
       : kickoffSoon
@@ -223,7 +247,7 @@ async function fetchAllWorldCupFixturesFromApi(
     if (!bypassCache) setLocalCache(key, list, ttl);
     return list;
   } catch {
-    return getStaleLocalCache<Fixture[]>(key) ?? cached ?? [];
+    return fallbackWithHistory();
   }
 }
 
@@ -308,6 +332,8 @@ async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]>
   }
 
   list = await refreshMissingKickoffFixtures(list, liveIds);
+  list = await applyFixtureHistory(list);
+  await upsertFixtureHistory(list);
 
   if (
     live.length > 0 ||

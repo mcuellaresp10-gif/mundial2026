@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getLiveWorldCupFixtures, mergeLiveIntoFixtures } from "@/services/apiFootball";
+import {
+  getFixtures,
+  getLiveWorldCupFixtures,
+  mergeLiveIntoFixtures,
+} from "@/services/apiFootball";
 import { isLiveSessionActive, syncLiveSession } from "@/services/liveSession";
 import { getLiveRefreshInterval, isPlausibleLiveFixture, shouldPollFixtures } from "@/lib/liveRefresh";
+import { mergeFixtureLists } from "@/utils/fixtureMerge";
 import { useUIStore } from "@/stores/useUIStore";
 import type { Fixture } from "@/types";
+
+const FULL_LIST_REFRESH_MS = 5 * 60 * 1000;
 
 function mergeLiveIntoFixtureQueries(
   qc: ReturnType<typeof useQueryClient>,
@@ -32,10 +39,24 @@ function mergeLiveIntoFixtureQueries(
   }
 }
 
+function mergeFullListIntoFixtureQueries(
+  qc: ReturnType<typeof useQueryClient>,
+  fullList: Fixture[]
+): void {
+  if (fullList.length === 0) return;
+
+  for (const [key, data] of qc.getQueriesData<Fixture[]>({ queryKey: ["fixtures"] })) {
+    if (!Array.isArray(data)) continue;
+    const merged = data.length > 0 ? mergeFixtureLists(fullList, data) : fullList;
+    qc.setQueryData(key, merged);
+  }
+}
+
 /** Poll live=all y fusiona marcadores en la caché de React Query. */
 export function useLiveScoreSync() {
   const qc = useQueryClient();
   const setLastRefresh = useUIStore((s) => s.setLastRefresh);
+  const lastFullRefreshRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +86,16 @@ export function useLiveScoreSync() {
         });
 
         mergeLiveIntoFixtureQueries(qc, live);
+
+        const now = Date.now();
+        if (now - lastFullRefreshRef.current >= FULL_LIST_REFRESH_MS) {
+          const full = await getFixtures({});
+          if (!cancelled && full.length > 0) {
+            mergeFullListIntoFixtureQueries(qc, full);
+            lastFullRefreshRef.current = now;
+          }
+        }
+
         setLastRefresh(Date.now());
       } catch {
         /* ignore transient errors */

@@ -58,6 +58,25 @@ export function aggregateGoalsByDayLastN(fixtures: Fixture[], n = 7): ChartDatum
   return all.slice(-n);
 }
 
+function roundSortKey(round: string): number {
+  const groupStage = round.match(/Group Stage\s*-\s*(\d+)/i);
+  if (groupStage) return parseInt(groupStage[1], 10);
+
+  if (/Round of 16|8th Finals|Round of sixteen/i.test(round)) return 100;
+  if (/Quarter[- ]finals?/i.test(round)) return 110;
+  if (/Semi[- ]finals?/i.test(round)) return 120;
+  if (/3rd Place|Third Place/i.test(round)) return 130;
+  if (/Final/i.test(round)) return 140;
+
+  return 50;
+}
+
+function roundChartLabel(round: string): string {
+  const groupStage = round.match(/Group Stage\s*-\s*(\d+)/i);
+  if (groupStage) return `J${groupStage[1]}`;
+  return formatRoundLabel(round);
+}
+
 export function aggregateGoalsByRound(fixtures: Fixture[]): ChartDatum[] {
   const byRound = new Map<string, number>();
   for (const f of startedFixtures(fixtures)) {
@@ -65,12 +84,14 @@ export function aggregateGoalsByRound(fixtures: Fixture[]): ChartDatum[] {
     const goals = (f.goals.home ?? 0) + (f.goals.away ?? 0);
     byRound.set(round, (byRound.get(round) ?? 0) + goals);
   }
-  return [...byRound.entries()].map(([round, value], i) => ({
-    label: `J${i + 1}`,
-    value,
-    round,
-    roundLabel: formatRoundLabel(round),
-  }));
+  return [...byRound.entries()]
+    .sort(([a], [b]) => roundSortKey(a) - roundSortKey(b))
+    .map(([round, value]) => ({
+      label: roundChartLabel(round),
+      value,
+      round,
+      roundLabel: formatRoundLabel(round),
+    }));
 }
 
 export function aggregateMatchResults(fixtures: Fixture[]): ChartDatum[] {

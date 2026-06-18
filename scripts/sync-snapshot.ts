@@ -43,7 +43,10 @@ if (!API_KEY || API_KEY === "your_api_football_key_here") {
   process.exit(1);
 }
 
-async function apiGet<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
+async function apiGetPaged<T>(
+  path: string,
+  params: Record<string, string | number> = {}
+): Promise<{ response: T; totalPages: number }> {
   const qs = new URLSearchParams(
     Object.entries(params).map(([k, v]) => [k, String(v)])
   ).toString();
@@ -52,15 +55,41 @@ async function apiGet<T>(path: string, params: Record<string, string | number> =
     headers: { "x-apisports-key": API_KEY! },
   });
   if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
-  const json = (await res.json()) as { response: T; errors?: unknown };
+  const json = (await res.json()) as {
+    response: T;
+    errors?: unknown;
+    paging?: { current: number; total: number };
+  };
   if (json.errors && Object.keys(json.errors as object).length > 0) {
     console.warn(`⚠ ${path}`, json.errors);
   }
-  return json.response;
+  return { response: json.response, totalPages: json.paging?.total ?? 1 };
+}
+
+async function fetchAllFixtures(): Promise<WorldCupSnapshot["fixtures"]> {
+  let page = 1;
+  let totalPages = 1;
+  const fixtures: WorldCupSnapshot["fixtures"] = [];
+  while (page <= totalPages) {
+    const { response, totalPages: total } = await apiGetPaged<WorldCupSnapshot["fixtures"]>(
+      "fixtures",
+      { league: LEAGUE_ID, season: 2026, page }
+    );
+    fixtures.push(...response);
+    totalPages = total;
+    page++;
+    await delay(100);
+  }
+  return fixtures;
 }
 
 function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+async function apiGet<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
+  const { response } = await apiGetPaged<T>(path, params);
+  return response;
 }
 
 async function fetchPlayerStats(playerId: number) {
@@ -119,10 +148,7 @@ async function main() {
   console.log(`  ${teams.length} selecciones`);
 
   console.log("→ Fixtures…");
-  const fixtures = await apiGet<WorldCupSnapshot["fixtures"]>("fixtures", {
-    league: LEAGUE_ID,
-    season: 2026,
-  });
+  const fixtures = await fetchAllFixtures();
 
   console.log("→ Standings…");
   const standings = await apiGet<WorldCupSnapshot["standings"]>("standings", {

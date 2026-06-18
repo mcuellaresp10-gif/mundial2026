@@ -42,6 +42,7 @@ export function clearLiveFixtureLocalCache(): void {
       const key = localStorage.key(i);
       if (!key?.startsWith(LS_PREFIX)) continue;
       const suffix = key.slice(LS_PREFIX.length);
+      // Historial FT en IndexedDB (fixtureHistory.ts) — no se toca aquí.
       if (
         suffix.startsWith("fixtures") ||
         suffix.startsWith("fixture-by-id") ||

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useFixtures, useStandings } from "./usePartidos";
 import { aggregateFixtureGoals, getBiggestWin } from "@/utils/calculations";
+import { aggregateGoalsByRound as aggregateGoalsByRoundChart } from "@/utils/tournamentAnalytics";
 import { extractGroupStageLeaders } from "@/utils/groupClassification";
 import { translateTeamName } from "@/utils/teamNames";
 import {
@@ -35,12 +36,7 @@ export function useEstadisticasAggregadas() {
 
     const groupLeaders = extractGroupStageLeaders(standings);
 
-    const goalsByRound = new Map<string, number>();
-    for (const f of started) {
-      const round = f.league.round;
-      const goals = (f.goals.home ?? 0) + (f.goals.away ?? 0);
-      goalsByRound.set(round, (goalsByRound.get(round) ?? 0) + goals);
-    }
+    const goalsByRound = aggregateGoalsByRoundChart(fixtures);
 
     const datoDelDia = liveNow.length
       ? `En vivo: ${liveNow
@@ -62,7 +58,10 @@ export function useEstadisticasAggregadas() {
       avgGoalsPerMatch: Math.round(avgGoalsPerMatch * 100) / 100,
       groupLeaders,
       biggestWin,
-      goalsByRound: Array.from(goalsByRound.entries()).map(([round, goals]) => ({ round, goals })),
+      goalsByRound: goalsByRound.map(({ round, value, roundLabel }) => ({
+        round: roundLabel ?? round,
+        goals: value,
+      })),
       datoDelDia,
       fixtures,
     };

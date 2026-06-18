@@ -28,6 +28,8 @@ import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 import { isLiveSessionActive } from "@/services/liveSession";
 import { isWorldCupLive } from "@/services/tournamentPhase";
 
+const LIVE_FULL_LIST_REFRESH_MS = 5 * 60 * 1000;
+
 function fixturesPollInterval(): number | false {
   if (isLiveSessionActive()) return getLiveRefreshInterval();
   return LIVE_REFRESH_MS.fixtures;
@@ -76,6 +78,10 @@ export function useFixtures(params?: {
           return fixturesPollInterval();
         }
         return false;
+      }
+      const isBaseList = !params?.team && !params?.status && params?.id == null;
+      if (isLiveSessionActive() && isBaseList) {
+        return LIVE_FULL_LIST_REFRESH_MS;
       }
       // useLiveScoreSync fusiona live=all en la lista; evita polling duplicado.
       if (isLiveSessionActive()) return false;

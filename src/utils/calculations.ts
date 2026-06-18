@@ -65,20 +65,20 @@ export function averageRadarByPosition(_players: Player[], _position: string): R
 
 const FORMATION_SLOTS: Record<FormationType, { pos: string; x: number; y: number }[]> = {
   "4-3-3": [
-    { pos: "G", x: 50, y: 86 },
+    { pos: "G", x: 50, y: 82 },
     { pos: "D", x: 14, y: 68 }, { pos: "D", x: 38, y: 70 }, { pos: "D", x: 62, y: 70 }, { pos: "D", x: 86, y: 68 },
     { pos: "M", x: 24, y: 48 }, { pos: "M", x: 50, y: 46 }, { pos: "M", x: 76, y: 48 },
     { pos: "F", x: 22, y: 24 }, { pos: "F", x: 50, y: 22 }, { pos: "F", x: 78, y: 24 },
   ],
   "4-2-3-1": [
-    { pos: "G", x: 50, y: 86 },
+    { pos: "G", x: 50, y: 82 },
     { pos: "D", x: 14, y: 68 }, { pos: "D", x: 38, y: 70 }, { pos: "D", x: 62, y: 70 }, { pos: "D", x: 86, y: 68 },
     { pos: "M", x: 35, y: 54 }, { pos: "M", x: 65, y: 54 },
     { pos: "M", x: 20, y: 34 }, { pos: "M", x: 50, y: 32 }, { pos: "M", x: 80, y: 34 },
     { pos: "F", x: 50, y: 20 },
   ],
   "3-5-2": [
-    { pos: "G", x: 50, y: 86 },
+    { pos: "G", x: 50, y: 82 },
     { pos: "D", x: 26, y: 70 }, { pos: "D", x: 50, y: 72 }, { pos: "D", x: 74, y: 70 },
     { pos: "M", x: 12, y: 48 }, { pos: "M", x: 30, y: 50 }, { pos: "M", x: 50, y: 46 },
     { pos: "M", x: 70, y: 50 }, { pos: "M", x: 88, y: 48 },

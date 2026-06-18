@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapaFormacion } from "./MapaFormacion";
-import { SelectorFormacion } from "./SelectorFormacion";
+import { OnceIdealExperience } from "./OnceIdealExperience";
 import { useOnceIdeal } from "@/hooks/useOnceIdeal";
 import { useMiXIStore } from "@/stores/useMiXIStore";
 import { getFormationSlots } from "@/utils/calculations";
@@ -16,7 +14,7 @@ export function OnceIdealDisplay() {
   const [formation, setFormation] = useState<FormationType>("4-3-3");
   const { onceIdeal, averageRating, isLoading } = useOnceIdeal(formation);
 
-  if (isLoading) return <Skeleton className="h-96 w-full max-w-lg mx-auto" />;
+  if (isLoading) return <Skeleton className="h-[520px] w-full max-w-5xl mx-auto rounded-xl" />;
 
   if (onceIdeal.length === 0) {
     return (
@@ -37,42 +35,23 @@ export function OnceIdealDisplay() {
     );
   }
 
-  const isPartial = onceIdeal.length < 11;
-
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <CardTitle>Once Ideal del Torneo</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Solo jugadores con minutos en el Mundial 2026 · Valoración promedio:{" "}
-              <span className="font-bold font-mono text-mundial-gold">{averageRating}</span>
-            </p>
-            {isPartial && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Once parcial ({onceIdeal.length}/11) — faltan posiciones con jugadores que hayan
-                jugado en el torneo.
-              </p>
-            )}
-          </div>
-          <SelectorFormacion value={formation} onChange={setFormation} />
-        </div>
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-gradient-to-r from-mundial-blue/5 via-transparent to-mundial-gold/5">
+        <CardTitle>Once Ideal del Torneo</CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Equipo del momento · Solo jugadores con minutos en el Mundial 2026
+        </p>
       </CardHeader>
-      <CardContent>
-        <MapaFormacion players={onceIdeal} />
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {onceIdeal.map((p) => (
-            <div key={p.id} className="flex items-center gap-2 p-2 rounded bg-muted/50 text-sm">
-              <Image src={p.photo} alt="" width={28} height={28} className="rounded-full" />
-              <div className="min-w-0">
-                <p className="font-medium truncate">{p.name}</p>
-                <p className="text-xs text-muted-foreground">{p.team}</p>
-              </div>
-              <span className="font-mono font-bold ml-auto">{p.rating.toFixed(1)}</span>
-            </div>
-          ))}
-        </div>
+      <CardContent className="pt-6">
+        <OnceIdealExperience
+          players={onceIdeal}
+          averageRating={averageRating}
+          formation={formation}
+          onFormationChange={setFormation}
+          showFormationSelector
+          isPartial={onceIdeal.length < 11}
+        />
       </CardContent>
     </Card>
   );
@@ -107,7 +86,9 @@ export function ArmarMiXI() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Armar Mi XI Ideal</CardTitle>
-          <Button variant="outline" size="sm" onClick={clear}>Limpiar</Button>
+          <Button variant="outline" size="sm" onClick={clear}>
+            Limpiar
+          </Button>
         </div>
         <p className="text-sm text-muted-foreground">
           {players.length}/11 jugadores · Valoración: {avgRating}
@@ -116,11 +97,11 @@ export function ArmarMiXI() {
       <CardContent>
         {players.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">
-            Selecciona jugadores desde la página de Jugadores para armar tu once ideal.
-            Tu selección se guarda automáticamente.
+            Selecciona jugadores desde la página de Jugadores para armar tu once ideal. Tu
+            selección se guarda automáticamente.
           </p>
         ) : (
-          <MapaFormacion players={mapped} />
+          <OnceIdealExperience players={mapped} averageRating={avgRating} />
         )}
       </CardContent>
     </Card>

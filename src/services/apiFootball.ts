@@ -33,11 +33,12 @@ import {
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
 import { pickClubStat } from "@/utils/playerStats";
 import { mapPlayersToTopScorers } from "@/utils/tournamentScorers";
-import { mergeLiveIntoFixtures } from "@/utils/fixtureMerge";
+import { mergeLiveIntoFixtures, mergeFixtureLists, isFixtureListIncomplete } from "@/utils/fixtureMerge";
 import {
   applyFixtureHistory,
   upsertFixtureHistory,
 } from "@/services/fixtureHistory";
+import { getSnapshotCatalogFixtures } from "@/services/snapshotStore";
 
 const client = axios.create({ baseURL: "/api/football" });
 const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
@@ -197,14 +198,17 @@ export async function getFixtureById(id: number): Promise<Fixture | null> {
   return snapList.find((f) => f.fixture.id === id) ?? null;
 }
 
-async function fetchFixturesPaginated(season: number = DEFAULT_SEASON): Promise<Fixture[]> {
+async function fetchFixturesPaginated(
+  season: number = DEFAULT_SEASON,
+  extraParams: Record<string, string | number> = {}
+): Promise<Fixture[]> {
   let page = 1;
   let totalPages = 1;
   const all: Fixture[] = [];
 
   while (page <= totalPages) {
     const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
-      params: { league: LEAGUE_ID, season, page },
+      params: { league: LEAGUE_ID, season, page, ...extraParams },
       ...liveRequestConfig(),
     });
 
@@ -221,11 +225,42 @@ async function fetchFixturesPaginated(season: number = DEFAULT_SEASON): Promise<
   return all;
 }
 
+async function fetchFinishedFixturesPaginated(
+  season: number = DEFAULT_SEASON,
+  forceRefresh = false
+): Promise<Fixture[]> {
+  const key = cacheKey("fixtures-wc-ft", { league: LEAGUE_ID, season });
+  const bypassCache = forceRefresh || isLiveSessionActive() || tournamentStartedFlag === true;
+  if (!bypassCache) {
+    const cached = getLocalCache<Fixture[]>(key);
+    if (cached?.length) return cached;
+  }
+
+  try {
+    // status=FT no admite paginación en API-Football (page → error y response vacío).
+    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
+      params: { league: LEAGUE_ID, season, status: "FT" },
+      ...liveRequestConfig(),
+    });
+    if (data.errors && Object.keys(data.errors).length > 0 && !(data.response?.length)) {
+      throw new Error("[API-Football] fixtures status=FT");
+    }
+    const list = data.response ?? [];
+    if (!bypassCache && list.length > 0) {
+      setLocalCache(key, list, LIVE_FIXTURE_CACHE_MS);
+    }
+    return list;
+  } catch {
+    return getStaleLocalCache<Fixture[]>(key) ?? [];
+  }
+}
+
 async function fetchAllWorldCupFixturesFromApi(
-  season: number = DEFAULT_SEASON
+  season: number = DEFAULT_SEASON,
+  forceRefresh = false
 ): Promise<Fixture[]> {
   const key = cacheKey("fixtures-wc-all", { league: LEAGUE_ID, season });
-  const bypassCache = isLiveSessionActive();
+  const bypassCache = forceRefresh || isLiveSessionActive() || tournamentStartedFlag === true;
   const cached = bypassCache ? null : getLocalCache<Fixture[]>(key);
   const kickoffSoon = cached?.some((f) => fixtureNeedsFreshScore(f)) ?? false;
   if (cached && !kickoffSoon) return cached;
@@ -313,27 +348,48 @@ async function isWorldCupSessionActive(): Promise<boolean> {
   return started;
 }
 
-async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]> {
+let loadWorldCupFixturesInFlight: Promise<Fixture[]> | null = null;
+
+async function loadWorldCupFixturesImpl(season = DEFAULT_SEASON): Promise<Fixture[]> {
   const live = await fetchLiveWorldCupFixtures();
   const liveIds = new Set(live.map((f) => f.fixture.id));
   const sessionActive = await isWorldCupSessionActive();
+  const inLiveMode = sessionActive || isLiveSessionActive();
 
-  let list: Fixture[];
-  if (sessionActive || isLiveSessionActive()) {
-    const snap = await resolveFixturesFromSnapshotOr(() =>
-      fetchAllWorldCupFixturesFromApi(season)
-    );
-    list = mergeLiveIntoFixtures(snap, live);
+  const catalog = await getSnapshotCatalogFixtures();
+  let list: Fixture[] = catalog.length > 0 ? [...catalog] : [];
+
+  if (inLiveMode) {
+    const fromApi = await fetchAllWorldCupFixturesFromApi(season, sessionActive);
+    list = mergeFixtureLists(list, fromApi);
   } else {
     const snap = await resolveFixturesFromSnapshotOr(() =>
       fetchApi<Fixture[]>("fixtures", { league: LEAGUE_ID, season })
     );
-    list = mergeLiveIntoFixtures(snap, live);
+    list = list.length > 0 ? mergeFixtureLists(list, snap) : snap;
   }
 
+  // Siempre traer FT: el snapshot/catálogo trae NS y sin esto J1 desaparece en la 1ª carga.
+  let finished = await fetchFinishedFixturesPaginated(season, sessionActive);
+  list = mergeFixtureLists(list, finished);
+  if (finished.length > 0) await upsertFixtureHistory(finished);
+
+  list = mergeLiveIntoFixtures(list, live);
   list = await refreshMissingKickoffFixtures(list, liveIds);
   list = await applyFixtureHistory(list);
   await upsertFixtureHistory(list);
+
+  if (isFixtureListIncomplete(list)) {
+    finished = await fetchFinishedFixturesPaginated(season, true);
+    if (finished.length > 0) {
+      list = mergeFixtureLists(list, finished);
+      await upsertFixtureHistory(finished);
+      list = await applyFixtureHistory(list);
+    }
+    if (isFixtureListIncomplete(list)) {
+      console.warn(`[fixtures] Lista incompleta tras ensamblaje: ${list.length} partidos`);
+    }
+  }
 
   if (
     live.length > 0 ||
@@ -343,6 +399,15 @@ async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]>
   }
 
   return list;
+}
+
+async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]> {
+  if (loadWorldCupFixturesInFlight) return loadWorldCupFixturesInFlight;
+
+  loadWorldCupFixturesInFlight = loadWorldCupFixturesImpl(season).finally(() => {
+    loadWorldCupFixturesInFlight = null;
+  });
+  return loadWorldCupFixturesInFlight;
 }
 
 export async function getTeams(season: number = DEFAULT_SEASON): Promise<Team[]> {

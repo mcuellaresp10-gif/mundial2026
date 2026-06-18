@@ -15,3 +15,5 @@ export const MAX_CLASSIFICATION_PROB = 95;
 export const COLOMBIA_MIN_CLASSIFICATION_PROB = 55;
 export const GROUP_MATCHES_PER_TEAM = 3;
 export const CACHE_TTL_MS = 4 * 60 * 60 * 1000;
+/** Mínimo de partidos esperados en fase de grupos (48 equipos → 72 partidos; umbral conservador). */
+export const MIN_WORLDCUP_FIXTURES = 48;

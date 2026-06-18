@@ -56,6 +56,11 @@ export async function getSnapshotFixtures(): Promise<Fixture[] | null> {
   return snap?.fixtures ?? null;
 }
 
+/** Catálogo completo de partidos (sin gate de fase) — base estructural en sesión live. */
+export async function getSnapshotCatalogFixtures(): Promise<Fixture[]> {
+  return (await getSnapshotFixtures()) ?? [];
+}
+
 export async function getSnapshotStandings(): Promise<StandingsGroup[] | null> {
   const snap = await loadSnapshot();
   return snap?.standings ?? null;

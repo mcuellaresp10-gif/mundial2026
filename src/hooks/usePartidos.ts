@@ -27,8 +27,10 @@ import { formatGroupFromRound } from "@/utils/formatters";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 import { isLiveSessionActive } from "@/services/liveSession";
 import { isWorldCupLive } from "@/services/tournamentPhase";
+import { mergeFixtureLists } from "@/utils/fixtureMerge";
+import type { Fixture } from "@/types";
 
-const LIVE_FULL_LIST_REFRESH_MS = 5 * 60 * 1000;
+const LIVE_FULL_LIST_REFRESH_MS = 60 * 1000;
 
 function fixturesPollInterval(): number | false {
   if (isLiveSessionActive()) return getLiveRefreshInterval();
@@ -59,11 +61,22 @@ export function useFixtures(params?: {
   season?: number;
   id?: number;
 }) {
+  const qc = useQueryClient();
   const isSingle = params?.id != null;
 
   return useQuery({
     queryKey: ["fixtures", params],
-    queryFn: () => getFixtures(params),
+    queryFn: async () => {
+      const fresh = await getFixtures(params);
+      if (isSingle) return fresh;
+      const existing = qc.getQueryData<Fixture[]>(["fixtures", params]);
+      return existing?.length ? mergeFixtureLists(existing, fresh) : fresh;
+    },
+    refetchOnMount:
+      !isSingle &&
+      (isLiveSessionActive() || getClientTournamentPhase() === "live")
+        ? "always"
+        : undefined,
     staleTime: (query) => {
       const fixtures = query.state.data;
       if (isSingle || shouldFastRefreshFixtures(fixtures)) {

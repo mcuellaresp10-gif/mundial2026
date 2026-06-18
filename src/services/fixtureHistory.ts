@@ -62,5 +62,10 @@ export async function upsertFixtureHistory(fixtures: Fixture[]): Promise<void> {
 export async function applyFixtureHistory(fixtures: Fixture[]): Promise<Fixture[]> {
   const history = await loadFixtureHistory();
   if (history.size === 0) return fixtures;
-  return mergeFixtureLists(fixtures, [...history.values()]);
+
+  const historyList = [...history.values()];
+  if (fixtures.length < history.size) {
+    return mergeFixtureLists(historyList, fixtures);
+  }
+  return mergeFixtureLists(fixtures, historyList);
 }

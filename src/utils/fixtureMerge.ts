@@ -1,5 +1,21 @@
 import type { Fixture } from "@/types";
-import { isFixtureFinished, isFixtureLive } from "@/lib/liveRefresh";
+import { MIN_WORLDCUP_FIXTURES } from "@/lib/utils";
+import { isFixtureFinished, isFixtureLive, isFixtureStarted } from "@/lib/liveRefresh";
+
+export function isFixtureListIncomplete(list: Fixture[]): boolean {
+  if (list.length < MIN_WORLDCUP_FIXTURES) return true;
+
+  const started = list.filter((f) => isFixtureStarted(f.fixture.status.short)).length;
+  const finished = list.filter((f) => isFixtureFinished(f.fixture.status.short)).length;
+  const pending = list.filter((f) => f.fixture.status.short === "NS").length;
+  const hasLive = list.some((f) => isFixtureLive(f.fixture.status.short));
+
+  // Catálogo snapshot (72 NS) + 1 live: parece completo por count pero sin J1 FT.
+  if (hasLive && finished === 0 && pending > list.length * 0.85) return true;
+  if (hasLive && started <= 1 && list.length >= MIN_WORLDCUP_FIXTURES) return true;
+
+  return false;
+}
 
 function statusRank(short: string): number {
   if (isFixtureFinished(short)) return 3;

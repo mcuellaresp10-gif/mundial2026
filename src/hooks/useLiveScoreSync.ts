@@ -9,23 +9,54 @@ import {
 } from "@/services/apiFootball";
 import { isLiveSessionActive, syncLiveSession } from "@/services/liveSession";
 import { getLiveRefreshInterval, isPlausibleLiveFixture, shouldPollFixtures } from "@/lib/liveRefresh";
-import { mergeFixtureLists } from "@/utils/fixtureMerge";
+import { isFixtureListIncomplete, mergeFixtureLists } from "@/utils/fixtureMerge";
 import { useUIStore } from "@/stores/useUIStore";
 import type { Fixture } from "@/types";
 
 const FULL_LIST_REFRESH_MS = 5 * 60 * 1000;
 
+function getBaseFixturesFromCache(qc: ReturnType<typeof useQueryClient>): Fixture[] {
+  return (
+    qc.getQueryData<Fixture[]>(["fixtures", undefined]) ??
+    qc.getQueryData<Fixture[]>(["fixtures", {}]) ??
+    []
+  );
+}
+
+function setAllFixtureQueries(qc: ReturnType<typeof useQueryClient>, fixtures: Fixture[]): void {
+  for (const [key, data] of qc.getQueriesData<Fixture[]>({ queryKey: ["fixtures"] })) {
+    if (!Array.isArray(data)) continue;
+    const isBaseQuery =
+      key.length === 2 &&
+      (key[1] === undefined ||
+        (typeof key[1] === "object" &&
+          key[1] !== null &&
+          !(key[1] as { id?: number; team?: number; status?: string }).id &&
+          !(key[1] as { team?: number }).team &&
+          !(key[1] as { status?: string }).status));
+    if (isBaseQuery || data.length === 0) {
+      qc.setQueryData(key, data.length > 0 ? mergeFixtureLists(data, fixtures) : fixtures);
+    } else if (data.length > 0) {
+      qc.setQueryData(key, mergeFixtureLists(fixtures, data));
+    }
+  }
+}
+
 function mergeLiveIntoFixtureQueries(
   qc: ReturnType<typeof useQueryClient>,
-  live: Fixture[]
+  live: Fixture[],
+  baseFixtures: Fixture[]
 ): void {
   if (live.length === 0) return;
 
   const liveById = new Map(live.map((f) => [f.fixture.id, f]));
+  const mergedBase = baseFixtures.length > 0 ? mergeLiveIntoFixtures(baseFixtures, live) : live;
 
   for (const [key, data] of qc.getQueriesData<Fixture[]>({ queryKey: ["fixtures"] })) {
-    if (!Array.isArray(data) || data.length === 0) continue;
-    qc.setQueryData(key, mergeLiveIntoFixtures(data, live));
+    if (!Array.isArray(data)) continue;
+    const next =
+      data.length > 0 ? mergeLiveIntoFixtures(data, live) : mergedBase;
+    qc.setQueryData(key, next);
   }
 
   for (const lf of live) {
@@ -39,19 +70,6 @@ function mergeLiveIntoFixtureQueries(
   }
 }
 
-function mergeFullListIntoFixtureQueries(
-  qc: ReturnType<typeof useQueryClient>,
-  fullList: Fixture[]
-): void {
-  if (fullList.length === 0) return;
-
-  for (const [key, data] of qc.getQueriesData<Fixture[]>({ queryKey: ["fixtures"] })) {
-    if (!Array.isArray(data)) continue;
-    const merged = data.length > 0 ? mergeFixtureLists(fullList, data) : fullList;
-    qc.setQueryData(key, merged);
-  }
-}
-
 /** Poll live=all y fusiona marcadores en la caché de React Query. */
 export function useLiveScoreSync() {
   const qc = useQueryClient();
@@ -62,10 +80,8 @@ export function useLiveScoreSync() {
     let cancelled = false;
 
     const tick = async () => {
-      const fixtures =
-        qc.getQueryData<Fixture[]>(["fixtures", undefined]) ??
-        qc.getQueryData<Fixture[]>(["fixtures", {}]) ??
-        [];
+      const fixtures = getBaseFixturesFromCache(qc);
+      const listIncomplete = isFixtureListIncomplete(fixtures);
 
       syncLiveSession({
         fixtures,
@@ -73,29 +89,35 @@ export function useLiveScoreSync() {
       });
 
       const shouldPoll =
-        isLiveSessionActive() || shouldPollFixtures(fixtures.length ? fixtures : undefined);
+        listIncomplete ||
+        isLiveSessionActive() ||
+        shouldPollFixtures(fixtures.length ? fixtures : undefined);
       if (!shouldPoll || cancelled) return;
 
       try {
-        const live = await getLiveWorldCupFixtures();
-        if (cancelled) return;
-
-        syncLiveSession({
-          fixtures,
-          liveWorldCupCount: live.length,
-        });
-
-        mergeLiveIntoFixtureQueries(qc, live);
-
         const now = Date.now();
-        if (now - lastFullRefreshRef.current >= FULL_LIST_REFRESH_MS) {
+        const needsFullRefresh =
+          listIncomplete || now - lastFullRefreshRef.current >= FULL_LIST_REFRESH_MS;
+
+        if (needsFullRefresh) {
           const full = await getFixtures({});
           if (!cancelled && full.length > 0) {
-            mergeFullListIntoFixtureQueries(qc, full);
+            setAllFixtureQueries(qc, full);
             lastFullRefreshRef.current = now;
           }
         }
 
+        const live = await getLiveWorldCupFixtures();
+        if (cancelled) return;
+
+        const currentBase = getBaseFixturesFromCache(qc);
+
+        syncLiveSession({
+          fixtures: currentBase,
+          liveWorldCupCount: live.length,
+        });
+
+        mergeLiveIntoFixtureQueries(qc, live, currentBase);
         setLastRefresh(Date.now());
       } catch {
         /* ignore transient errors */

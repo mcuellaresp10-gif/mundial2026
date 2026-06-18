@@ -5,7 +5,7 @@ import { getPlayers, getPlayerProfile, getAllSquadsForTeams, getTeamSquadPlayers
 import { DEFAULT_SEASON } from "@/lib/utils";
 import type { Player, TopScorerEntry } from "@/types";
 import { parseRating } from "@/utils/formatters";
-import { getStatBundle, statSummary } from "@/utils/playerStats";
+import { getStatBundle, getWorldCupTournamentStat } from "@/utils/playerStats";
 import { aggregateScorersFromEvents, mapSquadPlayersToWorldCupScorers, mergeTopScorerLists } from "@/utils/tournamentScorers";
 import { translateTeamName } from "@/utils/teamNames";
 import { useFixtures } from "./usePartidos";
@@ -177,9 +177,31 @@ export function extractTopAssists(
     .sort((a, b) => b!.assists - a!.assists) as TopScorerEntry[];
 }
 
-/** Para Colombia Focus: mejor jugador en selección por rating */
-export function getKeyPlayerByNationalRating(players: Player[]): Player | undefined {
-  return [...players].sort(
-    (a, b) => statSummary(getStatBundle(b).national).rating - statSummary(getStatBundle(a).national).rating
-  )[0];
+/** Top jugadores del mundial por rating (desempate: goles, asistencias, partidos). */
+export function getTopWorldCupPlayers(players: Player[], limit = 5): TopScorerEntry[] {
+  return players
+    .map((p) => {
+      const stat = getWorldCupTournamentStat(p);
+      if (!stat) return null;
+      const team = p.nationalTeam ?? stat.team;
+      return {
+        playerId: p.player.id,
+        name: p.player.name,
+        photo: p.player.photo,
+        team: translateTeamName(team.name),
+        teamLogo: team.logo,
+        goals: stat.goals.total ?? 0,
+        assists: stat.goals.assists ?? 0,
+        matches: stat.games.appearences ?? 0,
+        rating: parseRating(stat.games.rating),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (b!.rating !== a!.rating) return b!.rating - a!.rating;
+      if (b!.goals !== a!.goals) return b!.goals - a!.goals;
+      if (b!.assists !== a!.assists) return b!.assists - a!.assists;
+      return b!.matches - a!.matches;
+    })
+    .slice(0, limit) as TopScorerEntry[];
 }

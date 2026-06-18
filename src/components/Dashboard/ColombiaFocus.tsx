@@ -7,13 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTeams } from "@/hooks/usePartidos";
 import { useColombiaData } from "@/hooks/useEstadisticasAggregadas";
-import { useTeamPlayers, getKeyPlayerByNationalRating } from "@/hooks/useJugadores";
-import { getStatBundle, statSummary } from "@/utils/playerStats";
+import { useTeamPlayers, getTopWorldCupPlayers } from "@/hooks/useJugadores";
 import { useClasificacionProb } from "@/hooks/useClasificacionProb";
 import { ClassificationProbDisplay } from "@/components/shared/ClassificationProbDisplay";
 import { MatchTeamPair } from "@/components/shared/TeamLink";
 import { formatFixtureDate, getFixtureScore, ratingClass } from "@/utils/formatters";
-import { cn, PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function ColombiaFocus() {
   const { data: teams = [] } = useTeams();
@@ -24,8 +23,10 @@ export function ColombiaFocus() {
   const colombiaData = useColombiaData(colombiaTeam?.id);
   const { data: players = [] } = useTeamPlayers(colombiaTeam?.id);
 
-  const keyPlayer = useMemo(() => getKeyPlayerByNationalRating(players), [players]);
-  const keyNat = keyPlayer ? statSummary(getStatBundle(keyPlayer).national) : null;
+  const topWorldCupPlayers = useMemo(
+    () => getTopWorldCupPlayers(players, 5),
+    [players]
+  );
 
   const { probability: classProb, outcomes, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
     useClasificacionProb(colombiaTeam?.id);
@@ -144,40 +145,56 @@ export function ColombiaFocus() {
               </div>
             )}
 
-            {keyPlayer && (
-              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl bg-colombia-yellow/10 p-3 min-w-0">
-                <div className="relative aspect-square w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-colombia-yellow/30">
-                  <Image
-                    src={keyPlayer.player.photo}
-                    alt={keyPlayer.player.name}
-                    fill
-                    className="object-cover"
-                    sizes="48px"
-                  />
+            {topWorldCupPlayers.length > 0 ? (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
+                  Jugadores clave en el Mundial
+                </p>
+                <div className="space-y-2">
+                  {topWorldCupPlayers.map((player, index) => (
+                    <div
+                      key={player.playerId}
+                      className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-2 rounded-xl bg-colombia-yellow/10 p-2.5 min-w-0 @md/colombia:gap-3 @md/colombia:p-3"
+                    >
+                      <span className="text-xs font-bold font-mono text-colombia-blue dark:text-colombia-yellow w-5 text-center shrink-0">
+                        {index + 1}
+                      </span>
+                      <div className="relative aspect-square w-10 shrink-0 overflow-hidden rounded-full ring-2 ring-colombia-yellow/30 @md/colombia:w-11">
+                        <Image
+                          src={player.photo}
+                          alt={player.name}
+                          fill
+                          className="object-cover"
+                          sizes="44px"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/jugadores/${player.playerId}`}
+                          className="font-semibold text-sm hover:underline truncate block"
+                        >
+                          {player.name}
+                        </Link>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {player.goals}G · {player.assists}A · {player.matches} PJ
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "text-lg font-bold font-mono shrink-0 tabular-nums @md/colombia:text-xl",
+                          ratingClass(player.rating)
+                        )}
+                      >
+                        {player.rating > 0 ? player.rating.toFixed(1) : "N/D"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Jugador clave en forma</p>
-                  <Link
-                    href={`/jugadores/${keyPlayer.player.id}`}
-                    className="font-semibold hover:underline truncate block"
-                  >
-                    {keyPlayer.player.name}
-                  </Link>
-                  {keyNat && (
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      {keyNat.goals}G con la selección · Temp. {PLAYER_STAT_SEASON_LABEL}
-                    </p>
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "text-xl font-bold font-mono shrink-0 tabular-nums",
-                    ratingClass(keyNat?.rating)
-                  )}
-                >
-                  {keyNat && keyNat.rating > 0 ? keyNat.rating.toFixed(1) : "N/D"}
-                </span>
               </div>
+            ) : (
+              <p className="text-xs text-muted-foreground rounded-xl bg-colombia-yellow/5 px-3 py-3 text-center">
+                Aún no hay datos de rendimiento en el Mundial para la plantilla colombiana.
+              </p>
             )}
           </>
         )}

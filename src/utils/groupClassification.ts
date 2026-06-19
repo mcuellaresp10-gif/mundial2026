@@ -10,6 +10,14 @@ import {
   isColombiaTeam,
 } from "@/data/teamStrengthPriors";
 import { formatGroupFromRound } from "./formatters";
+import type { FairPlayRecord } from "@/utils/fairPlay";
+import {
+  collectGroupMatchResults,
+  filterGroupStageCountableFixtures,
+  getGroupRankFromMatches,
+  rankGroupTeams,
+  type GroupMatchResult,
+} from "@/utils/groupTiebreakers";
 
 export interface TeamGroupState {
   teamId: number;
@@ -48,6 +56,7 @@ export interface TeamOutcomeProbs {
 export interface TournamentGroupInput {
   groupStandings: StandingTeam[];
   groupFixturesForSim: Fixture[];
+  completedGroupFixtures: Fixture[];
   groupLabel: string;
   isPreTournament: boolean;
 }
@@ -362,27 +371,34 @@ export function buildOutcomeProbsFromH2H(
   return blendProbs(fromH2H, fromStrength, 0.55);
 }
 
-function applyOutcome(
+function sampleScoreForOutcome(outcome: "HW" | "D" | "AW"): { hg: number; ag: number } {
+  const r = Math.random();
+  if (outcome === "HW") {
+    if (r < 0.4) return { hg: 1, ag: 0 };
+    if (r < 0.65) return { hg: 2, ag: 0 };
+    if (r < 0.85) return { hg: 2, ag: 1 };
+    return { hg: 3, ag: 0 };
+  }
+  if (outcome === "AW") {
+    if (r < 0.4) return { hg: 0, ag: 1 };
+    if (r < 0.65) return { hg: 0, ag: 2 };
+    if (r < 0.85) return { hg: 1, ag: 2 };
+    return { hg: 0, ag: 3 };
+  }
+  if (r < 0.45) return { hg: 0, ag: 0 };
+  if (r < 0.85) return { hg: 1, ag: 1 };
+  return { hg: 2, ag: 2 };
+}
+
+function applyScore(
   states: Map<number, TeamGroupState>,
   homeId: number,
   awayId: number,
-  outcome: "HW" | "D" | "AW"
+  hg: number,
+  ag: number
 ): void {
   const home = states.get(homeId)!;
   const away = states.get(awayId)!;
-
-  let hg: number;
-  let ag: number;
-  if (outcome === "HW") {
-    hg = 1;
-    ag = 0;
-  } else if (outcome === "AW") {
-    hg = 0;
-    ag = 1;
-  } else {
-    hg = 1;
-    ag = 1;
-  }
 
   home.goalsFor += hg;
   home.goalsAgainst += ag;
@@ -396,36 +412,60 @@ function applyOutcome(
   } else away.points += 3;
 }
 
+function applyOutcome(
+  states: Map<number, TeamGroupState>,
+  homeId: number,
+  awayId: number,
+  outcome: "HW" | "D" | "AW"
+): GroupMatchResult {
+  const { hg, ag } = sampleScoreForOutcome(outcome);
+  applyScore(states, homeId, awayId, hg, ag);
+  return { homeId, awayId, homeGoals: hg, awayGoals: ag };
+}
+
 export function sortGroupStates(states: TeamGroupState[]): TeamGroupState[] {
-  return [...states].sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    const gdA = a.goalsFor - a.goalsAgainst;
-    const gdB = b.goalsFor - b.goalsAgainst;
-    if (gdB !== gdA) return gdB - gdA;
-    return b.goalsFor - a.goalsFor;
-  });
+  return rankGroupTeams(states, [], new Map(), () => 0.5);
+}
+
+function getGroupRankWithMatches(
+  states: TeamGroupState[],
+  teamId: number,
+  matches: GroupMatchResult[],
+  fairPlay: Map<number, FairPlayRecord>,
+  rng: () => number = Math.random
+): number {
+  return getGroupRankFromMatches(states, teamId, matches, fairPlay, rng);
 }
 
 export function getGroupRank(states: TeamGroupState[], teamId: number): number {
-  const sorted = sortGroupStates(states);
-  const idx = sorted.findIndex((s) => s.teamId === teamId);
-  return idx >= 0 ? idx + 1 : 0;
+  return getGroupRankWithMatches(states, teamId, [], new Map());
 }
 
-export function pickBestThirdQualifiers(groupFinalStates: TeamGroupState[][]): Set<number> {
+export function pickBestThirdQualifiers(
+  groupFinalStates: TeamGroupState[][],
+  matchesByGroup: GroupMatchResult[][],
+  fairPlay: Map<number, FairPlayRecord> = new Map()
+): Set<number> {
   const thirds: TeamGroupState[] = [];
-  for (const states of groupFinalStates) {
-    const sorted = sortGroupStates(states);
+  for (let i = 0; i < groupFinalStates.length; i++) {
+    const states = groupFinalStates[i];
+    const matches = matchesByGroup[i] ?? [];
+    const sorted = rankGroupTeams(states, matches, fairPlay, Math.random);
     if (sorted.length >= 3) {
       thirds.push(sorted[2]);
     }
   }
-  const ranked = sortGroupStates(thirds);
+  const ranked = rankGroupTeams(thirds, [], fairPlay, Math.random);
   return new Set(ranked.slice(0, BEST_THIRD_SPOTS).map((s) => s.teamId));
 }
 
-function isQualified(states: TeamGroupState[], teamId: number): boolean {
-  return getGroupRank(states, teamId) <= DIRECT_QUALIFY_SPOTS;
+function isQualified(
+  states: TeamGroupState[],
+  teamId: number,
+  matches: GroupMatchResult[],
+  fairPlay: Map<number, FairPlayRecord>
+): boolean {
+  return getGroupRankWithMatches(states, teamId, matches, fairPlay) <= DIRECT_QUALIFY_SPOTS;
 }
 
 type OutcomeTriple = "HW" | "D" | "AW";
@@ -435,8 +475,9 @@ function simulateFixtures(
   baseStates: TeamGroupState[],
   pendingFixtures: Fixture[],
   outcomeProbs: Map<number, MatchOutcomeProbs>
-): TeamGroupState[] {
+): { states: TeamGroupState[]; simulatedMatches: GroupMatchResult[] } {
   const states = cloneStates(baseStates);
+  const simulatedMatches: GroupMatchResult[] = [];
 
   for (const f of pendingFixtures) {
     const probs = outcomeProbs.get(f.fixture.id);
@@ -446,10 +487,16 @@ function simulateFixtures(
     if (r < probs.homeWin) outcome = "HW";
     else if (r < probs.homeWin + probs.draw) outcome = "D";
     else outcome = "AW";
-    applyOutcome(states, f.teams.home.id, f.teams.away.id, outcome);
+    const matchResult = applyOutcome(
+      states,
+      f.teams.home.id,
+      f.teams.away.id,
+      outcome
+    );
+    simulatedMatches.push(matchResult);
   }
 
-  return Array.from(states.values());
+  return { states: Array.from(states.values()), simulatedMatches };
 }
 
 function buildOutcomeProbsMap(
@@ -480,12 +527,16 @@ function enumerateMathematicalStatus(
   teamId: number,
   baseStates: TeamGroupState[],
   pendingFixtures: Fixture[],
+  completedMatches: GroupMatchResult[],
+  fairPlay: Map<number, FairPlayRecord>,
   isPreTournament: boolean
 ): "qualified" | "eliminated" | "undecided" {
   if (isPreTournament) {
     if (pendingFixtures.length === 0) return "undecided";
   } else if (pendingFixtures.length === 0) {
-    return isQualified(baseStates, teamId) ? "qualified" : "eliminated";
+    return isQualified(baseStates, teamId, completedMatches, fairPlay)
+      ? "qualified"
+      : "eliminated";
   }
 
   let qualifiedCount = 0;
@@ -497,14 +548,24 @@ function enumerateMathematicalStatus(
 
   for (let mask = 0; mask < maxCombos; mask++) {
     const states = cloneStates(baseStates);
+    const simulatedMatches: GroupMatchResult[] = [];
     let combo = mask;
     for (const f of pendingFixtures) {
       const idx = combo % 3;
       combo = Math.floor(combo / 3);
-      applyOutcome(states, f.teams.home.id, f.teams.away.id, OUTCOMES[idx]);
+      const result = applyOutcome(
+        states,
+        f.teams.home.id,
+        f.teams.away.id,
+        OUTCOMES[idx]
+      );
+      simulatedMatches.push(result);
     }
     total++;
-    if (isQualified(Array.from(states.values()), teamId)) qualifiedCount++;
+    const allMatches = [...completedMatches, ...simulatedMatches];
+    if (isQualified(Array.from(states.values()), teamId, allMatches, fairPlay)) {
+      qualifiedCount++;
+    }
   }
 
   if (qualifiedCount === total) return "qualified";
@@ -654,6 +715,7 @@ function outcomesToSimResult(
 export function simulateTournamentOutcomeProbabilities(
   groups: TournamentGroupInput[],
   h2hMap: H2HMap,
+  fairPlayByTeam: Map<number, FairPlayRecord> = new Map(),
   simulations = DEFAULT_SIMULATIONS
 ): Map<number, TeamOutcomeProbs> {
   const result = new Map<number, TeamOutcomeProbs>();
@@ -668,6 +730,11 @@ export function simulateTournamentOutcomeProbabilities(
     const baseStates = group.groupStandings.map((s) =>
       standingToState(s, group.isPreTournament)
     );
+    const teamIds = getGroupTeamIds(group.groupStandings);
+    const completedMatches = collectGroupMatchResults(
+      group.completedGroupFixtures,
+      teamIds
+    );
     const pending = getFixturesForSimulation(group);
     const outcomeProbs = buildOutcomeProbsMap(
       pending,
@@ -675,7 +742,7 @@ export function simulateTournamentOutcomeProbabilities(
       h2hMap,
       group.isPreTournament
     );
-    return { group, baseStates, pending, outcomeProbs };
+    return { group, baseStates, pending, outcomeProbs, completedMatches, teamIds };
   });
 
   const hasSimWork = groupPrepared.some((g) => g.pending.length > 0);
@@ -683,20 +750,33 @@ export function simulateTournamentOutcomeProbabilities(
 
   for (let i = 0; i < runs; i++) {
     const groupFinalStates: TeamGroupState[][] = [];
+    const matchesByGroup: GroupMatchResult[][] = [];
 
     for (const prepared of groupPrepared) {
-      const finalStates =
-        prepared.pending.length > 0
-          ? simulateFixtures(
-              prepared.baseStates,
-              prepared.pending,
-              prepared.outcomeProbs
-            )
-          : prepared.baseStates;
+      let finalStates = prepared.baseStates;
+      let allMatches = [...prepared.completedMatches];
+
+      if (prepared.pending.length > 0) {
+        const simulated = simulateFixtures(
+          prepared.baseStates,
+          prepared.pending,
+          prepared.outcomeProbs
+        );
+        finalStates = simulated.states;
+        allMatches = [...prepared.completedMatches, ...simulated.simulatedMatches];
+      }
+
       groupFinalStates.push(finalStates);
+      matchesByGroup.push(allMatches);
 
       for (const state of finalStates) {
-        const rank = getGroupRank(finalStates, state.teamId);
+        const rank = getGroupRankWithMatches(
+          finalStates,
+          state.teamId,
+          allMatches,
+          fairPlayByTeam,
+          Math.random
+        );
         if (rank === 1) {
           counts.first.set(state.teamId, (counts.first.get(state.teamId) ?? 0) + 1);
         } else if (rank === 2) {
@@ -705,7 +785,11 @@ export function simulateTournamentOutcomeProbabilities(
       }
     }
 
-    const bestThirds = pickBestThirdQualifiers(groupFinalStates);
+    const bestThirds = pickBestThirdQualifiers(
+      groupFinalStates,
+      matchesByGroup,
+      fairPlayByTeam
+    );
     for (const teamId of bestThirds) {
       counts.bestThird.set(teamId, (counts.bestThird.get(teamId) ?? 0) + 1);
     }
@@ -763,16 +847,32 @@ export function simulateClassificationProbability(
     standingToState(s, isPreTournament)
   );
   const pending = groupFixturesForSim;
+  const teamIds = getGroupTeamIds(groupStandings);
+  const groupCtx =
+    allGroups?.find((g) => g.groupStandings.some((s) => s.team.id === teamId)) ??
+    ({
+      groupStandings,
+      groupFixturesForSim,
+      completedGroupFixtures: [],
+      groupLabel: groupStandings[0]?.group ?? "Group",
+      isPreTournament,
+    } satisfies TournamentGroupInput);
+  const completedMatches = collectGroupMatchResults(
+    groupCtx.completedGroupFixtures,
+    teamIds
+  );
 
   const mathStatus = enumerateMathematicalStatus(
     teamId,
     baseStates,
     pending,
+    completedMatches,
+    new Map(),
     isPreTournament
   );
 
   if (mathStatus === "qualified" && !isPreTournament) {
-    const rank = getGroupRank(baseStates, teamId);
+    const rank = getGroupRankWithMatches(baseStates, teamId, completedMatches, new Map());
     const fixed: TeamOutcomeProbs = {
       probFirst: rank === 1 ? 100 : 0,
       probSecond: rank === 2 ? 100 : 0,
@@ -788,7 +888,7 @@ export function simulateClassificationProbability(
   }
 
   if (mathStatus === "eliminated" && !isPreTournament) {
-    const rank = getGroupRank(baseStates, teamId);
+    const rank = getGroupRankWithMatches(baseStates, teamId, completedMatches, new Map());
     const fixed: TeamOutcomeProbs = {
       probFirst: 0,
       probSecond: 0,
@@ -809,6 +909,7 @@ export function simulateClassificationProbability(
       {
         groupStandings,
         groupFixturesForSim,
+        completedGroupFixtures: [],
         groupLabel: groupStandings[0]?.group ?? "Group",
         isPreTournament,
       },
@@ -817,6 +918,7 @@ export function simulateClassificationProbability(
   const tournamentMap = simulateTournamentOutcomeProbabilities(
     groups,
     h2hMap,
+    new Map(),
     simulations
   );
   const outcomes = tournamentMap.get(teamId);
@@ -859,10 +961,14 @@ export function resolveAllGroupContexts(
         teamIds,
         groupLabel
       );
+      const completedGroupFixtures = dedupeFixtures(
+        filterGroupStageCountableFixtures(fixtures, teamIds)
+      );
 
       results.push({
         groupStandings,
         groupFixturesForSim,
+        completedGroupFixtures,
         groupLabel,
         isPreTournament,
       });

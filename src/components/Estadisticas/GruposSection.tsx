@@ -43,7 +43,7 @@ function GroupTable({
           )}
         </div>
         <p className="text-[10px] text-muted-foreground mt-0.5">
-          Prob. Monte Carlo: 1º · 2º · mejor 3º
+          Tabla · desempate FIFA (H2H, fair play) · prob. Monte Carlo
         </p>
       </CardHeader>
       <CardContent className="px-0 pb-3">

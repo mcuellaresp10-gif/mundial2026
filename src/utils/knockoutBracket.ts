@@ -1,4 +1,4 @@
-import type { StandingsGroup, StandingTeam } from "@/types";
+import type { Fixture, StandingsGroup, StandingTeam } from "@/types";
 import annexCData from "@/data/annexCThirdPlace.json";
 import {
   GROUP_LETTERS,
@@ -12,12 +12,38 @@ import {
 } from "@/data/worldCup2026Bracket";
 import {
   pickBestThirdQualifiers,
-  sortGroupStates,
   type TeamGroupState,
 } from "@/utils/groupClassification";
 import { iterateStandingsTables } from "@/utils/standingsTables";
+import {
+  collectGroupMatchResults,
+  rankGroupTeams,
+} from "@/utils/groupTiebreakers";
+import type { FairPlayRecord } from "@/utils/fairPlay";
 
 const annexC = annexCData as Record<string, Record<string, string>>;
+
+export interface KnockoutBracketOptions {
+  fixtures?: Fixture[];
+  fairPlay?: Map<number, FairPlayRecord>;
+}
+
+function rankGroupData(
+  data: { states: TeamGroupState[]; rows: StandingTeam[] },
+  fixtures: Fixture[],
+  fairPlay: Map<number, FairPlayRecord>
+): { states: TeamGroupState[]; rows: StandingTeam[] } {
+  const teamIds = new Set(data.states.map((s) => s.teamId));
+  const matches = collectGroupMatchResults(fixtures, teamIds);
+  const ranked = rankGroupTeams(data.states, matches, fairPlay, () => 0.5);
+  const rowsById = new Map(data.rows.map((r) => [r.team.id, r]));
+  const rows = ranked.map((s, index) => {
+    const row = rowsById.get(s.teamId);
+    if (!row) return null;
+    return { ...row, rank: index + 1 };
+  }).filter((r): r is StandingTeam => r != null);
+  return { states: ranked, rows };
+}
 
 export interface BracketTeam {
   teamId: number;
@@ -136,8 +162,7 @@ function getQualifyingThirdGroups(
   for (const letter of GROUP_LETTERS) {
     const data = byGroup.get(letter);
     if (!data) continue;
-    const sorted = sortGroupStates(data.states);
-    const third = sorted[2];
+    const third = data.states[2];
     if (third && bestThirdIds.has(third.teamId)) {
       qualifying.push(letter);
     }
@@ -170,8 +195,7 @@ function resolveThirdSlot(
   }
 
   const data = byGroup.get(thirdGroup);
-  const sorted = data ? sortGroupStates(data.states) : [];
-  const thirdState = sorted[2];
+  const thirdState = data?.states[2];
   const row = data?.rows.find((r) => r.team.id === thirdState?.teamId) ?? data?.rows[2];
   const qualifies = thirdState && bestThirdIds.has(thirdState.teamId);
 
@@ -213,16 +237,49 @@ function placeholderSlot(matchId: number, slot: "home" | "away"): BracketSlotTea
   };
 }
 
-export function resolveKnockoutBracket(standings: StandingsGroup[]): KnockoutBracketResult {
-  const byGroup = buildGroupStatesFromStandings(standings);
-  const groupStatesList = GROUP_LETTERS.map((g) => byGroup.get(g)?.states ?? []).filter((s) => s.length > 0);
+export function resolveKnockoutBracket(
+  standings: StandingsGroup[],
+  options: KnockoutBracketOptions = {}
+): KnockoutBracketResult {
+  const fixtures = options.fixtures ?? [];
+  const fairPlay = options.fairPlay ?? new Map();
+
+  let byGroup = buildGroupStatesFromStandings(standings);
+  if (fixtures.length > 0 || fairPlay.size > 0) {
+    const reranked = new Map<
+      GroupLetter,
+      { states: TeamGroupState[]; rows: StandingTeam[] }
+    >();
+    for (const letter of GROUP_LETTERS) {
+      const data = byGroup.get(letter);
+      if (!data) continue;
+      reranked.set(letter, rankGroupData(data, fixtures, fairPlay));
+    }
+    byGroup = reranked;
+  }
+
+  const groupEntries = GROUP_LETTERS.flatMap((letter) => {
+    const data = byGroup.get(letter);
+    if (!data || data.states.length === 0) return [];
+    return [{ letter, data }];
+  });
+
+  const groupStatesList = groupEntries.map((entry) => entry.data.states);
+  const matchesByGroup = groupEntries.map(({ data }) => {
+    const teamIds = new Set(data.states.map((s) => s.teamId));
+    return collectGroupMatchResults(fixtures, teamIds);
+  });
 
   const groupFinished = (g: GroupLetter): boolean => {
     const rows = byGroup.get(g)?.rows ?? [];
     return rows.length > 0 && rows.every((r) => r.all.played >= 3);
   };
 
-  const bestThirdIds = pickBestThirdQualifiers(groupStatesList);
+  const bestThirdIds = pickBestThirdQualifiers(
+    groupStatesList,
+    matchesByGroup,
+    fairPlay
+  );
   const qualifyingThirdGroups = getQualifyingThirdGroups(byGroup, bestThirdIds);
   const annexKey =
     qualifyingThirdGroups.length === 8 ? [...qualifyingThirdGroups].sort().join("") : null;

@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { Fixture, StandingTeam, StandingsGroup, Team } from "@/types";
-import { projectLiveGroupStandings } from "@/utils/liveStandings";
+import { projectLiveGroupStandings, rerankGroupTableWithTiebreakers } from "@/utils/liveStandings";
 
 function makeTeam(id: number, name: string): Team {
   return {
@@ -182,5 +182,52 @@ describe("liveStandings", () => {
     const third = result.standings[0].league.standings[0].find((r) => r.team.id === 12)!;
     assert.equal(third.points, 3);
     assert.equal(third.all.played, 1);
+  });
+
+  it("reordena tabla oficial con H2H aunque la API ponga mejor DG arriba", () => {
+    const canada = makeTeam(40, "Canada");
+    const rival = makeTeam(41, "Qatar");
+    const third = makeTeam(42, "Switzerland");
+    const fourth = makeTeam(43, "Bosnia");
+
+    const makePlayedRow = (
+      rank: number,
+      team: Team,
+      points: number,
+      gf: number,
+      ga: number
+    ): StandingTeam => ({
+      ...makeRow(rank, team, "Group B"),
+      points,
+      goalsDiff: gf - ga,
+      all: {
+        played: 2,
+        win: 0,
+        draw: 0,
+        lose: 0,
+        goals: { for: gf, against: ga },
+      },
+    });
+
+    const table = [
+      makePlayedRow(1, rival, 4, 5, 1),
+      makePlayedRow(2, canada, 4, 3, 2),
+      makePlayedRow(3, third, 3, 2, 3),
+      makePlayedRow(4, fourth, 1, 1, 5),
+    ];
+    const standings = makeStandings(table);
+
+    const h2h = makeFixture(200, canada, rival, 2, 0, "FT");
+    h2h.league.round = "Group Stage - 2";
+
+    const reranked = rerankGroupTableWithTiebreakers(table, [h2h]);
+    assert.equal(reranked[0].team.id, canada.id);
+    assert.equal(reranked[1].team.id, rival.id);
+
+    const projected = projectLiveGroupStandings(standings, [h2h]);
+    const canadaRow = projected.standings[0].league.standings[0].find((r) => r.team.id === 40)!;
+    const rivalRow = projected.standings[0].league.standings[0].find((r) => r.team.id === 41)!;
+    assert.equal(canadaRow.rank, 1);
+    assert.equal(rivalRow.rank, 2);
   });
 });

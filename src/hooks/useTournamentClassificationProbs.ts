@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { useFixtures, useStandings } from "./usePartidos";
+import { useFixtures } from "./usePartidos";
+import { useGroupStandings } from "./useGroupStandings";
 import { getH2H } from "@/services/apiFootball";
 import { CACHE_TTL_MS } from "@/lib/utils";
 import {
@@ -13,9 +14,14 @@ import {
   type H2HMap,
   type TeamOutcomeProbs,
 } from "@/utils/groupClassification";
+import { groupStageScoresSignature } from "@/utils/liveStandings";
 
 export function useTournamentClassificationProbs() {
-  const { data: standings = [], isLoading: loadingStandings } = useStandings();
+  const {
+    standings,
+    fairPlayByTeam,
+    isLoading: loadingStandings,
+  } = useGroupStandings();
   const { data: fixtures = [], isLoading: loadingFixtures } = useFixtures();
 
   const groups = useMemo(
@@ -42,6 +48,16 @@ export function useTournamentClassificationProbs() {
     return map;
   }, [pairs, h2hQueries]);
 
+  const fairPlaySignature = useMemo(() => {
+    let yellow = 0;
+    let red = 0;
+    for (const record of fairPlayByTeam.values()) {
+      yellow += record.yellow;
+      red += record.red;
+    }
+    return `${yellow}-${red}`;
+  }, [fairPlayByTeam]);
+
   const isLoadingH2H = h2hQueries.some((q) => q.isLoading);
   const isLoading = loadingStandings || loadingFixtures || isLoadingH2H;
 
@@ -50,11 +66,14 @@ export function useTournamentClassificationProbs() {
       "tournamentClassificationProbs",
       groups.map((g) => g.groupLabel).join(","),
       groups.map((g) =>
-        g.groupStandings.map((s) => `${s.team.id}:${s.points}:${s.all.played}`).join("|")
+        g.groupStandings.map((s) => `${s.team.id}:${s.points}:${s.all.played}:${s.rank}`).join("|")
       ),
+      groupStageScoresSignature(fixtures),
+      fairPlaySignature,
     ],
-    queryFn: () => simulateTournamentOutcomeProbabilities(groups, h2hMap),
-    enabled: groups.length > 0 && !isLoadingH2H,
+    queryFn: () =>
+      simulateTournamentOutcomeProbabilities(groups, h2hMap, fairPlayByTeam),
+    enabled: groups.length > 0 && !isLoadingH2H && !loadingStandings,
     staleTime: CACHE_TTL_MS,
   });
 

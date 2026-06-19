@@ -6,11 +6,18 @@ import {
 } from "@/lib/liveRefresh";
 import { isWorldCupGroupLabel, normalizeGroupLabel, dedupeFixtures } from "@/utils/groupClassification";
 import { iterateStandingsTables } from "@/utils/standingsTables";
+import { rankGroupTeams, collectGroupMatchResults, type GroupMatchResult } from "@/utils/groupTiebreakers";
+import type { FairPlayRecord } from "@/utils/fairPlay";
+import type { TeamGroupState } from "@/utils/groupClassification";
 
 export interface LiveStandingsProjection {
   standings: StandingsGroup[];
   liveGroupLetters: Set<string>;
   isProjected: boolean;
+}
+
+export interface LiveStandingsOptions {
+  fairPlay?: Map<number, FairPlayRecord>;
 }
 
 interface TeamAccum {
@@ -87,13 +94,63 @@ function applyMatchResult(accum: Map<number, TeamAccum>, f: Fixture): void {
   }
 }
 
-function sortTeamAccums(rows: TeamAccum[]): TeamAccum[] {
-  return [...rows].sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    const gdA = a.goalsFor - a.goalsAgainst;
-    const gdB = b.goalsFor - b.goalsAgainst;
-    if (gdB !== gdA) return gdB - gdA;
-    return b.goalsFor - a.goalsFor;
+function accumToState(row: TeamAccum): TeamGroupState {
+  return {
+    teamId: row.team.id,
+    teamName: row.team.name,
+    points: row.points,
+    goalsFor: row.goalsFor,
+    goalsAgainst: row.goalsAgainst,
+    priorStrength: 0,
+  };
+}
+
+function fixtureToMatchResult(f: Fixture): GroupMatchResult {
+  return {
+    homeId: f.teams.home.id,
+    awayId: f.teams.away.id,
+    homeGoals: f.goals.home ?? 0,
+    awayGoals: f.goals.away ?? 0,
+  };
+}
+
+function rankTeamAccums(
+  rows: TeamAccum[],
+  matches: GroupMatchResult[],
+  fairPlay: Map<number, FairPlayRecord>
+): TeamAccum[] {
+  const states = rows.map(accumToState);
+  const ranked = rankGroupTeams(states, matches, fairPlay, () => 0.5);
+  const byId = new Map(rows.map((r) => [r.team.id, r]));
+  return ranked
+    .map((s) => byId.get(s.teamId))
+    .filter((r): r is TeamAccum => r != null);
+}
+
+/** Reordena filas oficiales con desempate FIFA usando marcadores disponibles. */
+export function rerankGroupTableWithTiebreakers(
+  table: StandingTeam[],
+  fixtures: Fixture[],
+  fairPlay: Map<number, FairPlayRecord> = new Map()
+): StandingTeam[] {
+  const teamIds = new Set(table.map((r) => r.team.id));
+  const matches = collectGroupMatchResults(fixtures, teamIds);
+  if (matches.length === 0) return table;
+
+  const states = table.map((row) => ({
+    teamId: row.team.id,
+    teamName: row.team.name,
+    points: row.points,
+    goalsFor: row.all.goals.for,
+    goalsAgainst: row.all.goals.against,
+    priorStrength: 0,
+  }));
+
+  const ranked = rankGroupTeams(states, matches, fairPlay, () => 0.5);
+  const byId = new Map(table.map((r) => [r.team.id, r]));
+  return ranked.map((state, index) => {
+    const row = byId.get(state.teamId)!;
+    return { ...row, rank: index + 1 };
   });
 }
 
@@ -119,7 +176,8 @@ function toStandingTeam(row: TeamAccum, rank: number, template: StandingTeam): S
 function rebuildGroupTable(
   table: StandingTeam[],
   letter: string,
-  fixtures: Fixture[]
+  fixtures: Fixture[],
+  fairPlay: Map<number, FairPlayRecord>
 ): { table: StandingTeam[]; hasLive: boolean } {
   const teamIds = new Set(table.map((r) => r.team.id));
   const accum = new Map<number, TeamAccum>();
@@ -140,18 +198,25 @@ function rebuildGroupTable(
   }
 
   if (groupFixtures.length === 0) {
-    return { table, hasLive: false };
+    return {
+      table: rerankGroupTableWithTiebreakers(table, fixtures, fairPlay),
+      hasLive: false,
+    };
   }
 
   const templateById = new Map(table.map((r) => [r.team.id, r]));
-  const sorted = sortTeamAccums([...accum.values()]).map((row, index) =>
-    toStandingTeam(row, index + 1, templateById.get(row.team.id)!)
+  const matchResults = groupFixtures.map(fixtureToMatchResult);
+  const sorted = rankTeamAccums([...accum.values()], matchResults, fairPlay).map(
+    (row, index) => toStandingTeam(row, index + 1, templateById.get(row.team.id)!)
   );
 
   const officialPlayed = table.reduce((sum, row) => sum + row.all.played, 0);
   const projectedPlayed = sorted.reduce((sum, row) => sum + row.all.played, 0);
   if (projectedPlayed < officialPlayed) {
-    return { table, hasLive };
+    return {
+      table: rerankGroupTableWithTiebreakers(table, fixtures, fairPlay),
+      hasLive,
+    };
   }
 
   return { table: sorted, hasLive };
@@ -160,8 +225,10 @@ function rebuildGroupTable(
 /** Recalcula tablas de grupos con partidos FT + en vivo. */
 export function projectLiveGroupStandings(
   standings: StandingsGroup[],
-  fixtures: Fixture[]
+  fixtures: Fixture[],
+  options: LiveStandingsOptions = {}
 ): LiveStandingsProjection {
+  const fairPlay = options.fairPlay ?? new Map();
   if (standings.length === 0) {
     return { standings, liveGroupLetters: new Set(), isProjected: false };
   }
@@ -185,7 +252,12 @@ export function projectLiveGroupStandings(
 
         if (!letter) return table;
 
-        const { table: projected, hasLive } = rebuildGroupTable(table, letter, fixtures);
+        const { table: projected, hasLive } = rebuildGroupTable(
+          table,
+          letter,
+          fixtures,
+          fairPlay
+        );
         if (projected !== table) isProjected = true;
         if (hasLive) liveGroupLetters.add(letter);
         if (projected.some((r, i) => r.points !== table[i]?.points || r.rank !== table[i]?.rank)) {

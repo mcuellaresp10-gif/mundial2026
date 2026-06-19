@@ -175,6 +175,18 @@ export function pickFeaturedFixture(all: Fixture[]): Fixture | null {
   return upcoming[0] ?? null;
 }
 
+/** Firma estable de resultados FT — detecta cambios que deben refrescar standings. */
+export function finishedFixturesSignature(fixtures: Fixture[]): string {
+  return fixtures
+    .filter((f) => isFixtureFinished(f.fixture.status.short))
+    .map(
+      (f) =>
+        `${f.fixture.id}:${f.goals.home ?? "-"}-${f.goals.away ?? "-"}:${f.fixture.status.short}`
+    )
+    .sort((a, b) => a.localeCompare(b))
+    .join("|");
+}
+
 /** Intervalos de refresco (ms). */
 export const LIVE_REFRESH_MS = {
   /** Marcador, calendario, detalle de partido. */
@@ -183,6 +195,8 @@ export const LIVE_REFRESH_MS = {
   fixtureDetail: 30 * 1000,
   /** Tabla de posiciones durante el torneo. */
   standings: 2 * 60 * 1000,
+  /** Tabla de posiciones con sesión en vivo activa (post-partido). */
+  standingsLive: 45 * 1000,
   /** Próximo partido cuando hay juego en curso. */
   nextFixture: 20 * 1000,
   /** Poll dedicado live=all. */

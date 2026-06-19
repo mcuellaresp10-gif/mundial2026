@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStandings } from "@/hooks/usePartidos";
+import { useGroupStandings } from "@/hooks/useGroupStandings";
 import { useTournamentClassificationProbs } from "@/hooks/useTournamentClassificationProbs";
 import { ClassificationProbCells } from "@/components/shared/ClassificationProbDisplay";
 import { iterateStandingsTables } from "@/utils/standingsTables";
@@ -18,16 +18,30 @@ function GroupTable({
   table,
   probMap,
   loadingProbs,
+  isLive,
 }: {
   groupLabel: string;
   table: StandingTeam[];
   probMap: Map<number, TeamOutcomeProbs>;
   loadingProbs: boolean;
+  isLive?: boolean;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <Card
+      className={cn(
+        "overflow-hidden",
+        isLive && "border-amber-500/50 ring-1 ring-amber-500/30"
+      )}
+    >
       <CardHeader className="pb-2 pt-4 px-4">
-        <CardTitle className="text-base">{groupLabel}</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">{groupLabel}</CardTitle>
+          {isLive && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 animate-pulse">
+              En vivo
+            </span>
+          )}
+        </div>
         <p className="text-[10px] text-muted-foreground mt-0.5">
           Prob. Monte Carlo: 1º · 2º · mejor 3º
         </p>
@@ -122,7 +136,7 @@ function GroupTable({
 }
 
 export function GruposSection() {
-  const { data: standings = [], isLoading } = useStandings();
+  const { standings, liveGroupLetters, isProjected, isLoading } = useGroupStandings();
   const { probMap, isLoading: loadingProbs } = useTournamentClassificationProbs();
   const groups = iterateStandingsTables(standings);
 
@@ -147,16 +161,24 @@ export function GruposSection() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {groups.map(({ groupLabel, table, letter }) => (
-        <GroupTable
-          key={letter ?? groupLabel}
-          groupLabel={groupLabel}
-          table={table}
-          probMap={probMap}
-          loadingProbs={loadingProbs}
-        />
-      ))}
+    <div className="space-y-4">
+      {isProjected && (
+        <p className="text-xs text-muted-foreground">
+          Tablas recalculadas con marcadores en vivo — se actualizan al instante con cada gol.
+        </p>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {groups.map(({ groupLabel, table, letter }) => (
+          <GroupTable
+            key={letter ?? groupLabel}
+            groupLabel={groupLabel}
+            table={table}
+            probMap={probMap}
+            loadingProbs={loadingProbs}
+            isLive={letter ? liveGroupLetters.has(letter) : false}
+          />
+        ))}
+      </div>
     </div>
   );
 }

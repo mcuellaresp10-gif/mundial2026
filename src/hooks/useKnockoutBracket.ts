@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { useStandings } from "@/hooks/usePartidos";
+import { useGroupStandings } from "@/hooks/useGroupStandings";
 import { resolveKnockoutBracket } from "@/utils/knockoutBracket";
 
 export function useKnockoutBracket() {
-  const { data: standings = [], isLoading } = useStandings();
+  const { standings, isLoading } = useGroupStandings();
 
   const bracket = useMemo(
     () => (standings.length > 0 ? resolveKnockoutBracket(standings) : null),

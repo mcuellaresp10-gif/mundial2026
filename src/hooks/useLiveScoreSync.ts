@@ -8,12 +8,17 @@ import {
   mergeLiveIntoFixtures,
 } from "@/services/apiFootball";
 import { isLiveSessionActive, syncLiveSession } from "@/services/liveSession";
-import { getLiveRefreshInterval, isPlausibleLiveFixture, shouldPollFixtures } from "@/lib/liveRefresh";
+import {
+  getLiveRefreshInterval,
+  isPlausibleLiveFixture,
+  shouldPollFixtures,
+} from "@/lib/liveRefresh";
 import { isFixtureListIncomplete, mergeFixtureLists } from "@/utils/fixtureMerge";
 import { useUIStore } from "@/stores/useUIStore";
 import type { Fixture } from "@/types";
 
 const FULL_LIST_REFRESH_MS = 5 * 60 * 1000;
+const LIVE_SESSION_FULL_LIST_REFRESH_MS = 90 * 1000;
 
 function getBaseFixturesFromCache(qc: ReturnType<typeof useQueryClient>): Fixture[] {
   return (
@@ -75,6 +80,7 @@ export function useLiveScoreSync() {
   const qc = useQueryClient();
   const setLastRefresh = useUIStore((s) => s.setLastRefresh);
   const lastFullRefreshRef = useRef(0);
+  const prevLiveIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -96,8 +102,12 @@ export function useLiveScoreSync() {
 
       try {
         const now = Date.now();
+        const liveSession = isLiveSessionActive();
+        const fullListInterval = liveSession
+          ? LIVE_SESSION_FULL_LIST_REFRESH_MS
+          : FULL_LIST_REFRESH_MS;
         const needsFullRefresh =
-          listIncomplete || now - lastFullRefreshRef.current >= FULL_LIST_REFRESH_MS;
+          listIncomplete || now - lastFullRefreshRef.current >= fullListInterval;
 
         if (needsFullRefresh) {
           const full = await getFixtures({});
@@ -109,6 +119,18 @@ export function useLiveScoreSync() {
 
         const live = await getLiveWorldCupFixtures();
         if (cancelled) return;
+
+        const liveIds = new Set(live.map((f) => f.fixture.id));
+        const droppedFromLive = [...prevLiveIdsRef.current].filter((id) => !liveIds.has(id));
+        prevLiveIdsRef.current = liveIds;
+
+        if (droppedFromLive.length > 0) {
+          const full = await getFixtures({});
+          if (!cancelled && full.length > 0) {
+            setAllFixtureQueries(qc, full);
+            lastFullRefreshRef.current = Date.now();
+          }
+        }
 
         const currentBase = getBaseFixturesFromCache(qc);
 

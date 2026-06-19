@@ -4,8 +4,7 @@ import {
   isFixtureLive,
   isPlausibleLiveFixture,
 } from "@/lib/liveRefresh";
-import { formatGroupFromRound } from "@/utils/formatters";
-import { isWorldCupGroupLabel, normalizeGroupLabel } from "@/utils/groupClassification";
+import { isWorldCupGroupLabel, normalizeGroupLabel, dedupeFixtures } from "@/utils/groupClassification";
 import { iterateStandingsTables } from "@/utils/standingsTables";
 
 export interface LiveStandingsProjection {
@@ -31,18 +30,9 @@ function isGroupStageFixture(f: Fixture): boolean {
   return round.includes("group") || round.includes("grupo");
 }
 
-function fixtureBelongsToGroup(f: Fixture, letter: string, teamIds: Set<number>): boolean {
+function fixtureBelongsToGroup(f: Fixture, teamIds: Set<number>): boolean {
   if (!teamIds.has(f.teams.home.id) || !teamIds.has(f.teams.away.id)) return false;
-  if (!isGroupStageFixture(f)) return false;
-
-  const normalizedLetter = letter.toUpperCase();
-  const round = f.league.round.toLowerCase();
-  const formatted = formatGroupFromRound(f.league.round).toLowerCase();
-  return (
-    round.includes(`group ${normalizedLetter.toLowerCase()}`) ||
-    formatted.includes(normalizedLetter.toLowerCase()) ||
-    normalizeGroupLabel(f.league.round) === normalizedLetter
-  );
+  return isGroupStageFixture(f);
 }
 
 function isCountableGroupFixture(f: Fixture): boolean {
@@ -138,8 +128,8 @@ function rebuildGroupTable(
   }
 
   let hasLive = false;
-  const groupFixtures = fixtures.filter(
-    (f) => fixtureBelongsToGroup(f, letter, teamIds) && isCountableGroupFixture(f)
+  const groupFixtures = dedupeFixtures(
+    fixtures.filter((f) => fixtureBelongsToGroup(f, teamIds) && isCountableGroupFixture(f))
   );
 
   for (const f of groupFixtures) {
@@ -157,6 +147,12 @@ function rebuildGroupTable(
   const sorted = sortTeamAccums([...accum.values()]).map((row, index) =>
     toStandingTeam(row, index + 1, templateById.get(row.team.id)!)
   );
+
+  const officialPlayed = table.reduce((sum, row) => sum + row.all.played, 0);
+  const projectedPlayed = sorted.reduce((sum, row) => sum + row.all.played, 0);
+  if (projectedPlayed < officialPlayed) {
+    return { table, hasLive };
+  }
 
   return { table: sorted, hasLive };
 }

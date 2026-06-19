@@ -136,6 +136,31 @@ describe("liveStandings", () => {
     assert.equal(result.isProjected, true);
   });
 
+  it("includes Group Stage - 2 fixtures without letter in round", () => {
+    const canada = makeTeam(40, "Canada");
+    const qatar = makeTeam(41, "Qatar");
+    const switzerland = makeTeam(42, "Switzerland");
+    const bosnia = makeTeam(43, "Bosnia");
+    const standings = makeStandings([
+      makeRow(1, switzerland, "Group B"),
+      makeRow(2, canada, "Group B"),
+      makeRow(3, qatar, "Group B"),
+      makeRow(4, bosnia, "Group B"),
+    ]);
+
+    const j1 = makeFixture(1, canada, qatar, 1, 1, "FT");
+    j1.league.round = "Group Stage - 1";
+    const j2 = makeFixture(2, canada, qatar, 6, 0, "FT");
+    j2.league.round = "Group Stage - 2";
+
+    const result = projectLiveGroupStandings(standings, [j1, j2]);
+    const canadaRow = result.standings[0].league.standings[0].find((r) => r.team.id === 40)!;
+
+    assert.equal(canadaRow.all.played, 2);
+    assert.equal(canadaRow.points, 4);
+    assert.equal(canadaRow.all.goals.for, 7);
+  });
+
   it("combines FT and live fixtures", () => {
     const t1 = makeTeam(10, "A1");
     const t2 = makeTeam(11, "A2");
@@ -149,7 +174,9 @@ describe("liveStandings", () => {
     ]);
 
     const ft = makeFixture(1, t3, t4, 1, 0, "FT");
+    ft.league.round = "Group Stage - 1";
     const live = makeFixture(2, t1, t2, 0, 0, "1H");
+    live.league.round = "Group Stage - 2";
     const result = projectLiveGroupStandings(standings, [ft, live]);
 
     const third = result.standings[0].league.standings[0].find((r) => r.team.id === 12)!;

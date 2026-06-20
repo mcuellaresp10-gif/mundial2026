@@ -119,12 +119,18 @@ function GroupStrip({ letters, groups }: { letters: GroupLetter[]; groups: Recor
                 <Link
                   key={t.teamId}
                   href={`/selecciones/${t.teamId}`}
-                  className="flex items-center gap-1.5 hover:text-mundial-gold transition-colors"
+                  className={cn(
+                    "flex items-center gap-1.5 hover:text-mundial-gold transition-colors",
+                    t.isQualifyingThird && "text-emerald-600 dark:text-emerald-400 font-medium"
+                  )}
                 >
                   <div className="relative w-4 h-4 shrink-0">
                     <Image src={t.logo} alt="" fill className="object-contain" sizes="16px" />
                   </div>
-                  <span className="text-[10px] truncate">{translateTeamName(t.name)}</span>
+                  <span className="text-[10px] truncate">
+                    {translateTeamName(t.name)}
+                    {t.isQualifyingThird ? " *" : ""}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -199,7 +205,8 @@ export function KnockoutBracketSection() {
           Proyección según tabla actual · Los 2 primeros de cada grupo + 8 mejores terceros.
           {bracket.isProvisional && (
             <span className="block mt-0.5">
-              Los cruces de terceros se confirman al cerrar la fase de grupos (Anexo C FIFA).
+              Proyección en vivo: los cruces de terceros usan el ranking actual de mejores terceros
+              (Anexo C FIFA). Los marcados con * en las tiras de grupo son mejores terceros proyectados.
             </span>
           )}
         </p>

@@ -116,6 +116,20 @@ describe("knockoutBracket", () => {
     assert.equal(result.qualifyingThirdGroups.length, 8);
   });
 
+  it("coloca mejores terceros en slots de 16avos según Anexo C", () => {
+    const standings = GROUP_MINIMAL_STANDINGS();
+    const result = resolveKnockoutBracket(standings);
+
+    assert.ok(result.annexKey);
+
+    const thirdSlots = result.roundOf32.flatMap((m) => [m.home, m.away]).filter((s) => /^3[A-L]/.test(s.label));
+    assert.equal(thirdSlots.length, 8, "hay 8 plazas de mejores terceros en 16avos");
+    assert.ok(
+      thirdSlots.every((s) => s.team != null),
+      "cada slot de tercero tiene selección asignada"
+    );
+  });
+
   it("getRoundOf32BySide ordena por order", () => {
     const standings: StandingsGroup[] = GROUP_MINIMAL_STANDINGS();
     const result = resolveKnockoutBracket(standings);

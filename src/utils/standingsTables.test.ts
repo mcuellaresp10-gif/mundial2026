@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { StandingTeam, StandingsGroup, Team } from "@/types";
-import { iterateStandingsTables } from "@/utils/standingsTables";
+import { dedupeStandingTable, iterateStandingsTables } from "@/utils/standingsTables";
 
 function makeTeam(id: number, name: string): Team {
   return {
@@ -78,5 +78,31 @@ describe("iterateStandingsTables", () => {
     assert.equal(slices.length, 1);
     assert.equal(slices[0].letter, "A");
     assert.equal(slices[0].groupLabel, "Grupo A");
+  });
+
+  it("deduplica equipos repetidos en la misma tabla", () => {
+    const t1 = makeTeam(10, "Belgium");
+    const t2 = makeTeam(20, "Egypt");
+    const table = [
+      makeRow(1, t1, "Group G"),
+      makeRow(2, t2, "Group G"),
+      makeRow(3, t1, "Group G"),
+      makeRow(4, t2, "Group G"),
+    ];
+
+    const deduped = dedupeStandingTable(table);
+    assert.equal(deduped.length, 2);
+    assert.deepEqual(
+      deduped.map((r) => r.team.id),
+      [10, 20]
+    );
+  });
+
+  it("ignora tablas duplicadas del mismo grupo", () => {
+    const row = makeRow(1, makeTeam(1, "A1"), "Group A");
+    const standings = [
+      makeGroup("World Cup", [[row], [makeRow(1, makeTeam(1, "A1"), "Group A")]]),
+    ];
+    assert.equal(iterateStandingsTables(standings).length, 1);
   });
 });

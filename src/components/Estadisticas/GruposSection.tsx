@@ -64,8 +64,11 @@ function GroupTable({
                 <th className="py-2 px-1 text-center" title="Probabilidad de quedar 1º">
                   1º
                 </th>
-                <th className="py-2 pr-4 pl-1 text-center" title="Probabilidad de quedar 2º">
+                <th className="py-2 px-1 text-center" title="Probabilidad de quedar 2º">
                   2º
+                </th>
+                <th className="py-2 pr-4 pl-1 text-center" title="Probabilidad de clasificar como mejor tercero">
+                  3º*
                 </th>
               </tr>
             </thead>
@@ -120,11 +123,7 @@ function GroupTable({
                     <td className="py-2.5 px-1 text-center tabular-nums font-bold text-mundial-gold">
                       {row.points}
                     </td>
-                    <ClassificationProbCells
-                      outcomes={outcomes}
-                      isLoading={loadingProbs}
-                      columns="12"
-                    />
+                    <ClassificationProbCells outcomes={outcomes} isLoading={loadingProbs} />
                   </tr>
                 );
               })}

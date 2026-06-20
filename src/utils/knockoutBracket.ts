@@ -10,11 +10,12 @@ import {
   type GroupLetter,
   type RoundOf32Definition,
 } from "@/data/worldCup2026Bracket";
+import type { TeamGroupState } from "@/utils/groupClassification";
 import {
-  pickBestThirdQualifiers,
-  type TeamGroupState,
-} from "@/utils/groupClassification";
-import { iterateStandingsTables } from "@/utils/standingsTables";
+  BEST_THIRD_QUALIFIERS,
+  rankThirdPlaceTeamsFromStandings,
+} from "@/utils/bestThirdsRanking";
+import { dedupeStandingTable, iterateStandingsTables } from "@/utils/standingsTables";
 import {
   collectGroupMatchResults,
   rankGroupTeams,
@@ -80,6 +81,7 @@ export interface GroupStripTeam {
   name: string;
   logo: string;
   rank: number;
+  isQualifyingThird?: boolean;
 }
 
 export interface KnockoutBracketResult {
@@ -89,6 +91,8 @@ export interface KnockoutBracketResult {
   qualifyingThirdGroups: GroupLetter[];
   annexKey: string | null;
   isProvisional: boolean;
+  /** Mejores terceros proyectados (misma fuente que la tabla de mejores terceros). */
+  rankedBestThirds: ReturnType<typeof rankThirdPlaceTeamsFromStandings>;
 }
 
 function standingToState(row: StandingTeam): TeamGroupState {
@@ -117,7 +121,7 @@ export function buildGroupStatesFromStandings(
   for (const { table, letter } of iterateStandingsTables(standings)) {
     if (!letter || !GROUP_LETTERS.includes(letter as GroupLetter)) continue;
     const group = letter as GroupLetter;
-    const rows = [...table].sort((a, b) => a.rank - b.rank);
+    const rows = dedupeStandingTable(table);
     byGroup.set(group, {
       rows,
       states: rows.map(standingToState),
@@ -155,26 +159,30 @@ function resolveDirectSlot(
 }
 
 function getQualifyingThirdGroups(
-  byGroup: Map<GroupLetter, { states: TeamGroupState[]; rows: StandingTeam[] }>,
-  bestThirdIds: Set<number>
+  rankedThirds: ReturnType<typeof rankThirdPlaceTeamsFromStandings>
 ): GroupLetter[] {
-  const qualifying: GroupLetter[] = [];
-  for (const letter of GROUP_LETTERS) {
-    const data = byGroup.get(letter);
-    if (!data) continue;
-    const third = data.states[2];
-    if (third && bestThirdIds.has(third.teamId)) {
-      qualifying.push(letter);
-    }
+  return rankedThirds
+    .filter((t) => t.qualifies)
+    .map((t) => t.groupLetter as GroupLetter)
+    .sort();
+}
+
+function thirdRowByGroup(
+  rankedThirds: ReturnType<typeof rankThirdPlaceTeamsFromStandings>
+): Map<GroupLetter, StandingTeam> {
+  const map = new Map<GroupLetter, StandingTeam>();
+  for (const entry of rankedThirds) {
+    map.set(entry.groupLetter as GroupLetter, entry.row);
   }
-  return qualifying.sort();
+  return map;
 }
 
 function resolveThirdSlot(
   ref: Extract<BracketSlotRef, { type: "third" }>,
-  byGroup: Map<GroupLetter, { states: TeamGroupState[]; rows: StandingTeam[] }>,
+  thirdRows: Map<GroupLetter, StandingTeam>,
   annexMap: Record<string, string> | null,
-  bestThirdIds: Set<number>
+  bestThirdIds: Set<number>,
+  groupFinished: (g: GroupLetter) => boolean
 ): BracketSlotTeam {
   if (!annexMap) {
     return {
@@ -194,15 +202,13 @@ function resolveThirdSlot(
     };
   }
 
-  const data = byGroup.get(thirdGroup);
-  const thirdState = data?.states[2];
-  const row = data?.rows.find((r) => r.team.id === thirdState?.teamId) ?? data?.rows[2];
-  const qualifies = thirdState && bestThirdIds.has(thirdState.teamId);
+  const row = thirdRows.get(thirdGroup);
+  const qualifies = row != null && bestThirdIds.has(row.team.id);
 
   return {
     label: slotLabel(ref, thirdGroup),
     team: qualifies && row ? toBracketTeam(row) : null,
-    provisional: !qualifies,
+    provisional: !qualifies || !groupFinished(thirdGroup),
   };
 }
 
@@ -211,11 +217,12 @@ function resolveR32Match(
   byGroup: Map<GroupLetter, { states: TeamGroupState[]; rows: StandingTeam[] }>,
   annexMap: Record<string, string> | null,
   bestThirdIds: Set<number>,
+  thirdRows: Map<GroupLetter, StandingTeam>,
   groupFinished: (g: GroupLetter) => boolean
 ): ResolvedR32Match {
   const resolveSlot = (ref: BracketSlotRef): BracketSlotTeam => {
     if (ref.type === "third") {
-      return resolveThirdSlot(ref, byGroup, annexMap, bestThirdIds);
+      return resolveThirdSlot(ref, thirdRows, annexMap, bestThirdIds, groupFinished);
     }
     return resolveDirectSlot(ref, byGroup, groupFinished);
   };
@@ -258,35 +265,26 @@ export function resolveKnockoutBracket(
     byGroup = reranked;
   }
 
-  const groupEntries = GROUP_LETTERS.flatMap((letter) => {
-    const data = byGroup.get(letter);
-    if (!data || data.states.length === 0) return [];
-    return [{ letter, data }];
-  });
-
-  const groupStatesList = groupEntries.map((entry) => entry.data.states);
-  const matchesByGroup = groupEntries.map(({ data }) => {
-    const teamIds = new Set(data.states.map((s) => s.teamId));
-    return collectGroupMatchResults(fixtures, teamIds);
-  });
-
   const groupFinished = (g: GroupLetter): boolean => {
     const rows = byGroup.get(g)?.rows ?? [];
     return rows.length > 0 && rows.every((r) => r.all.played >= 3);
   };
 
-  const bestThirdIds = pickBestThirdQualifiers(
-    groupStatesList,
-    matchesByGroup,
-    fairPlay
+  const rankedBestThirds = rankThirdPlaceTeamsFromStandings(standings, fixtures, fairPlay);
+  const bestThirdIds = new Set(
+    rankedBestThirds.filter((t) => t.qualifies).map((t) => t.row.team.id)
   );
-  const qualifyingThirdGroups = getQualifyingThirdGroups(byGroup, bestThirdIds);
+  const qualifyingThirdGroups = getQualifyingThirdGroups(rankedBestThirds);
+  const thirdRows = thirdRowByGroup(rankedBestThirds);
+
   const annexKey =
-    qualifyingThirdGroups.length === 8 ? [...qualifyingThirdGroups].sort().join("") : null;
+    qualifyingThirdGroups.length >= BEST_THIRD_QUALIFIERS
+      ? [...qualifyingThirdGroups].sort().join("")
+      : null;
   const annexMap = annexKey ? lookupAnnexC(new Set(qualifyingThirdGroups)) : null;
 
   const roundOf32 = ROUND_OF_32.map((def) =>
-    resolveR32Match(def, byGroup, annexMap, bestThirdIds, groupFinished)
+    resolveR32Match(def, byGroup, annexMap, bestThirdIds, thirdRows, groupFinished)
   );
 
   const resolvedById = new Map<number, ResolvedBracketMatch>();
@@ -314,15 +312,20 @@ export function resolveKnockoutBracket(
   const groupStrips = {} as Record<GroupLetter, GroupStripTeam[]>;
   for (const letter of GROUP_LETTERS) {
     const rows = byGroup.get(letter)?.rows ?? [];
+    const thirdRow = thirdRows.get(letter);
     groupStrips[letter] = rows.slice(0, 4).map((r) => ({
       teamId: r.team.id,
       name: r.team.name,
       logo: r.team.logo,
       rank: r.rank,
+      isQualifyingThird:
+        thirdRow?.team.id === r.team.id && bestThirdIds.has(r.team.id),
     }));
   }
 
+  const allGroupsFinished = GROUP_LETTERS.every((g) => groupFinished(g));
   const isProvisional =
+    !allGroupsFinished ||
     !annexMap ||
     roundOf32.some((m) => m.home.provisional || m.away.provisional);
 
@@ -333,6 +336,7 @@ export function resolveKnockoutBracket(
     qualifyingThirdGroups,
     annexKey,
     isProvisional,
+    rankedBestThirds,
   };
 }
 

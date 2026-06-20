@@ -5,7 +5,7 @@ import {
   isPlausibleLiveFixture,
 } from "@/lib/liveRefresh";
 import { isWorldCupGroupLabel, normalizeGroupLabel, dedupeFixtures } from "@/utils/groupClassification";
-import { iterateStandingsTables } from "@/utils/standingsTables";
+import { dedupeStandingTable, iterateStandingsTables } from "@/utils/standingsTables";
 import { rankGroupTeams, collectGroupMatchResults, type GroupMatchResult } from "@/utils/groupTiebreakers";
 import type { FairPlayRecord } from "@/utils/fairPlay";
 import type { TeamGroupState } from "@/utils/groupClassification";
@@ -133,6 +133,7 @@ export function rerankGroupTableWithTiebreakers(
   fixtures: Fixture[],
   fairPlay: Map<number, FairPlayRecord> = new Map()
 ): StandingTeam[] {
+  table = dedupeStandingTable(table);
   const teamIds = new Set(table.map((r) => r.team.id));
   const matches = collectGroupMatchResults(fixtures, teamIds);
   if (matches.length === 0) return table;
@@ -179,6 +180,7 @@ function rebuildGroupTable(
   fixtures: Fixture[],
   fairPlay: Map<number, FairPlayRecord>
 ): { table: StandingTeam[]; hasLive: boolean } {
+  table = dedupeStandingTable(table);
   const teamIds = new Set(table.map((r) => r.team.id));
   const accum = new Map<number, TeamAccum>();
   for (const row of table) {

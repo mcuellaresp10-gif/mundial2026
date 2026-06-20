@@ -115,8 +115,9 @@ export function MatchSimulationPanel() {
                 Matriz de probabilidad de marcador
               </CardTitle>
               <p className="text-sm text-muted-foreground font-normal">
-                {result.simulations.toLocaleString()} simulaciones Monte Carlo · Poisson calibrado
-                con H2H, forma en el mundial, plantilla y ritmo del torneo
+                {result.simulations.toLocaleString()} simulaciones · xG calibrado con ranking FIFA,
+                H2H y forma · 1X2 objetivo: {formatPct(result.target1X2.homeWin)} /{" "}
+                {formatPct(result.target1X2.draw)} / {formatPct(result.target1X2.awayWin)}
               </p>
             </CardHeader>
             <CardContent>

@@ -5,97 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { HistoricoMundial } from "@/types";
+import { getHistoricoForUI, WORLD_CUP_UI_YEARS } from "@/data/worldCupHistory";
 import { getFixtures } from "@/services/apiFootball";
 
-const FALLBACK: Record<number, HistoricoMundial> = {
-  2022: {
-    year: 2022,
-    host: "Qatar",
-    champion: "Argentina",
-    championFlag: "🇦🇷",
-    topScorer: { name: "Kylian Mbappé", goals: 8, country: "Francia" },
-    goldenBall: "Lionel Messi",
-    finalScore: "Argentina 3-3 Francia (4-2 pen)",
-    totalGoals: 172,
-    totalMatches: 64,
-    groups: [],
-    memorableMatches: [
-      { description: "Final épica Argentina vs Francia", score: "3-3 (4-2 pen)" },
-      { description: "Marruecos histórico semifinalista", score: "N/A" },
-    ],
-    curiosities: [
-      "Primer Mundial en invierno (noviembre-diciembre)",
-      "Messi finally won the World Cup",
-      "Mbappé hat-trick en la final",
-    ],
-  },
-  2018: {
-    year: 2018,
-    host: "Rusia",
-    champion: "Francia",
-    championFlag: "🇫🇷",
-    topScorer: { name: "Harry Kane", goals: 6, country: "Inglaterra" },
-    goldenBall: "Luka Modrić",
-    finalScore: "Francia 4-2 Croacia",
-    totalGoals: 169,
-    totalMatches: 64,
-    groups: [],
-    memorableMatches: [
-      { description: "Francia campeona con jóvenes estrellas", score: "4-2" },
-      { description: "Bélgica tercer lugar", score: "N/A" },
-    ],
-    curiosities: [
-      "VAR utilizado por primera vez",
-      "Croacia llegó a su primera final",
-      "Mbappé debutó como estrella mundial",
-    ],
-  },
-  2014: {
-    year: 2014,
-    host: "Brasil",
-    champion: "Alemania",
-    championFlag: "🇩🇪",
-    topScorer: { name: "James Rodríguez", goals: 6, country: "Colombia" },
-    goldenBall: "Lionel Messi",
-    finalScore: "Alemania 1-0 Argentina",
-    totalGoals: 171,
-    totalMatches: 64,
-    groups: [],
-    memorableMatches: [
-      { description: "Alemania 7-1 Brasil semifinal", score: "7-1" },
-      { description: "Gol de Götze en la final", score: "1-0" },
-    ],
-    curiosities: [
-      "James Rodríguez ganó la Bota de Oro",
-      "Colombia llegó a cuartos de final",
-      "Mayor goleada semifinalista: 7-1",
-    ],
-  },
-  2010: {
-    year: 2010,
-    host: "Sudáfrica",
-    champion: "España",
-    championFlag: "🇪🇸",
-    topScorer: { name: "Thomas Müller", goals: 5, country: "Alemania" },
-    goldenBall: "Diego Forlán",
-    finalScore: "España 1-0 Países Bajos",
-    totalGoals: 145,
-    totalMatches: 64,
-    groups: [],
-    memorableMatches: [
-      { description: "España campeona mundial", score: "1-0" },
-      { description: "Uruguay semifinalista", score: "N/A" },
-    ],
-    curiosities: [
-      "Primer Mundial en África",
-      "España primer campeón europeo fuera de Europa",
-      "Vuvuzelas marcaron el torneo",
-    ],
-  },
-};
-
 export function HistoricoMundialView() {
-  const [data, setData] = useState<Record<number, HistoricoMundial>>(FALLBACK);
+  const [data, setData] = useState<Record<number, HistoricoMundial>>(getHistoricoForUI);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -130,12 +44,12 @@ export function HistoricoMundialView() {
   return (
     <Tabs defaultValue="2022">
       <TabsList>
-        {[2022, 2018, 2014, 2010].map((y) => (
+        {WORLD_CUP_UI_YEARS.map((y) => (
           <TabsTrigger key={y} value={String(y)}>{y}</TabsTrigger>
         ))}
       </TabsList>
 
-      {[2022, 2018, 2014, 2010].map((year) => {
+      {WORLD_CUP_UI_YEARS.map((year) => {
         const h = data[year];
         if (!h) return null;
         return (

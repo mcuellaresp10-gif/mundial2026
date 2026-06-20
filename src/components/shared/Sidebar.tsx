@@ -16,6 +16,7 @@ const LINKS = [
   { href: "/comparativas", label: "Comparativas", icon: "⚔️" },
   { href: "/estadisticas", label: "Estadísticas", icon: "📊" },
   { href: "/simulacion", label: "Simulación", icon: "🎲" },
+  { href: "/agente", label: "Agente", icon: "💬" },
   { href: "/historico", label: "Histórico", icon: "📜" },
 ];
 

@@ -8,6 +8,7 @@ import {
   runScoreSimulation,
   type MatchSimulationInput,
 } from "@/utils/matchSimulation";
+import { getStrengthFromFifaRanking } from "@/data/fifaRankings";
 
 function makeTeam(id: number, name: string): Team {
   return {
@@ -198,5 +199,135 @@ describe("matchSimulation", () => {
     assert.equal(probs.winA, 0.15);
     assert.equal(probs.draw, 0.25);
     assert.equal(probs.winB, 0.1);
+  });
+
+  it("Portugal vs Uzbekistán favorece marcadores amplios del favorito", () => {
+    const portugal = makeTeam(10, "Portugal");
+    const uzbekistan = makeTeam(11, "Uzbekistan");
+    const input = baseInput({
+      teamAId: portugal.id,
+      teamBId: uzbekistan.id,
+      teamAName: portugal.name,
+      teamBName: uzbekistan.name,
+      standingA: undefined,
+      standingB: undefined,
+      isPreTournament: true,
+      simulations: 12000,
+    });
+
+    const result = runScoreSimulation(input);
+    const score11 = result.matrix[1]?.[1] ?? 0;
+    const score20 = result.matrix[2]?.[0] ?? 0;
+
+    assert.ok(result.outcomeProbs.winA > 0.78, `winA=${result.outcomeProbs.winA}`);
+    assert.ok(result.outcomeProbs.draw < 0.1, `draw=${result.outcomeProbs.draw}`);
+    assert.ok(result.expectedGoals.away < 0.75, `xG away=${result.expectedGoals.away}`);
+    assert.ok(result.expectedGoals.home > 2, `xG home=${result.expectedGoals.home}`);
+    assert.ok(
+      [1, 2, 3].includes(result.mostLikely.home) && result.mostLikely.away <= 1,
+      `mostLikely=${result.mostLikely.home}-${result.mostLikely.away}`
+    );
+    assert.ok(score20 > score11, `2-0=${score20} vs 1-1=${score11}`);
+  });
+
+  it("partido parejo tiene lambdas similares y empate moderado", () => {
+    const colombia = makeTeam(20, "Colombia");
+    const uruguay = makeTeam(21, "Uruguay");
+    const input = baseInput({
+      teamAId: colombia.id,
+      teamBId: uruguay.id,
+      teamAName: colombia.name,
+      teamBName: uruguay.name,
+      standingA: makeRow(colombia, 4, 4, 3),
+      standingB: makeRow(uruguay, 4, 3, 3),
+      isPreTournament: false,
+    });
+    const { home, away } = estimateLambdas(input);
+    const result = runScoreSimulation(input);
+
+    assert.ok(Math.abs(home - away) < 0.5);
+    assert.ok(result.outcomeProbs.draw > 0.08 && result.outcomeProbs.draw < 0.28);
+  });
+
+  it("Colombia vs Portugal pre-torneo es equilibrado entre potencias", () => {
+    const colombia = makeTeam(40, "Colombia");
+    const portugal = makeTeam(41, "Portugal");
+    const input = baseInput({
+      teamAId: colombia.id,
+      teamBId: portugal.id,
+      teamAName: colombia.name,
+      teamBName: portugal.name,
+      standingA: undefined,
+      standingB: undefined,
+      isPreTournament: true,
+      simulations: 8000,
+    });
+    const { home, away } = estimateLambdas(input);
+    const result = runScoreSimulation(input);
+
+    assert.ok(
+      result.outcomeProbs.winA > 0.38 && result.outcomeProbs.winA < 0.48,
+      `winA=${result.outcomeProbs.winA}`
+    );
+    assert.ok(
+      result.outcomeProbs.winB > 0.38 && result.outcomeProbs.winB < 0.52,
+      `winB=${result.outcomeProbs.winB}`
+    );
+    assert.ok(Math.abs(home - away) < 0.5, `λ diff=${Math.abs(home - away)}`);
+    assert.ok(
+      Math.abs(result.outcomeProbs.winA - result.target1X2.homeWin) < 0.05,
+      `coherence winA=${result.outcomeProbs.winA} target=${result.target1X2.homeWin}`
+    );
+  });
+
+  it("Colombia vs Portugal con forma no favorece extremo a Colombia", () => {
+    const colombia = makeTeam(40, "Colombia");
+    const portugal = makeTeam(41, "Portugal");
+    const result = runScoreSimulation(
+      baseInput({
+        teamAId: colombia.id,
+        teamBId: portugal.id,
+        teamAName: colombia.name,
+        teamBName: portugal.name,
+        standingA: makeRow(colombia, 9, 8, 2),
+        standingB: makeRow(portugal, 4, 4, 4),
+        isPreTournament: false,
+        simulations: 8000,
+      })
+    );
+
+    assert.ok(result.outcomeProbs.winA < 0.58, `winA=${result.outcomeProbs.winA}`);
+    assert.ok(
+      Math.abs(result.outcomeProbs.winA - result.target1X2.homeWin) < 0.05,
+      `coherence winA=${result.outcomeProbs.winA} target=${result.target1X2.homeWin}`
+    );
+  });
+
+  it("simetría fixture: Brasil vs Japón no depende de localía nominal", () => {
+    const brazil = makeTeam(30, "Brazil");
+    const japan = makeTeam(31, "Japan");
+    const asHome = runScoreSimulation(
+      baseInput({
+        teamAId: brazil.id,
+        teamBId: japan.id,
+        teamAName: brazil.name,
+        teamBName: japan.name,
+        isPreTournament: true,
+        simulations: 8000,
+      })
+    );
+    const asAway = runScoreSimulation(
+      baseInput({
+        teamAId: japan.id,
+        teamBId: brazil.id,
+        teamAName: japan.name,
+        teamBName: brazil.name,
+        isPreTournament: true,
+        simulations: 8000,
+      })
+    );
+
+    assert.ok(Math.abs(asHome.outcomeProbs.winA - asAway.outcomeProbs.winB) < 0.05);
+    assert.ok(Math.abs(asHome.outcomeProbs.winB - asAway.outcomeProbs.winA) < 0.05);
   });
 });

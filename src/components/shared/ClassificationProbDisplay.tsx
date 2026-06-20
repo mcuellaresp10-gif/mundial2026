@@ -100,16 +100,23 @@ export function ClassificationProbDisplay({
 export function ClassificationProbCells({
   outcomes,
   isLoading,
+  columns = "123",
 }: {
   outcomes?: Pick<TeamOutcomeProbs, "probFirst" | "probSecond" | "probBestThird"> | null;
   isLoading: boolean;
+  columns?: "12" | "123";
 }) {
+  const showBestThird = columns === "123";
+  const colCount = showBestThird ? 3 : 2;
+
   if (isLoading) {
     return (
       <>
-        <td className="py-2.5 px-1 text-center text-muted-foreground">…</td>
-        <td className="py-2.5 px-1 text-center text-muted-foreground">…</td>
-        <td className="py-2.5 px-1 text-center text-muted-foreground">…</td>
+        {Array.from({ length: colCount }).map((_, i) => (
+          <td key={i} className="py-2.5 px-1 text-center text-muted-foreground">
+            …
+          </td>
+        ))}
       </>
     );
   }
@@ -117,9 +124,11 @@ export function ClassificationProbCells({
   if (!outcomes) {
     return (
       <>
-        <td className="py-2.5 px-1 text-center text-muted-foreground">—</td>
-        <td className="py-2.5 px-1 text-center text-muted-foreground">—</td>
-        <td className="py-2.5 px-1 text-center text-muted-foreground">—</td>
+        {Array.from({ length: colCount }).map((_, i) => (
+          <td key={i} className="py-2.5 px-1 text-center text-muted-foreground">
+            —
+          </td>
+        ))}
       </>
     );
   }
@@ -132,9 +141,11 @@ export function ClassificationProbCells({
       <td className="py-2.5 px-1 text-center tabular-nums font-mono text-xs">
         {outcomes.probSecond}%
       </td>
-      <td className="py-2.5 px-1 text-center tabular-nums font-mono text-xs">
-        {outcomes.probBestThird}%
-      </td>
+      {showBestThird && (
+        <td className="py-2.5 px-1 text-center tabular-nums font-mono text-xs">
+          {outcomes.probBestThird}%
+        </td>
+      )}
     </>
   );
 }

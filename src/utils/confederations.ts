@@ -84,6 +84,7 @@ const WORLD_CUP_2026_CONFEDERATIONS: Record<string, Confederation> = {
   ghana: "CAF",
   morocco: "CAF",
   marruecos: "CAF",
+  congo: "CAF",
   "dr congo": "CAF",
   "congo dr": "CAF",
   "democratic republic of the congo": "CAF",

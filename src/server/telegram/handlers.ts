@@ -5,7 +5,7 @@ import {
   getStandings,
   getWorldCupFixtures,
 } from "@/server/footballClient";
-import { answerTelegramQuestion } from "@/server/aiClient";
+import { answerWorldCupQuestion } from "@/server/agent/worldCupAgent";
 import { fetchLineupsText, fetchPlayerText, buildRichTelegramContext, tryDirectAnswer } from "./qaService";
 import {
   afterActionKeyboard,
@@ -23,7 +23,6 @@ import {
   formatFixtureDetail,
   formatLiveFixtures,
   formatNextFixture,
-  formatStandings,
   splitStandingsMessages,
   formatTeamFixtures,
   formatTodayFixtures,
@@ -258,7 +257,7 @@ export async function handleIntent(ctx: Context, intent: BotIntent): Promise<voi
         }
 
         const context = await buildRichTelegramContext(intent.question, fixtures, standings);
-        const answer = await answerTelegramQuestion(intent.question, context);
+        const answer = await answerWorldCupQuestion(intent.question, context);
         await ctx.reply(answer.slice(0, 4000), { reply_markup: afterActionKeyboard() });
       });
       return;

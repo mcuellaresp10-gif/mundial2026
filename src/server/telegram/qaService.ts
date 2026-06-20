@@ -11,8 +11,8 @@ import {
   isFixtureLive,
   isPlausibleLiveFixture,
 } from "@/lib/liveRefresh";
-import { analyzeQuestion, type QuestionHints } from "./questionAnalysis";
-import { buildTelegramContext } from "./formatters";
+import { analyzeAgentQuestion, type QuestionHints } from "@/server/agent/questionAnalysis";
+import { buildAgentContext } from "@/server/agent/contextBuilder";
 
 const POS_ES: Record<string, string> = {
   G: "Portero",
@@ -153,20 +153,14 @@ export async function buildRichTelegramContext(
   standings: StandingsGroup[],
   hints?: QuestionHints
 ): Promise<string> {
-  const h = hints ?? analyzeQuestion(question);
-  const parts = [buildTelegramContext(fixtures, standings)];
-
-  if (h.wantsLineups) {
-    const lineups = await fetchLineupsText(fixtures, h.teamKey);
-    if (lineups) parts.push("ALINEACIONES:\n" + lineups.replace(/\*/g, ""));
-  }
-
-  if (h.wantsPlayerInfo && h.playerQuery) {
-    const player = await fetchPlayerText(h.playerQuery);
-    if (player) parts.push("JUGADOR:\n" + player.replace(/\*/g, ""));
-  }
-
-  return parts.join("\n\n");
+  const { context } = await buildAgentContext(
+    question,
+    fixtures,
+    standings,
+    new Map(),
+    hints ?? analyzeAgentQuestion(question)
+  );
+  return context;
 }
 
 /** Respuesta directa sin IA cuando hay datos estructurados. */
@@ -175,7 +169,7 @@ export async function tryDirectAnswer(
   fixtures: Fixture[],
   teamKey?: string
 ): Promise<string | null> {
-  const hints = analyzeQuestion(question, teamKey);
+  const hints = analyzeAgentQuestion(question, teamKey);
 
   if (hints.wantsPlayerInfo && hints.playerQuery) {
     const playerText = await fetchPlayerText(hints.playerQuery);

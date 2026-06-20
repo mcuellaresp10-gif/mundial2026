@@ -21,6 +21,7 @@ const NAV = [
   { href: "/once-ideal", label: "Once Ideal" },
   { href: "/comparativas", label: "Comparativas" },
   { href: "/estadisticas", label: "Estadísticas" },
+  { href: "/agente", label: "Agente" },
   { href: "/historico", label: "Histórico" },
 ];
 

@@ -1,4 +1,5 @@
 import type { StandingTeam, StandingsGroup } from "@/types";
+import { isWorldCupGroupLabel } from "@/utils/groupClassification";
 import { formatGroupFromRound } from "@/utils/formatters";
 
 export interface StandingTableSlice {
@@ -13,7 +14,9 @@ export function iterateStandingsTables(groups: StandingsGroup[]): StandingTableS
   for (const g of groups) {
     for (const table of g.league.standings) {
       if (!table?.length) continue;
-      const groupLabel = formatGroupFromRound(table[0]?.group ?? g.league.name);
+      const rawGroup = (table[0]?.group ?? g.league.name ?? "").trim();
+      if (!isWorldCupGroupLabel(rawGroup)) continue;
+      const groupLabel = formatGroupFromRound(rawGroup);
       const letter = groupLabel.match(/Grupo\s+([A-L])/i)?.[1]?.toUpperCase();
       slices.push({ table, groupLabel, letter });
     }

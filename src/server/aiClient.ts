@@ -1,5 +1,10 @@
-export async function callAI(prompt: string, options?: { maxTokens?: number }): Promise<string> {
-  const maxTokens = options?.maxTokens ?? 1500;
+export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+
+export async function callAIChat(
+  messages: ChatMessage[],
+  options?: { maxTokens?: number }
+): Promise<string> {
+  const maxTokens = options?.maxTokens ?? Number(process.env.AGENT_MAX_TOKENS ?? 900);
 
   if (process.env.OPENROUTER_API_KEY) {
     const model = process.env.OPENROUTER_MODEL ?? "anthropic/claude-3-haiku";
@@ -13,7 +18,7 @@ export async function callAI(prompt: string, options?: { maxTokens?: number }): 
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: "user", content: prompt }],
+        messages,
         temperature: 0.7,
         max_tokens: maxTokens,
       }),
@@ -27,6 +32,8 @@ export async function callAI(prompt: string, options?: { maxTokens?: number }): 
   }
 
   const provider = process.env.AI_PROVIDER ?? "anthropic";
+  const chatMessages = messages.filter((m) => m.role !== "system");
+  const system = messages.find((m) => m.role === "system")?.content ?? "";
 
   if (provider === "openai" && process.env.OPENAI_API_KEY) {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -37,7 +44,9 @@ export async function callAI(prompt: string, options?: { maxTokens?: number }): 
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
+        messages: system
+          ? [{ role: "system", content: system }, ...chatMessages]
+          : chatMessages,
         temperature: 0.7,
         max_tokens: maxTokens,
       }),
@@ -57,14 +66,23 @@ export async function callAI(prompt: string, options?: { maxTokens?: number }): 
       body: JSON.stringify({
         model: "claude-3-5-haiku-20241022",
         max_tokens: maxTokens,
-        messages: [{ role: "user", content: prompt }],
+        system: system || undefined,
+        messages: chatMessages.map((m) => ({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.content,
+        })),
       }),
     });
     const data = await res.json();
     return data.content?.[0]?.text ?? "";
   }
 
-  return generateFallbackAnalysis(prompt);
+  const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  return generateFallbackAnalysis(lastUser);
+}
+
+export async function callAI(prompt: string, options?: { maxTokens?: number }): Promise<string> {
+  return callAIChat([{ role: "user", content: prompt }], options);
 }
 
 export function generateFallbackAnalysis(prompt: string): string {
@@ -98,8 +116,8 @@ export function generateFallbackAnalysis(prompt: string): string {
       historialMundiales: null,
     });
   }
-  if (prompt.includes("asistente del Mundial")) {
-    return "No tengo acceso a IA en este momento. Usa /hoy, /vivo o /tabla para datos actualizados.";
+  if (prompt.includes("asistente del Mundial") || prompt.includes("experto en datos del fútbol")) {
+    return "No tengo acceso a IA en este momento. Consulta las secciones Grupos, Calendario e Histórico para datos actualizados.";
   }
   return JSON.stringify({
     contexto: "Partido crucial en la fase de grupos con implicaciones directas en la clasificación.",

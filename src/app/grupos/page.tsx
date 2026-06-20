@@ -1,6 +1,7 @@
 "use client";
 
 import { GruposSection } from "@/components/Estadisticas/GruposSection";
+import { BestThirdsSection } from "@/components/Grupos/BestThirdsSection";
 import { KnockoutBracketSection } from "@/components/Grupos/KnockoutBracketSection";
 
 export default function GruposPage() {
@@ -13,6 +14,7 @@ export default function GruposPage() {
         </p>
       </div>
       <GruposSection />
+      <BestThirdsSection />
       <KnockoutBracketSection />
     </div>
   );

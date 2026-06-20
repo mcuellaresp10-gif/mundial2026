@@ -9,6 +9,13 @@ import {
   getTeamPriorStrength,
   isColombiaTeam,
 } from "@/data/teamStrengthPriors";
+import {
+  avgGoalsFromFixtures,
+  estimateMatchLambdas,
+  sampleScoreFromLambdas,
+  standingToTeamGroupState,
+  type TeamGroupState,
+} from "@/utils/matchOutcomeEngine";
 import { formatGroupFromRound } from "./formatters";
 import type { FairPlayRecord } from "@/utils/fairPlay";
 import {
@@ -19,20 +26,8 @@ import {
   type GroupMatchResult,
 } from "@/utils/groupTiebreakers";
 
-export interface TeamGroupState {
-  teamId: number;
-  teamName: string;
-  points: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  priorStrength: number;
-}
-
-export interface MatchOutcomeProbs {
-  homeWin: number;
-  draw: number;
-  awayWin: number;
-}
+export type { TeamGroupState, MatchOutcomeProbs } from "@/utils/matchOutcomeEngine";
+export { buildOutcomeProbsFromH2H } from "@/utils/matchOutcomeEngine";
 
 export interface ClassificationSimResult {
   probability: number;
@@ -74,9 +69,6 @@ export type H2HMap = Map<string, Fixture[]>;
 const DEFAULT_SIMULATIONS = 1000;
 const DIRECT_QUALIFY_SPOTS = 2;
 const BEST_THIRD_SPOTS = 8;
-const BASE_DRAW = 0.12;
-const HOME_ADVANTAGE = 1.5;
-const H2H_WEIGHT_PRE_TOURNAMENT = 0.4;
 
 export function pairKey(a: number, b: number): string {
   return a < b ? `${a}-${b}` : `${b}-${a}`;
@@ -241,153 +233,11 @@ export function getAllTournamentGroupPairs(groups: TournamentGroupInput[]): [num
 }
 
 function standingToState(s: StandingTeam, isPreTournament: boolean): TeamGroupState {
-  return {
-    teamId: s.team.id,
-    teamName: s.team.name,
-    points: s.points,
-    goalsFor: s.all.goals.for,
-    goalsAgainst: s.all.goals.against,
-    priorStrength: getTeamPriorStrength(
-      s.team.name,
-      s.points,
-      s.all.played,
-      s.all.goals.for,
-      s.all.goals.against,
-      isPreTournament
-    ),
-  };
+  return standingToTeamGroupState(s, isPreTournament);
 }
 
 function cloneStates(states: TeamGroupState[]): Map<number, TeamGroupState> {
   return new Map(states.map((s) => [s.teamId, { ...s }]));
-}
-
-function teamStrengthFromState(state: TeamGroupState): number {
-  const gd = state.goalsFor - state.goalsAgainst;
-  const form = state.points * 3 + gd + state.goalsFor * 0.15;
-  return state.priorStrength + form;
-}
-
-function buildOutcomeProbsFromStrength(
-  homeId: number,
-  awayId: number,
-  states: TeamGroupState[]
-): MatchOutcomeProbs {
-  const home = states.find((s) => s.teamId === homeId);
-  const away = states.find((s) => s.teamId === awayId);
-  if (!home || !away) {
-    return { homeWin: 0.33, draw: BASE_DRAW, awayWin: 0.55 };
-  }
-
-  const hStr = teamStrengthFromState(home) + HOME_ADVANTAGE;
-  const aStr = teamStrengthFromState(away);
-  const draw = BASE_DRAW;
-  const remaining = 1 - draw;
-  const total = hStr + aStr || 1;
-
-  return {
-    homeWin: remaining * (hStr / total),
-    draw,
-    awayWin: remaining * (aStr / total),
-  };
-}
-
-function blendProbs(
-  a: MatchOutcomeProbs,
-  b: MatchOutcomeProbs,
-  weightA: number
-): MatchOutcomeProbs {
-  const wB = 1 - weightA;
-  let hw = a.homeWin * weightA + b.homeWin * wB;
-  let d = a.draw * weightA + b.draw * wB;
-  let aw = a.awayWin * weightA + b.awayWin * wB;
-  const sum = hw + d + aw || 1;
-  hw /= sum;
-  d /= sum;
-  aw /= sum;
-  return { homeWin: hw, draw: d, awayWin: aw };
-}
-
-export function buildOutcomeProbsFromH2H(
-  h2h: Fixture[],
-  homeId: number,
-  awayId: number,
-  states: TeamGroupState[],
-  isPreTournament: boolean
-): MatchOutcomeProbs {
-  const fromStrength = buildOutcomeProbsFromStrength(homeId, awayId, states);
-  const finished = h2h.filter((f) => f.fixture.status.short === "FT");
-  if (finished.length === 0) {
-    return fromStrength;
-  }
-
-  let homeWins = 0;
-  let draws = 0;
-  let awayWins = 0;
-
-  for (const f of finished) {
-    const hg = f.goals.home ?? 0;
-    const ag = f.goals.away ?? 0;
-    const matchHomeId = f.teams.home.id;
-    const matchAwayId = f.teams.away.id;
-
-    if (
-      ![matchHomeId, matchAwayId].includes(homeId) ||
-      ![matchHomeId, matchAwayId].includes(awayId)
-    ) {
-      continue;
-    }
-
-    if (hg === ag) {
-      draws++;
-      continue;
-    }
-
-    const homeIdWon =
-      (matchHomeId === homeId && hg > ag) || (matchAwayId === homeId && ag > hg);
-
-    if (homeIdWon) homeWins++;
-    else awayWins++;
-  }
-
-  const total = homeWins + draws + awayWins;
-  if (total === 0) {
-    return fromStrength;
-  }
-
-  let hw = homeWins / total;
-  let d = Math.max(draws / total, BASE_DRAW);
-  let aw = awayWins / total;
-  const sum = hw + d + aw;
-  hw /= sum;
-  d /= sum;
-  aw /= sum;
-
-  const fromH2H = { homeWin: hw, draw: d, awayWin: aw };
-
-  if (isPreTournament) {
-    return blendProbs(fromH2H, fromStrength, H2H_WEIGHT_PRE_TOURNAMENT);
-  }
-  return blendProbs(fromH2H, fromStrength, 0.55);
-}
-
-function sampleScoreForOutcome(outcome: "HW" | "D" | "AW"): { hg: number; ag: number } {
-  const r = Math.random();
-  if (outcome === "HW") {
-    if (r < 0.4) return { hg: 1, ag: 0 };
-    if (r < 0.65) return { hg: 2, ag: 0 };
-    if (r < 0.85) return { hg: 2, ag: 1 };
-    return { hg: 3, ag: 0 };
-  }
-  if (outcome === "AW") {
-    if (r < 0.4) return { hg: 0, ag: 1 };
-    if (r < 0.65) return { hg: 0, ag: 2 };
-    if (r < 0.85) return { hg: 1, ag: 2 };
-    return { hg: 0, ag: 3 };
-  }
-  if (r < 0.45) return { hg: 0, ag: 0 };
-  if (r < 0.85) return { hg: 1, ag: 1 };
-  return { hg: 2, ag: 2 };
 }
 
 function applyScore(
@@ -409,16 +259,16 @@ function applyScore(
   else if (hg === ag) {
     home.points += 1;
     away.points += 1;
-  } else away.points += 3;
+  }   else away.points += 3;
 }
 
-function applyOutcome(
+function applySimulatedScore(
   states: Map<number, TeamGroupState>,
   homeId: number,
   awayId: number,
-  outcome: "HW" | "D" | "AW"
+  hg: number,
+  ag: number
 ): GroupMatchResult {
-  const { hg, ag } = sampleScoreForOutcome(outcome);
   applyScore(states, homeId, awayId, hg, ag);
   return { homeId, awayId, homeGoals: hg, awayGoals: ag };
 }
@@ -471,56 +321,69 @@ function isQualified(
 type OutcomeTriple = "HW" | "D" | "AW";
 const OUTCOMES: OutcomeTriple[] = ["HW", "D", "AW"];
 
+interface FixtureLambdas {
+  home: number;
+  away: number;
+}
+
+function buildLambdasMap(
+  pendingFixtures: Fixture[],
+  baseStates: TeamGroupState[],
+  h2hMap: H2HMap,
+  isPreTournament: boolean,
+  baseTotalGoals: number
+): Map<number, FixtureLambdas> {
+  const stateById = new Map(baseStates.map((s) => [s.teamId, s]));
+  const map = new Map<number, FixtureLambdas>();
+
+  for (const f of pendingFixtures) {
+    const homeState = stateById.get(f.teams.home.id);
+    const awayState = stateById.get(f.teams.away.id);
+    if (!homeState || !awayState) continue;
+
+    const h2h = h2hMap.get(pairKey(f.teams.home.id, f.teams.away.id)) ?? [];
+    const { home, away } = estimateMatchLambdas({
+      homeState,
+      awayState,
+      h2h,
+      isPreTournament,
+      baseTotalGoals,
+    });
+    map.set(f.fixture.id, { home, away });
+  }
+
+  return map;
+}
+
 function simulateFixtures(
   baseStates: TeamGroupState[],
   pendingFixtures: Fixture[],
-  outcomeProbs: Map<number, MatchOutcomeProbs>
+  lambdasMap: Map<number, FixtureLambdas>,
+  rng: () => number = Math.random
 ): { states: TeamGroupState[]; simulatedMatches: GroupMatchResult[] } {
   const states = cloneStates(baseStates);
   const simulatedMatches: GroupMatchResult[] = [];
 
   for (const f of pendingFixtures) {
-    const probs = outcomeProbs.get(f.fixture.id);
-    if (!probs) continue;
-    const r = Math.random();
-    let outcome: OutcomeTriple;
-    if (r < probs.homeWin) outcome = "HW";
-    else if (r < probs.homeWin + probs.draw) outcome = "D";
-    else outcome = "AW";
-    const matchResult = applyOutcome(
+    const lambdas = lambdasMap.get(f.fixture.id);
+    if (!lambdas) continue;
+
+    const { homeGoals, awayGoals } = sampleScoreFromLambdas(
+      lambdas.home,
+      lambdas.away,
+      rng
+    );
+    const matchResult = applySimulatedScore(
       states,
       f.teams.home.id,
       f.teams.away.id,
-      outcome
+      homeGoals,
+      awayGoals
     );
     simulatedMatches.push(matchResult);
   }
 
   return { states: Array.from(states.values()), simulatedMatches };
-}
-
-function buildOutcomeProbsMap(
-  pendingFixtures: Fixture[],
-  baseStates: TeamGroupState[],
-  h2hMap: H2HMap,
-  isPreTournament: boolean
-): Map<number, MatchOutcomeProbs> {
-  const map = new Map<number, MatchOutcomeProbs>();
-  for (const f of pendingFixtures) {
-    const key = pairKey(f.teams.home.id, f.teams.away.id);
-    const h2h = h2hMap.get(key) ?? [];
-    map.set(
-      f.fixture.id,
-      buildOutcomeProbsFromH2H(
-        h2h,
-        f.teams.home.id,
-        f.teams.away.id,
-        baseStates,
-        isPreTournament
-      )
-    );
-  }
-  return map;
 }
 
 function enumerateMathematicalStatus(
@@ -736,13 +599,22 @@ export function simulateTournamentOutcomeProbabilities(
       teamIds
     );
     const pending = getFixturesForSimulation(group);
-    const outcomeProbs = buildOutcomeProbsMap(
+    const baseTotalGoals = avgGoalsFromFixtures(group.completedGroupFixtures);
+    const lambdasMap = buildLambdasMap(
       pending,
       baseStates,
       h2hMap,
-      group.isPreTournament
+      group.isPreTournament,
+      baseTotalGoals
     );
-    return { group, baseStates, pending, outcomeProbs, completedMatches, teamIds };
+    return {
+      group,
+      baseStates,
+      pending,
+      lambdasMap,
+      completedMatches,
+      teamIds,
+    };
   });
 
   const hasSimWork = groupPrepared.some((g) => g.pending.length > 0);
@@ -760,7 +632,7 @@ export function simulateTournamentOutcomeProbabilities(
         const simulated = simulateFixtures(
           prepared.baseStates,
           prepared.pending,
-          prepared.outcomeProbs
+          prepared.lambdasMap
         );
         finalStates = simulated.states;
         allMatches = [...prepared.completedMatches, ...simulated.simulatedMatches];

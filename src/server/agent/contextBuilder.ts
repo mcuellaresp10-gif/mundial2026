@@ -1,11 +1,12 @@
 import type { Fixture, StandingsGroup } from "@/types";
-import { formatHistoryContext } from "@/data/worldCupHistory";
+import { formatHistoryContext, formatCompactHistoryDigest } from "@/data/worldCupHistory";
 import { buildTelegramContext } from "@/server/telegram/formatters";
 import {
   fetchLineupsText,
   fetchPlayerText,
 } from "@/server/telegram/qaService";
 import { analyzeAgentQuestion, type QuestionHints } from "@/server/agent/questionAnalysis";
+import { formatTournamentPlayerStatsContext } from "@/server/agent/tournamentStatsContext";
 import {
   BEST_THIRD_QUALIFIERS,
   rankThirdPlaceTeamsFromStandings,
@@ -119,10 +120,18 @@ export async function buildAgentContext(
   hints?: QuestionHints
 ): Promise<{ context: string; sources: string[] }> {
   const h = hints ?? analyzeAgentQuestion(question);
-  const parts: string[] = [];
-  const sources: string[] = ["torneo-2026"];
+  const parts: string[] = [formatCompactHistoryDigest()];
+  const sources: string[] = ["historico", "torneo-2026"];
 
   parts.push(buildTelegramContext(fixtures, standings));
+
+  if (h.wantsTournamentPlayerStats) {
+    const statsBlock = await formatTournamentPlayerStatsContext(question);
+    if (statsBlock) {
+      parts.push(statsBlock);
+      sources.push("stats-jugadores");
+    }
+  }
 
   if (h.wantsLineups) {
     const lineups = await fetchLineupsText(fixtures, h.teamKey);
@@ -162,12 +171,12 @@ export async function buildAgentContext(
     const historyBlock = formatHistoryContext({
       wantsHistory: h.wantsHistory,
       historyYear: h.historyYear,
-      wantsRecords: h.wantsRecords,
+      wantsRecords: h.wantsRecords || h.wantsHistory,
       searchQuery: h.historySearchQuery,
     });
     if (historyBlock) {
       parts.push(historyBlock);
-      sources.push("historico");
+      if (!sources.includes("historico-detalle")) sources.push("historico-detalle");
     }
   }
 

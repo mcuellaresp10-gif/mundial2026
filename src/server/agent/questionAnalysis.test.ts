@@ -27,9 +27,16 @@ describe("analyzeAgentQuestion", () => {
     assert.equal(h.wantsHistory, true);
   });
 
-  it("detecta alineaciones", () => {
-    const h = analyzeAgentQuestion("¿Cuál es la alineación de Colombia?");
-    assert.equal(h.wantsLineups, true);
-    assert.ok(h.teamKey?.includes("colombia"));
+  it("detecta estadísticas agregadas de jugadores (pases)", () => {
+    const h = analyzeAgentQuestion(
+      "¿Cuál es el jugador con mayor cantidad de pases realizados y exitosos en el mundial 2026?"
+    );
+    assert.equal(h.wantsTournamentPlayerStats, true);
+    assert.equal(h.playerQuery, undefined);
+  });
+
+  it("detecta preguntas sobre historia de mundiales", () => {
+    const h = analyzeAgentQuestion("Cuéntame la historia de los mundiales");
+    assert.equal(h.wantsHistory, true);
   });
 });

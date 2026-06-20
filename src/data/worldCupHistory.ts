@@ -124,7 +124,15 @@ export function searchHistory(query: string): WorldCupEdition[] {
     return ed ? [ed] : [];
   }
 
+  const STOP = new Set([
+    "historia", "historico", "mundial", "mundiales", "sobre", "cual", "cuales",
+    "quien", "como", "del", "los", "las", "una", "the", "que", "fue", "gano",
+  ]);
+  const tokens = q.split(/\s+/).filter((t) => t.length >= 3 && !STOP.has(t));
+
   const results: WorldCupEdition[] = [];
+  const seen = new Set<number>();
+
   for (const edition of Object.values(WORLD_CUP_EDITIONS)) {
     const haystack = normalize(
       [
@@ -139,7 +147,14 @@ export function searchHistory(query: string): WorldCupEdition[] {
         ...edition.memorableMatches.map((m) => m.description),
       ].join(" ")
     );
-    if (haystack.includes(q)) results.push(edition);
+    const fullMatch = haystack.includes(q);
+    const tokenMatch = tokens.some((t) => haystack.includes(t));
+    if (fullMatch || tokenMatch) {
+      if (!seen.has(edition.year)) {
+        seen.add(edition.year);
+        results.push(edition);
+      }
+    }
   }
   return results.sort((a, b) => b.year - a.year);
 }
@@ -196,7 +211,7 @@ export function formatHistoryContext(hints: HistoryContextHints): string {
     }
   }
 
-  if (hints.wantsHistory && !hints.historyYear && !hints.searchQuery) {
+  if (hints.wantsHistory && !hints.wantsRecords) {
     const recent = [2022, 2018, 2014, 2010, 2006, 2002]
       .map((y) => WORLD_CUP_EDITIONS[y])
       .filter(Boolean);
@@ -207,6 +222,20 @@ export function formatHistoryContext(hints: HistoryContextHints): string {
   }
 
   return parts.join("\n\n");
+}
+
+/** Resumen breve siempre disponible para el agente (~200 tokens). */
+export function formatCompactHistoryDigest(): string {
+  const recent = [2022, 2018, 2014, 2010]
+    .map((y) => WORLD_CUP_EDITIONS[y])
+    .filter(Boolean);
+  return [
+    "HISTÓRICO MUNDIALES (referencia):",
+    `Más títulos: ${WORLD_CUP_RECORDS.mostTitles.map((t) => `${t.country} (${t.titles})`).join(", ")}`,
+    `Máx. goleador histórico: ${WORLD_CUP_RECORDS.allTimeTopScorer.name} (${WORLD_CUP_RECORDS.allTimeTopScorer.goals} goles)`,
+    "Últimos campeones:",
+    ...recent.map((e) => `${e.year}: ${e.champion} (${e.finalScore}) — Bota de Oro: ${e.topScorer.name}`),
+  ].join("\n");
 }
 
 /** Mapa compatible con HistoricoMundialView (sin runnerUp en UI). */

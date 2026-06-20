@@ -10,6 +10,7 @@ export interface QuestionHints {
   wantsRecords: boolean;
   wantsBestThirds: boolean;
   wantsTeamStats: boolean;
+  wantsTournamentPlayerStats: boolean;
   historySearchQuery?: string;
 }
 
@@ -21,7 +22,21 @@ function normalize(text: string): string {
     .trim();
 }
 
+/** Pregunta agregada ("jugador con más pases"), no búsqueda por nombre. */
+export function isAggregatePlayerStatQuestion(raw: string): boolean {
+  const text = normalize(raw);
+  return (
+    /jugador(es)?\s+(con|de)\s+(mas|más|mayor|mejor|top|maximo|máximo)/.test(text) ||
+    /(mas|más|mayor|mejor|top|maximo|máximo|lider|líder)\s+(cantidad|numero|número|total)/.test(text) ||
+    /(pases|goles|asistencias|tarjetas)\s+(realizados|completados|exitosos|acertados|del mundial)/.test(text) ||
+    /quien\s+(es el|tiene|ha hecho|realizo|realizó)\s+(mas|más|mayor)/.test(text) ||
+    /cual\s+es\s+el\s+jugador/.test(text)
+  );
+}
+
 export function extractPlayerQuery(raw: string): string | null {
+  if (isAggregatePlayerStatQuestion(raw)) return null;
+
   const text = raw.trim();
   const patterns = [
     /(?:en\s+qu[eé]|donde|dónde)\s+(?:club|equipo)\s+juega\s+(.+)/i,
@@ -29,14 +44,13 @@ export function extractPlayerQuery(raw: string): string | null {
     /(?:a\s+qu[eé]|que)\s+club\s+juega\s+(.+)/i,
     /(?:club|equipo)\s+(?:de|del)\s+(?:el\s+jugador\s+)?(.+)/i,
     /(?:info|datos|informaci[oó]n)\s+(?:de|del|sobre)\s+(?:el\s+jugador\s+)?(.+)/i,
-    /(?:jugador|futbolista)\s+(.+)/i,
     /(?:qui[eé]n\s+es)\s+(.+)/i,
   ];
   for (const re of patterns) {
     const m = text.match(re);
     if (m?.[1]) {
       const name = m[1].trim().replace(/[?.!]+$/, "").trim();
-      if (name.length >= 2) return name;
+      if (name.length >= 2 && name.length <= 40) return name;
     }
   }
   return null;
@@ -100,6 +114,7 @@ export function analyzeAgentQuestion(raw: string, teamKey?: string): QuestionHin
   const text = normalize(raw);
   const playerFromPattern = extractPlayerQuery(raw);
   const historyYear = extractHistoryYear(text);
+  const aggregatePlayerStats = isAggregatePlayerStatQuestion(raw);
 
   const wantsLineups =
     /alineacion|formacion|titular|convocator|xi inicial|once inicial|quien juega|quién juega|plantilla/.test(
@@ -107,13 +122,12 @@ export function analyzeAgentQuestion(raw: string, teamKey?: string): QuestionHin
     );
 
   const wantsPlayerInfo =
-    !!playerFromPattern ||
-    /club juega|equipo juega|en que club|en qué club|donde juega|dónde juega|jugador|futbolista/.test(
-      text
-    );
+    (!!playerFromPattern ||
+      /club juega|equipo juega|en que club|en qué club|donde juega|dónde juega/.test(text)) &&
+    !aggregatePlayerStats;
 
   const wantsHistory =
-    /historia|historico|histórico|mundial de|campeon|campeón|campeones|record|records|récord|record|goleador historico|goleador histórico|balon de oro|balón de oro|bota de oro|maradona|pele|pelé|messi|final del|semifinal|curiosidad|curiosidades|edicion|edición/.test(
+    /historia|historico|historia|mundiales|mundial(es)?\s+(pasado|anterior|de\s+\d|del\s+\d)|campeon|campeón|campeones|record|records|récord|goleador historico|goleador histórico|balon de oro|balón de oro|bota de oro|maradona|pele|pelé|messi|final del|semifinal|curiosidad|curiosidades|edicion|edición|copa del mundo|world cup|cuantos mundiales|cuántos mundiales|todos los mundiales|primer mundial|ultimo mundial|último mundial/.test(
       text
     ) || !!historyYear;
 
@@ -123,7 +137,7 @@ export function analyzeAgentQuestion(raw: string, teamKey?: string): QuestionHin
     );
 
   const wantsRecords =
-    /record|records|récord|maximo|máximo|mas titulos|más títulos|goleador historico|goleador histórico|mayor goleada|todos los tiempos/.test(
+    /record|records|récord|maximo|máximo|mas titulos|más títulos|goleador historico|goleador histórico|mayor goleada|todos los tiempos|mas veces|más veces|quien gano mas|quién ganó más/.test(
       text
     );
 
@@ -131,8 +145,15 @@ export function analyzeAgentQuestion(raw: string, teamKey?: string): QuestionHin
     /mejor tercer|mejores tercer|terceros|3er puesto|tercer puesto|8 mejores/.test(text);
 
   const wantsTeamStats =
-    /como va|tabla|puntos|grupo|posicion|posición|ranking/.test(text) ||
-    !!extractTeamKey(text);
+    (/como va|tabla|puntos|grupo|posicion|posición|ranking/.test(text) ||
+      !!extractTeamKey(text)) &&
+    !aggregatePlayerStats;
+
+  const wantsTournamentPlayerStats =
+    aggregatePlayerStats ||
+    /pases|passes|asistencias|goleador|goleadores|bota de oro|estadistica|estadística|stats|rating|minutos|tarjetas|top goleador|ranking de jugadores/.test(
+      text
+    );
 
   return {
     wantsLineups,
@@ -145,7 +166,8 @@ export function analyzeAgentQuestion(raw: string, teamKey?: string): QuestionHin
     wantsRecords,
     wantsBestThirds,
     wantsTeamStats,
-    historySearchQuery: wantsHistory && !historyYear ? raw : undefined,
+    wantsTournamentPlayerStats,
+    historySearchQuery: wantsHistory ? raw : undefined,
   };
 }
 

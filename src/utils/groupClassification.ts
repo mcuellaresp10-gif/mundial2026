@@ -262,6 +262,9 @@ function applyScore(
   }   else away.points += 3;
 }
 
+type OutcomeTriple = "HW" | "D" | "AW";
+const OUTCOMES: OutcomeTriple[] = ["HW", "D", "AW"];
+
 function applySimulatedScore(
   states: Map<number, TeamGroupState>,
   homeId: number,
@@ -271,6 +274,18 @@ function applySimulatedScore(
 ): GroupMatchResult {
   applyScore(states, homeId, awayId, hg, ag);
   return { homeId, awayId, homeGoals: hg, awayGoals: ag };
+}
+
+/** Resultado simbólico 1-0 / 0-0 / 0-1 para enumeración matemática de escenarios. */
+function applyOutcome(
+  states: Map<number, TeamGroupState>,
+  homeId: number,
+  awayId: number,
+  outcome: OutcomeTriple
+): GroupMatchResult {
+  if (outcome === "HW") return applySimulatedScore(states, homeId, awayId, 1, 0);
+  if (outcome === "AW") return applySimulatedScore(states, homeId, awayId, 0, 1);
+  return applySimulatedScore(states, homeId, awayId, 0, 0);
 }
 
 export function sortGroupStates(states: TeamGroupState[]): TeamGroupState[] {
@@ -317,9 +332,6 @@ function isQualified(
 ): boolean {
   return getGroupRankWithMatches(states, teamId, matches, fairPlay) <= DIRECT_QUALIFY_SPOTS;
 }
-
-type OutcomeTriple = "HW" | "D" | "AW";
-const OUTCOMES: OutcomeTriple[] = ["HW", "D", "AW"];
 
 interface FixtureLambdas {
   home: number;

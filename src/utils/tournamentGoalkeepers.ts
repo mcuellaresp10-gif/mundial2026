@@ -55,7 +55,6 @@ function baseGoalkeeperFromStat(
     team: translateTeamName(team.name),
     teamLogo: team.logo,
     matches: appearances,
-    minutes,
     rating: parseRating(stat.games.rating),
     cleanSheets,
     ...goalkeeperMetricsFromStat(stat),

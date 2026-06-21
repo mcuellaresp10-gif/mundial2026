@@ -159,7 +159,7 @@ function useWorldCupScorerFixtureEvents(fixtures: Fixture[]) {
     scorerFixtureIds.length > 0 &&
     eventQueries.some((q) => q.isLoading);
 
-  const liveRefreshMs = hasLiveFixtures
+  const liveRefreshMs: number | false = hasLiveFixtures
     ? LIVE_REFRESH_MS.topScorersLive
     : tournamentStarted
       ? LIVE_REFRESH_MS.topScorers

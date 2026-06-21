@@ -14,9 +14,19 @@ function isLiveSessionRequest(request: NextRequest): boolean {
   return request.headers.get("X-Mundial-Live") === "1";
 }
 
+function isPlayerStatsPath(path: string, search: string): boolean {
+  return (
+    path.includes("players/topscorers") ||
+    (path === "players" && search.includes("league="))
+  );
+}
+
 function getCacheTtl(path: string, search: string, liveSession: boolean): number {
   if (liveSession) {
     if (path.includes("fixtures/events") || path.includes("fixtures/statistics")) {
+      return LIVE_SESSION_DETAIL_TTL;
+    }
+    if (isPlayerStatsPath(path, search)) {
       return LIVE_SESSION_DETAIL_TTL;
     }
     if (search.includes("live=all")) return LIVE_SESSION_LIVE_TTL;
@@ -117,7 +127,10 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
 
   const isLiveUpstream =
     search.includes("live=all") ||
-    (liveSession && (path === "fixtures" || path.startsWith("fixtures/")));
+    (liveSession &&
+      (path === "fixtures" ||
+        path.startsWith("fixtures/") ||
+        isPlayerStatsPath(path, search)));
 
   try {
     trackRequest();

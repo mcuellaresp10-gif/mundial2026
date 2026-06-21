@@ -1,6 +1,6 @@
 import type { Fixture } from "@/types";
 import { MIN_WORLDCUP_FIXTURES } from "@/lib/utils";
-import { isFixtureFinished, isFixtureLive, isFixtureStarted } from "@/lib/liveRefresh";
+import { isFixtureFinished, isFixtureLive, isFixtureStarted, getLocalDayKey } from "@/lib/liveRefresh";
 
 export function isFixtureListIncomplete(list: Fixture[]): boolean {
   if (list.length < MIN_WORLDCUP_FIXTURES) return true;
@@ -47,6 +47,25 @@ export function pickBetterFixture(a: Fixture, b: Fixture): Fixture {
   return goalsA >= goalsB ? a : b;
 }
 
+/** Clave estable por enfrentamiento + día (evita contar dos veces el mismo partido). */
+export function fixtureMatchKey(f: Fixture): string {
+  const home = f.teams.home.id;
+  const away = f.teams.away.id;
+  const [a, b] = home < away ? [home, away] : [away, home];
+  return `${a}-${b}-${getLocalDayKey(f.fixture.date)}`;
+}
+
+/** Un partido lógico por enfrentamiento/día — conserva el fixture más completo. */
+export function dedupeFixturesByMatch(fixtures: Fixture[]): Fixture[] {
+  const byKey = new Map<string, Fixture>();
+  for (const f of fixtures) {
+    const key = fixtureMatchKey(f);
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? pickBetterFixture(existing, f) : f);
+  }
+  return [...byKey.values()];
+}
+
 /** Fusiona listas por fixture.id sin degradar FT/goles a NS. */
 export function mergeFixtureLists(base: Fixture[], overlay: Fixture[]): Fixture[] {
   const byId = new Map<number, Fixture>();
@@ -78,4 +97,18 @@ export function mergeLiveIntoFixtures(fixtures: Fixture[], live: Fixture[]): Fix
     }
   }
   return result;
+}
+
+/** IDs de selecciones presentes en el calendario (opcional: solo con partido iniciado). */
+export function uniqueTeamIdsFromFixtures(
+  fixtures: Fixture[],
+  onlyStarted = false
+): number[] {
+  const ids = new Set<number>();
+  for (const f of dedupeFixturesByMatch(fixtures)) {
+    if (onlyStarted && !isFixtureStarted(f.fixture.status.short)) continue;
+    if (f.teams.home.id > 0) ids.add(f.teams.home.id);
+    if (f.teams.away.id > 0) ids.add(f.teams.away.id);
+  }
+  return [...ids].sort((a, b) => a - b);
 }

@@ -35,6 +35,8 @@ export function aggregateStatistics(
   let tacklesInterceptions = 0;
   let foulsDrawn = 0;
   let foulsCommitted = 0;
+  let conceded = 0;
+  let saves = 0;
 
   for (const s of stats) {
     goals += s.goals.total ?? 0;
@@ -56,6 +58,8 @@ export function aggregateStatistics(
     tacklesInterceptions += s.tackles.interceptions ?? 0;
     foulsDrawn += s.fouls.drawn ?? 0;
     foulsCommitted += s.fouls.committed ?? 0;
+    conceded += s.goals.conceded ?? 0;
+    saves += s.goals.saves ?? 0;
 
     const acc = s.passes.accuracy;
     const w = s.games.appearences ?? 1;
@@ -92,7 +96,7 @@ export function aggregateStatistics(
       minutes,
       rating: avgRating > 0 ? avgRating.toFixed(2) : null,
     },
-    goals: { ...base.goals, total: goals, assists },
+    goals: { ...base.goals, total: goals, assists, conceded, saves },
     cards: { ...base.cards, yellow, red },
     shots: { ...base.shots, total: shots, on: shotsOn },
     passes: {

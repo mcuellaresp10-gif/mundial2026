@@ -47,7 +47,10 @@ export function clearLiveFixtureLocalCache(): void {
         suffix.startsWith("fixtures") ||
         suffix.startsWith("fixture-by-id") ||
         suffix.includes("worldcup-live") ||
-        suffix.startsWith("standings-wc-live")
+        suffix.startsWith("standings-wc-live") ||
+        suffix.startsWith("players/topscorers") ||
+        suffix.startsWith("worldCupAssistLeaders") ||
+        suffix.startsWith("worldCupPlayerStatsPool")
       ) {
         keysToRemove.push(key);
       }

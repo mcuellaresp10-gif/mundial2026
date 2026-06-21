@@ -32,7 +32,8 @@ import {
 } from "@/lib/liveRefresh";
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
 import { pickClubStat } from "@/utils/playerStats";
-import { mapPlayersToTopScorers } from "@/utils/tournamentScorers";
+import { mapPlayersToTopScorers, mapPlayersToTopAssists, mergeTopAssistLists } from "@/utils/tournamentScorers";
+import { isGoalkeeperStat } from "@/utils/tournamentGoalkeepers";
 import { mergeLiveIntoFixtures, mergeFixtureLists, isFixtureListIncomplete } from "@/utils/fixtureMerge";
 import {
   applyFixtureHistory,
@@ -750,19 +751,182 @@ export async function getH2H(teamA: number, teamB: number): Promise<Fixture[]> {
   return fetchApi<Fixture[]>("fixtures/headtohead", { h2h: `${teamA}-${teamB}` });
 }
 
+function shouldBypassPlayerStatsCache(): boolean {
+  return isLiveSessionActive();
+}
+
 export async function getWorldCupTopScorers(
   season: number = DEFAULT_SEASON
 ): Promise<TopScorerEntry[]> {
   const params = { league: LEAGUE_ID, season };
   const key = cacheKey("players/topscorers", params);
-  const cached = getLocalCache<TopScorerEntry[]>(key);
-  if (cached) return cached;
+  if (!shouldBypassPlayerStatsCache()) {
+    const cached = getLocalCache<TopScorerEntry[]>(key);
+    if (cached) return cached;
+  }
 
   try {
-    const { data } = await client.get<ApiResponse<Player[]>>("players/topscorers", { params });
+    const { data } = await client.get<ApiResponse<Player[]>>("players/topscorers", {
+      params,
+      ...liveRequestConfig(),
+    });
     const list = mapPlayersToTopScorers(data.response ?? []);
-    setLocalCache(key, list, LIVE_TOP_SCORERS_CACHE_MS);
+    if (!shouldBypassPlayerStatsCache()) {
+      setLocalCache(key, list, LIVE_TOP_SCORERS_CACHE_MS);
+    }
     return list;
+  } catch {
+    return getStaleLocalCache<TopScorerEntry[]>(key) ?? [];
+  }
+}
+
+const WORLD_CUP_ASSIST_PLAYER_PAGES = 8;
+const WORLD_CUP_PLAYER_POOL_PAGES = 6;
+const WORLD_CUP_GK_TEAM_CONCURRENCY = 6;
+
+function mergePlayerPoolRows(into: Map<number, Player>, rows: Player[]): void {
+  for (const p of rows) {
+    const existing = into.get(p.player.id);
+    if (!existing) {
+      into.set(p.player.id, p);
+      continue;
+    }
+    const existingStats = existing.statistics?.length ?? 0;
+    const nextStats = p.statistics?.length ?? 0;
+    if (nextStats >= existingStats) into.set(p.player.id, p);
+  }
+}
+
+/** Pool de jugadores con stats del Mundial para enriquecer filas derivadas de eventos. */
+export async function getWorldCupPlayerStatsPool(
+  season: number = DEFAULT_SEASON
+): Promise<Player[]> {
+  const key = cacheKey("worldCupPlayerStatsPool", { season });
+  if (!shouldBypassPlayerStatsCache()) {
+    const cached = getLocalCache<Player[]>(key);
+    if (cached) return cached;
+  }
+
+  try {
+    const byId = new Map<number, Player>();
+
+    const { data: topscorerPayload } = await client.get<ApiResponse<Player[]>>(
+      "players/topscorers",
+      { params: { league: LEAGUE_ID, season }, ...liveRequestConfig() }
+    );
+    mergePlayerPoolRows(byId, topscorerPayload.response ?? []);
+
+    for (let page = 1; page <= WORLD_CUP_PLAYER_POOL_PAGES; page++) {
+      const { players, paging } = await getPlayers({ season, page });
+      mergePlayerPoolRows(byId, players);
+      if (page >= paging.total || players.length === 0) break;
+    }
+
+    const pool = [...byId.values()];
+    if (!shouldBypassPlayerStatsCache()) {
+      setLocalCache(key, pool, LIVE_TOP_SCORERS_CACHE_MS);
+    }
+    return pool;
+  } catch {
+    return getStaleLocalCache<Player[]>(key) ?? [];
+  }
+}
+
+/** Porteros del Mundial — una consulta por selección (los GK no salen en topscorers). */
+export async function getWorldCupGoalkeepersForTeams(
+  teamIds: number[],
+  season: number = DEFAULT_SEASON
+): Promise<Player[]> {
+  const uniqueIds = [...new Set(teamIds)].filter((id) => id > 0).sort((a, b) => a - b);
+  if (uniqueIds.length === 0) return [];
+
+  const key = cacheKey("worldCupGoalkeeperPool", {
+    season,
+    teams: uniqueIds.join(","),
+  });
+  if (!shouldBypassPlayerStatsCache()) {
+    const cached = getLocalCache<Player[]>(key);
+    if (cached) return cached;
+  }
+
+  try {
+    const byId = new Map<number, Player>();
+    let index = 0;
+
+    async function fetchTeamGoalkeepers(teamId: number) {
+      let page = 1;
+      let total = 1;
+      while (page <= total) {
+        const { players, paging } = await getPlayers({ season, team: teamId, page });
+        for (const p of players) {
+          const wcStat =
+            p.statistics.find(
+              (s) => s.league.id === LEAGUE_ID && s.team.id === teamId
+            ) ?? p.statistics.find((s) => s.league.id === LEAGUE_ID);
+          if (!wcStat || !isGoalkeeperStat(wcStat)) continue;
+          if ((wcStat.games.minutes ?? 0) < 1) continue;
+          mergePlayerPoolRows(byId, [{ ...p, statistics: [wcStat] }]);
+        }
+        total = paging.total;
+        page++;
+        if (players.length === 0) break;
+      }
+    }
+
+    async function worker() {
+      while (index < uniqueIds.length) {
+        const teamId = uniqueIds[index++];
+        await fetchTeamGoalkeepers(teamId);
+      }
+    }
+
+    await Promise.all(
+      Array.from(
+        { length: Math.min(WORLD_CUP_GK_TEAM_CONCURRENCY, uniqueIds.length) },
+        () => worker()
+      )
+    );
+
+    const pool = [...byId.values()];
+    if (!shouldBypassPlayerStatsCache()) {
+      setLocalCache(key, pool, LIVE_TOP_SCORERS_CACHE_MS);
+    }
+    return pool;
+  } catch {
+    return getStaleLocalCache<Player[]>(key) ?? [];
+  }
+}
+
+/** Asistidores del Mundial — incluye jugadores sin goles vía paginación de players. */
+export async function getWorldCupAssistLeaders(
+  season: number = DEFAULT_SEASON
+): Promise<TopScorerEntry[]> {
+  const key = cacheKey("worldCupAssistLeaders", { season });
+  if (!shouldBypassPlayerStatsCache()) {
+    const cached = getLocalCache<TopScorerEntry[]>(key);
+    if (cached) return cached;
+  }
+
+  try {
+    const lists: TopScorerEntry[][] = [];
+
+    const { data: topscorerPayload } = await client.get<ApiResponse<Player[]>>(
+      "players/topscorers",
+      { params: { league: LEAGUE_ID, season }, ...liveRequestConfig() }
+    );
+    lists.push(mapPlayersToTopAssists(topscorerPayload.response ?? []));
+
+    for (let page = 1; page <= WORLD_CUP_ASSIST_PLAYER_PAGES; page++) {
+      const { players, paging } = await getPlayers({ season, page });
+      lists.push(mapPlayersToTopAssists(players));
+      if (page >= paging.total || players.length === 0) break;
+    }
+
+    const merged = mergeTopAssistLists(...lists);
+    if (!shouldBypassPlayerStatsCache()) {
+      setLocalCache(key, merged, LIVE_TOP_SCORERS_CACHE_MS);
+    }
+    return merged;
   } catch {
     return getStaleLocalCache<TopScorerEntry[]>(key) ?? [];
   }

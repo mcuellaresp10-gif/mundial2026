@@ -277,6 +277,38 @@ export interface TopScorerEntry {
   assists: number;
   matches: number;
   rating: number;
+  /** Minutos jugados en el contexto de la stat. */
+  minutes?: number | null;
+  goalsPer90?: number | null;
+  minsPerGoal?: number | null;
+  totalShots?: number | null;
+  /** Porcentaje goles / tiros totales. */
+  goalConversion?: number | null;
+  /** Porcentaje tiros a puerta / tiros totales. */
+  shotAccuracy?: number | null;
+  /** Pases clave / ocasiones creadas. */
+  chancesCreated?: number | null;
+  chancesPer90?: number | null;
+  totalPasses?: number | null;
+  passesComplete?: number | null;
+  passesIncomplete?: number | null;
+  passAccuracy?: number | null;
+}
+
+export interface TopGoalkeeperEntry {
+  playerId: number;
+  name: string;
+  photo: string;
+  team: string;
+  teamLogo: string;
+  matches: number;
+  minutes: number;
+  rating: number;
+  goalsConceded: number;
+  concededPer90: number | null;
+  saves: number;
+  savePercentage: number | null;
+  cleanSheets: number;
 }
 
 export interface MiXIPlayer {

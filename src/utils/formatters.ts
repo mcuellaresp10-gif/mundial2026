@@ -105,6 +105,30 @@ export function formatRoundLabel(round: string): string {
   return round;
 }
 
+/** Ranking olímpico: empates comparten posición; la siguiente salta (1,1,1,4…). */
+export function olympicRank(
+  entries: { goals: number; assists: number }[],
+  value: number,
+  metric: "goals" | "assists"
+): number {
+  const greater = entries.filter((e) => (metric === "goals" ? e.goals : e.assists) > value).length;
+  return greater + 1;
+}
+
+/** Ranking olímpico cuando menos es mejor (goles encajados, GA/90). */
+export function olympicRankAscending(
+  entries: { goalsConceded: number; concededPer90?: number | null }[],
+  value: number,
+  metric: "goalsConceded" | "concededPer90"
+): number {
+  const getValue =
+    metric === "goalsConceded"
+      ? (e: { goalsConceded: number }) => e.goalsConceded
+      : (e: { concededPer90?: number | null }) => e.concededPer90 ?? Infinity;
+  const fewer = entries.filter((e) => getValue(e) < value).length;
+  return fewer + 1;
+}
+
 export function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
   let timer: ReturnType<typeof setTimeout>;
   return ((...args: unknown[]) => {

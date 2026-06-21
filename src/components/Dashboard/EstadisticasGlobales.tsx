@@ -3,9 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlayerAvatar } from "@/components/shared/PlayerAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEstadisticasAggregadas } from "@/hooks/useEstadisticasAggregadas";
 import { useWorldCupTopScorers } from "@/hooks/useJugadores";
+import { olympicRank } from "@/utils/formatters";
 import { GoalsByDayChart } from "@/components/Estadisticas/charts/GoalsByDayChart";
 import { aggregateGoalsByDayLastN } from "@/utils/tournamentAnalytics";
 import { useMemo } from "react";
@@ -14,7 +16,8 @@ import { translateTeamName } from "@/utils/teamNames";
 
 export function EstadisticasGlobales() {
   const stats = useEstadisticasAggregadas();
-  const { scorers: topScorers, isLoading: loadingScorers } = useWorldCupTopScorers(10);
+  const { scorers: topScorers, isLoading: loadingScorers, isLiveRefreshing } =
+    useWorldCupTopScorers(10);
   const goalsByDay = useMemo(
     () => aggregateGoalsByDayLastN(stats.fixtures ?? [], 7),
     [stats.fixtures]
@@ -57,7 +60,14 @@ export function EstadisticasGlobales() {
       <div className="grid grid-cols-1 gap-4 @lg/stats:grid-cols-2 @lg/stats:gap-6 min-w-0">
         <Card className="rounded-2xl break-inside-avoid min-w-0">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Top 10 Goleadores del Mundial 2026</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-lg">Top 10 Goleadores del Mundial 2026</CardTitle>
+              {isLiveRefreshing && (
+                <span className="text-[10px] font-medium uppercase tracking-wide text-mundial-red shrink-0">
+                  En vivo
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="divide-y divide-border max-h-[28rem] overflow-y-auto scrollbar-thin">
             {topScorers.length === 0 ? (
@@ -72,24 +82,27 @@ export function EstadisticasGlobales() {
                   className="flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
                 >
                   <span className="text-lg font-bold font-mono text-mundial-gold w-6 shrink-0 tabular-nums">
-                    {i + 1}
+                    {olympicRank(topScorers, s.goals, "goals")}
                   </span>
                   <div className="relative aspect-square w-10 shrink-0 overflow-hidden rounded-full bg-muted">
-                    <Image
-                      src={s.photo || s.teamLogo}
+                    <PlayerAvatar
+                      photo={s.photo}
+                      teamLogo={s.teamLogo}
                       alt={s.name}
-                      fill
-                      className="object-cover"
-                      sizes="40px"
+                      size={40}
+                      className="h-full w-full object-cover"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{s.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{s.team}</p>
                   </div>
-                  <span className="text-xl font-bold font-mono text-mundial-gold shrink-0 tabular-nums">
-                    {s.goals}⚽
-                  </span>
+                  <div className="shrink-0 text-right font-mono tabular-nums">
+                    <span className="text-xl font-bold text-mundial-gold">{s.goals}⚽</span>
+                    {s.assists > 0 && (
+                      <p className="text-[11px] text-muted-foreground">{s.assists} asist.</p>
+                    )}
+                  </div>
                 </Link>
               ))
             )}

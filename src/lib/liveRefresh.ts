@@ -175,6 +175,37 @@ export function pickFeaturedFixture(all: Fixture[]): Fixture | null {
   return upcoming[0] ?? null;
 }
 
+/** Partidos cuyos eventos alimentan goleadores/asistidores (FT con goles + en vivo). */
+export function getFixturesForScorerEvents(fixtures: Fixture[]): number[] {
+  const ids = new Set<number>();
+
+  for (const f of fixtures) {
+    const status = f.fixture.status.short;
+    if (isFixtureFinished(status)) {
+      const totalGoals = (f.goals.home ?? 0) + (f.goals.away ?? 0);
+      if (totalGoals > 0) ids.add(f.fixture.id);
+      continue;
+    }
+    if (
+      isPlausibleLiveFixture(f) ||
+      isWithinKickoffWindow(f.fixture.date, status)
+    ) {
+      ids.add(f.fixture.id);
+    }
+  }
+
+  return [...ids];
+}
+
+export function isFixtureLiveForScorerEvents(fixture: Fixture): boolean {
+  const status = fixture.fixture.status.short;
+  if (isFixtureFinished(status)) return false;
+  return (
+    isPlausibleLiveFixture(fixture) ||
+    isWithinKickoffWindow(fixture.fixture.date, status)
+  );
+}
+
 /** Firma estable de resultados FT — detecta cambios que deben refrescar standings. */
 export function finishedFixturesSignature(fixtures: Fixture[]): string {
   return fixtures
@@ -203,6 +234,8 @@ export const LIVE_REFRESH_MS = {
   livePoll: 30 * 1000,
   /** Goleadores API y eventos en dashboard. */
   topScorers: 5 * 60 * 1000,
+  /** Goleadores/asistidores con partido en curso. */
+  topScorersLive: 60 * 1000,
 } as const;
 
 export function getLiveRefreshInterval(): number {

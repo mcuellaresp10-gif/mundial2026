@@ -7,6 +7,7 @@ import {
   mergeFixtureLists,
   mergeLiveIntoFixtures,
   pickBetterFixture,
+  uniqueTeamIdsFromFixtures,
 } from "./fixtureMerge";
 import { MIN_WORLDCUP_FIXTURES } from "@/lib/utils";
 import { aggregateGoalsByRound } from "./tournamentAnalytics";
@@ -129,6 +130,25 @@ describe("fixtureMerge", () => {
       makeFixture(99, "1H", 1, 0, "Group Stage - 2"),
     ];
     assert.equal(isFixtureListIncomplete(snapshotOnlyLive), true);
+  });
+});
+
+describe("uniqueTeamIdsFromFixtures", () => {
+  it("devuelve selecciones únicas de partidos iniciados", () => {
+    const fixtures = [
+      makeFixture(1, "FT", 2, 1, "Group Stage - 1"),
+      makeFixture(2, "NS", 0, 0, "Group Stage - 1"),
+      makeFixture(3, "1H", 1, 0, "Group Stage - 2"),
+    ];
+    fixtures[0].teams.home.id = 10;
+    fixtures[0].teams.away.id = 20;
+    fixtures[1].teams.home.id = 30;
+    fixtures[1].teams.away.id = 40;
+    fixtures[2].teams.home.id = 50;
+    fixtures[2].teams.away.id = 60;
+
+    assert.deepEqual(uniqueTeamIdsFromFixtures(fixtures, true), [10, 20, 50, 60]);
+    assert.deepEqual(uniqueTeamIdsFromFixtures(fixtures, false), [10, 20, 30, 40, 50, 60]);
   });
 });
 

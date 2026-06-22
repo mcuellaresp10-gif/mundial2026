@@ -124,6 +124,59 @@ describe("calendarKnockout", () => {
     assert.equal(entries[0].away.name, "Brasil");
     assert.equal(entries[0].isProjected, true);
   });
+
+  it("incluye todos los partidos del cuadro eliminatorio aunque falten en la API", () => {
+    const roundOf32 = Array.from({ length: 16 }, (_, index) => ({
+      matchId: 73 + index,
+      side: "left" as const,
+      order: index,
+      home: {
+        label: `1${String.fromCharCode(65 + (index % 12))}`,
+        team: null,
+        provisional: true,
+      },
+      away: {
+        label: `2${String.fromCharCode(65 + (index % 12))}`,
+        team: null,
+        provisional: true,
+      },
+    }));
+
+    const knockoutMatches = [
+      {
+        matchId: 104,
+        round: "final" as const,
+        feedsFrom: [101, 102] as [number, number],
+        home: { label: "Ganador M101", team: null, provisional: true },
+        away: { label: "Ganador M102", team: null, provisional: true },
+      },
+    ];
+
+    const bracket = {
+      roundOf32,
+      knockoutMatches,
+      fixtureByMatchId: new Map<number, Fixture>(),
+      groupStrips: {} as never,
+      qualifyingThirdGroups: [],
+      annexKey: null,
+      isProvisional: true,
+      rankedBestThirds: [],
+    };
+
+    const entries = buildCalendarEntries([], bracket);
+    const knockoutEntries = entries.filter((entry) => entry.matchId != null);
+    assert.equal(knockoutEntries.length, 17);
+    assert.ok(knockoutEntries.some((entry) => entry.matchId === 104));
+    assert.ok(knockoutEntries.every((entry) => entry.date.length > 0));
+  });
+
+  it("genera cuadro estático con los 32 partidos de eliminatorias", () => {
+    const entries = buildCalendarEntries([], null);
+    const knockoutEntries = entries.filter((entry) => entry.matchId != null);
+    assert.equal(knockoutEntries.length, 32);
+    assert.ok(knockoutEntries.some((entry) => entry.roundLabel === "Final"));
+    assert.ok(knockoutEntries.some((entry) => entry.roundLabel === "Octavos de final"));
+  });
 });
 
 describe("knockout winner propagation", () => {

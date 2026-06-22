@@ -186,7 +186,13 @@ export function KnockoutBracketSection() {
   }
 
   if (!hasData || !bracket) {
-    return null;
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-sm text-muted-foreground">
+          El cuadro eliminatorio aparecerá cuando haya tablas de grupos disponibles.
+        </CardContent>
+      </Card>
+    );
   }
 
   const leftR32 = getRoundOf32BySide(bracket.roundOf32, "left");

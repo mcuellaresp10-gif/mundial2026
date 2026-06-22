@@ -59,7 +59,7 @@ export function useTournamentClassificationProbs() {
   }, [fairPlayByTeam]);
 
   const isLoadingH2H = h2hQueries.some((q) => q.isLoading);
-  const isLoading = loadingStandings || loadingFixtures || isLoadingH2H;
+  const isLoading = loadingStandings || loadingFixtures;
 
   const { data: probMap = new Map<number, TeamOutcomeProbs>() } = useQuery({
     queryKey: [

@@ -25,7 +25,9 @@ export function useGroupStandings() {
     liveGroupLetters: projection.liveGroupLetters,
     isProjected: projection.isProjected,
     fairPlayByTeam,
-    isLoading: isLoading || loadingFairPlay,
+    /** Solo carga inicial de standings — no bloquear UI por fair play en segundo plano. */
+    isLoading,
+    isLoadingFairPlay: loadingFairPlay,
     isFetching,
   };
 }

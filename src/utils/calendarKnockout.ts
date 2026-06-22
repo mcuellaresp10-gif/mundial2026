@@ -1,11 +1,15 @@
 import type { CalendarMatchEntry, CalendarTeamSlot, Fixture, PhaseFilter } from "@/types";
+import { ROUND_LABELS, ROUND_OF_32, KNOCKOUT_TREE, type BracketRound, type BracketSlotRef } from "@/data/worldCup2026Bracket";
+import { getKnockoutMatchDate } from "@/data/worldCup2026KnockoutSchedule";
 import { formatRoundLabel } from "@/utils/formatters";
 import { translateTeamName } from "@/utils/teamNames";
-import type {
-  BracketSlotTeam,
-  KnockoutBracketResult,
-  ResolvedBracketMatch,
-  ResolvedR32Match,
+import {
+  mapFixturesToBracketMatchIds,
+  resolveKnockoutWinnersFromFixtures,
+  type BracketSlotTeam,
+  type KnockoutBracketResult,
+  type ResolvedBracketMatch,
+  type ResolvedR32Match,
 } from "@/utils/knockoutBracket";
 
 function isKnockoutApiRound(round: string): boolean {
@@ -129,32 +133,133 @@ function enrichKnockoutEntry(
   };
 }
 
+function staticSlotLabel(ref: BracketSlotRef): string {
+  if (ref.type === "winner") return `1${ref.group}`;
+  if (ref.type === "runnerUp") return `2${ref.group}`;
+  return `3º (${ref.eligibleGroups.join(",")})`;
+}
+
+/** Cuadro eliminatorio con placeholders cuando aún no hay standings. */
+export function buildStaticKnockoutBracket(fixtures: Fixture[] = []): KnockoutBracketResult {
+  const roundOf32: ResolvedR32Match[] = ROUND_OF_32.map((def) => ({
+    matchId: def.matchId,
+    side: def.side,
+    order: def.order,
+    home: { label: staticSlotLabel(def.home), team: null, provisional: true },
+    away: { label: staticSlotLabel(def.away), team: null, provisional: true },
+  }));
+
+  const knockoutMatches: ResolvedBracketMatch[] = KNOCKOUT_TREE.map((def) => {
+    if (def.round === "third_place") {
+      return {
+        ...def,
+        home: { label: "Perdedor M101", team: null, provisional: true },
+        away: { label: "Perdedor M102", team: null, provisional: true },
+      };
+    }
+    const [feederA, feederB] = def.feedsFrom;
+    return {
+      ...def,
+      home: { label: `Ganador M${feederA}`, team: null, provisional: true },
+      away: { label: `Ganador M${feederB}`, team: null, provisional: true },
+    };
+  });
+
+  const fixtureByMatchId = mapFixturesToBracketMatchIds(
+    fixtures,
+    roundOf32,
+    knockoutMatches
+  );
+
+  const resolvedKnockout =
+    fixtureByMatchId.size > 0
+      ? resolveKnockoutWinnersFromFixtures(roundOf32, knockoutMatches, fixtureByMatchId)
+      : knockoutMatches;
+
+  return {
+    roundOf32,
+    knockoutMatches: resolvedKnockout,
+    fixtureByMatchId,
+    groupStrips: {} as KnockoutBracketResult["groupStrips"],
+    qualifyingThirdGroups: [],
+    annexKey: null,
+    isProvisional: true,
+    rankedBestThirds: [],
+  };
+}
+
+function roundLabelForBracketMatch(
+  match: ResolvedR32Match | ResolvedBracketMatch
+): string {
+  if ("round" in match && match.round) {
+    return ROUND_LABELS[match.round as BracketRound];
+  }
+  return ROUND_LABELS.round_of_32;
+}
+
+function syntheticEntryFromBracket(
+  match: ResolvedR32Match | ResolvedBracketMatch,
+  date: string
+): CalendarMatchEntry {
+  const home = slotToCalendarTeam(match.home);
+  const away = slotToCalendarTeam(match.away);
+
+  return {
+    matchId: match.matchId,
+    date,
+    roundLabel: roundLabelForBracketMatch(match),
+    home,
+    away,
+    isProjected: Boolean(
+      match.home.provisional ||
+        match.away.provisional ||
+        !match.home.team ||
+        !match.away.team
+    ),
+  };
+}
+
+function buildKnockoutCalendarEntries(
+  fixtures: Fixture[],
+  bracket: KnockoutBracketResult
+): CalendarMatchEntry[] {
+  const entries: CalendarMatchEntry[] = [];
+  const coveredFixtureIds = new Set<number>();
+
+  const allMatches = [...bracket.roundOf32, ...bracket.knockoutMatches].sort(
+    (a, b) => a.matchId - b.matchId
+  );
+
+  for (const match of allMatches) {
+    const fixture = bracket.fixtureByMatchId.get(match.matchId);
+    const date = fixture?.fixture.date ?? getKnockoutMatchDate(match.matchId);
+
+    if (fixture) {
+      entries.push(enrichKnockoutEntry(fixture, bracket, match.matchId));
+      coveredFixtureIds.add(fixture.fixture.id);
+    } else {
+      entries.push(syntheticEntryFromBracket(match, date));
+    }
+  }
+
+  for (const fixture of fixtures.filter((f) => isKnockoutApiRound(f.league.round))) {
+    if (!coveredFixtureIds.has(fixture.fixture.id)) {
+      entries.push(fixtureToCalendarEntry(fixture));
+    }
+  }
+
+  return entries;
+}
+
 export function buildCalendarEntries(
   fixtures: Fixture[],
   bracket: KnockoutBracketResult | null
 ): CalendarMatchEntry[] {
   const groupFixtures = fixtures.filter((fixture) => !isKnockoutApiRound(fixture.league.round));
-  const knockoutFixtures = fixtures.filter((fixture) => isKnockoutApiRound(fixture.league.round));
 
   const entries: CalendarMatchEntry[] = groupFixtures.map(fixtureToCalendarEntry);
-
-  if (!bracket) {
-    entries.push(...knockoutFixtures.map(fixtureToCalendarEntry));
-  } else {
-    const fixtureIdToMatchId = new Map<number, number>();
-    for (const [matchId, fixture] of bracket.fixtureByMatchId.entries()) {
-      fixtureIdToMatchId.set(fixture.fixture.id, matchId);
-    }
-
-    for (const fixture of knockoutFixtures) {
-      const matchId = fixtureIdToMatchId.get(fixture.fixture.id);
-      if (matchId != null) {
-        entries.push(enrichKnockoutEntry(fixture, bracket, matchId));
-      } else {
-        entries.push(fixtureToCalendarEntry(fixture));
-      }
-    }
-  }
+  const effectiveBracket = bracket ?? buildStaticKnockoutBracket(fixtures);
+  entries.push(...buildKnockoutCalendarEntries(fixtures, effectiveBracket));
 
   return entries.sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()

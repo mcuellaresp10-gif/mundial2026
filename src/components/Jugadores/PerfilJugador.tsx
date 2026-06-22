@@ -16,8 +16,7 @@ import {
   mundialAverageRadar,
 } from "@/utils/radarMetrics";
 import { useWorldCupBenchmarkPool, usePrefetchRadarBenchmark } from "@/hooks/useWorldCupBenchmarkPool";
-import { buildPlayerAnalysisPrompt, fetchAnalysis } from "@/services/analysisAI";
-import { translateTeamName } from "@/utils/teamNames";
+import { fetchPlayerAnalysis } from "@/services/analysisAI";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface PerfilJugadorProps {
@@ -29,6 +28,7 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
   const [activeTab, setActiveTab] = useState("club");
   const [analysis, setAnalysis] = useState<AnalysisPlayer | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [analysisRequested, setAnalysisRequested] = useState(false);
 
   const loadBenchmark = activeTab === "advanced";
   usePrefetchRadarBenchmark();
@@ -62,19 +62,14 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
   }, [benchmarkPool, position]);
 
   useEffect(() => {
+    if (activeTab !== "ai" || analysisRequested || loadingAnalysis || analysis) return;
+    setAnalysisRequested(true);
     setLoadingAnalysis(true);
-    const prompt = buildPlayerAnalysisPrompt({
-      name: player.player.name,
-      position: formatPosition(bundle.national?.games.position ?? bundle.club?.games.position),
-      team: translateTeamName(player.nationalTeam?.name ?? nationalSummary.teamName),
-      stats: `Selección: ${nationalSummary.goals}G ${nationalSummary.assists}A (rating ${nationalSummary.rating}). Club: ${clubSummary.goals}G ${clubSummary.assists}A en ${clubSummary.teamName} (rating ${clubSummary.rating}).`,
-      age: player.player.age ?? undefined,
-    });
-    fetchAnalysis<AnalysisPlayer>("player", prompt)
+    fetchPlayerAnalysis(player.player.id)
       .then(setAnalysis)
       .catch(() => null)
       .finally(() => setLoadingAnalysis(false));
-  }, [player.player.id, player.player.name, player.player.age, player.nationalTeam?.name, nationalSummary, clubSummary, bundle.national?.games.position, bundle.club?.games.position]);
+  }, [activeTab, analysis, analysisRequested, loadingAnalysis, player.player.id]);
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>

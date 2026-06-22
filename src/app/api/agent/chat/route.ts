@@ -2,17 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStandings, getWorldCupFixtures } from "@/server/footballClient";
 import { runAgentTurn, type AgentChatMessage } from "@/server/agent/worldCupAgent";
 import { checkRateLimit } from "@/server/agent/rateLimit";
+import { getClientIp } from "@/server/http/clientIp";
 
 const MAX_MESSAGES = 20;
 const MAX_CONTENT_LENGTH = 2000;
-
-function getClientIp(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
 
 function validateMessages(messages: unknown): AgentChatMessage[] | null {
   if (!Array.isArray(messages)) return [];

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validateFootballProxyRequest } from "@/server/footballAllowlist";
 
 const CACHE_TTL = 4 * 60 * 60 * 1000;
 const LIVE_CACHE_TTL = 60 * 1000;
@@ -102,6 +103,14 @@ function getApiBaseUrl(): string {
 }
 
 async function proxyRequest(request: NextRequest, pathSegments: string[]) {
+  const validation = validateFootballProxyRequest(pathSegments, request.nextUrl.searchParams);
+  if (!validation.ok) {
+    return NextResponse.json(
+      { errors: { forbidden: validation.message }, response: [] },
+      { status: validation.status }
+    );
+  }
+
   const apiKey = process.env.API_FOOTBALL_KEY?.trim();
   const baseUrl = getApiBaseUrl();
 
@@ -112,8 +121,8 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     );
   }
 
-  const path = pathSegments.join("/");
-  const search = request.nextUrl.searchParams.toString();
+  const path = validation.path;
+  const search = validation.search;
   const cacheKey = getCacheKey(path, search);
   const liveSession = isLiveSessionRequest(request);
   const cacheTtl = getCacheTtl(path, search, liveSession);

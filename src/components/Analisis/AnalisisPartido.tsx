@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PartidoDetalle } from "@/components/Calendario/PartidoDetalle";
 import { MatchMomentumChart } from "@/components/Analisis/MatchMomentumChart";
 import type { Fixture, AnalysisPre, AnalysisPost } from "@/types";
-import {
-  buildPreMatchPrompt,
-  buildPostMatchPrompt,
-  fetchAnalysis,
-} from "@/services/analysisAI";
+import { fetchPostMatchAnalysis, fetchPreMatchAnalysis } from "@/services/analysisAI";
 import { useColombiaModeStore } from "@/stores/useColombiaModeStore";
 import { formatFixtureDate, getFixtureScore, formatStatus } from "@/utils/formatters";
 import { isFixtureLive, isFixtureStarted, isWithinKickoffWindow } from "@/lib/liveRefresh";
@@ -23,16 +19,20 @@ interface AnalisisPartidoProps {
 }
 
 export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
+  const statusShort = fixture.fixture.status.short;
+  const isFinished = statusShort === "FT";
+  const [activeTab, setActiveTab] = useState(isFinished ? "post" : "pre");
   const [preAnalysis, setPreAnalysis] = useState<AnalysisPre | null>(null);
   const [postAnalysis, setPostAnalysis] = useState<AnalysisPost | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingPre, setLoadingPre] = useState(false);
+  const [loadingPost, setLoadingPost] = useState(false);
+  const [preRequested, setPreRequested] = useState(false);
+  const [postRequested, setPostRequested] = useState(false);
   const colombiaMode = useColombiaModeStore((s) => s.colombiaMode);
 
   const isColombia =
     fixture.teams.home.name.toLowerCase().includes("colombia") ||
     fixture.teams.away.name.toLowerCase().includes("colombia");
-  const statusShort = fixture.fixture.status.short;
-  const isFinished = statusShort === "FT";
   const live = isFixtureLive(statusShort);
   const hasStarted =
     isFixtureStarted(statusShort) ||
@@ -43,38 +43,55 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
       ? `${formatStatus(fixture.fixture.status.short)} · ${elapsed}'`
       : formatStatus(fixture.fixture.status.short);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const prePrompt = buildPreMatchPrompt({
-          home: fixture.teams.home.name,
-          away: fixture.teams.away.name,
-          date: fixture.fixture.date,
-          round: fixture.league.round,
-          colombiaMode: colombiaMode && isColombia,
-        });
-        const pre = await fetchAnalysis<AnalysisPre>("pre-match", prePrompt);
-        setPreAnalysis(pre);
-
-        if (isFinished) {
-          const postPrompt = buildPostMatchPrompt({
-            home: fixture.teams.home.name,
-            away: fixture.teams.away.name,
-            score: getFixtureScore(fixture.goals.home, fixture.goals.away, "FT"),
-            preAnalysis: pre?.contexto,
-          });
-          const post = await fetchAnalysis<AnalysisPost>("post-match", postPrompt);
-          setPostAnalysis(post);
-        }
-      } catch {
-        // fallback handled in API
-      } finally {
-        setLoading(false);
-      }
+  const loadPreAnalysis = useCallback(async () => {
+    if (preRequested || loadingPre || preAnalysis) return;
+    setPreRequested(true);
+    setLoadingPre(true);
+    try {
+      const pre = await fetchPreMatchAnalysis(fixture.fixture.id, colombiaMode && isColombia);
+      setPreAnalysis(pre);
+    } catch {
+      // fallback handled in API
+    } finally {
+      setLoadingPre(false);
     }
-    load();
-  }, [fixture.fixture.id, colombiaMode, isColombia, isFinished]);
+  }, [
+    colombiaMode,
+    fixture.fixture.id,
+    isColombia,
+    loadingPre,
+    preAnalysis,
+    preRequested,
+  ]);
+
+  const loadPostAnalysis = useCallback(async () => {
+    if (postRequested || loadingPost || postAnalysis || !isFinished) return;
+    setPostRequested(true);
+    setLoadingPost(true);
+    try {
+      const post = await fetchPostMatchAnalysis(fixture.fixture.id, preAnalysis?.contexto);
+      setPostAnalysis(post);
+    } catch {
+      // fallback handled in API
+    } finally {
+      setLoadingPost(false);
+    }
+  }, [
+    fixture.fixture.id,
+    isFinished,
+    loadingPost,
+    postAnalysis,
+    postRequested,
+    preAnalysis?.contexto,
+  ]);
+
+  useEffect(() => {
+    if (activeTab === "pre") void loadPreAnalysis();
+  }, [activeTab, loadPreAnalysis]);
+
+  useEffect(() => {
+    if (activeTab === "post" && isFinished) void loadPostAnalysis();
+  }, [activeTab, isFinished, loadPostAnalysis]);
 
   return (
     <div className="space-y-6">
@@ -110,7 +127,7 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
 
       {hasStarted && <MatchMomentumChart fixture={fixture} defaultExpanded={false} />}
 
-      <Tabs defaultValue={isFinished ? "post" : "pre"}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="pre">Análisis Previo</TabsTrigger>
           {isFinished && <TabsTrigger value="post">Análisis Post</TabsTrigger>}
@@ -119,7 +136,7 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
         </TabsList>
 
         <TabsContent value="pre">
-          {loading ? (
+          {loadingPre ? (
             <Skeleton className="h-64 w-full" />
           ) : preAnalysis ? (
             <div className="space-y-4">
@@ -153,7 +170,7 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
 
         {isFinished && (
           <TabsContent value="post">
-            {loading ? (
+            {loadingPost ? (
               <Skeleton className="h-64 w-full" />
             ) : postAnalysis ? (
               <div className="space-y-4">

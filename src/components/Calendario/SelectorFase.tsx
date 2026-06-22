@@ -6,7 +6,8 @@ const PHASES: PhaseFilter[] = [
   "Todos",
   "Grupo A", "Grupo B", "Grupo C", "Grupo D",
   "Grupo E", "Grupo F", "Grupo G", "Grupo H",
-  "Octavos", "Cuartos", "Semis", "Final",
+  "Grupo I", "Grupo J", "Grupo K", "Grupo L",
+  "16avos", "Octavos", "Cuartos", "Semis", "Final",
 ];
 
 interface SelectorFaseProps {

@@ -340,7 +340,29 @@ export type PhaseFilter =
   | "Todos"
   | "Grupo A" | "Grupo B" | "Grupo C" | "Grupo D"
   | "Grupo E" | "Grupo F" | "Grupo G" | "Grupo H"
-  | "Octavos" | "Cuartos" | "Semis" | "Final";
+  | "Grupo I" | "Grupo J" | "Grupo K" | "Grupo L"
+  | "16avos" | "Octavos" | "Cuartos" | "Semis" | "Final";
+
+export interface CalendarTeamSlot {
+  id?: number;
+  name: string;
+  logo?: string;
+  label?: string;
+  provisional?: boolean;
+}
+
+export interface CalendarMatchEntry {
+  fixtureId?: number;
+  matchId?: number;
+  date: string;
+  roundLabel: string;
+  home: CalendarTeamSlot;
+  away: CalendarTeamSlot;
+  goals?: { home: number | null; away: number | null };
+  statusShort?: string;
+  statusElapsed?: number | null;
+  isProjected: boolean;
+}
 
 export interface SearchResult {
   type: "team" | "player" | "fixture";

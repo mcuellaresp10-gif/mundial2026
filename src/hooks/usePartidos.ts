@@ -23,7 +23,7 @@ import {
   getLiveRefreshInterval,
 } from "@/lib/liveRefresh";
 import type { PhaseFilter } from "@/types";
-import { formatGroupFromRound } from "@/utils/formatters";
+import { formatRoundLabel } from "@/utils/formatters";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 import { isLiveSessionActive } from "@/services/liveSession";
 import { isWorldCupLive } from "@/services/tournamentPhase";
@@ -218,8 +218,18 @@ export function filterFixturesByPhase(
 ) {
   if (phase === "Todos") return fixtures;
   return fixtures.filter((f) => {
-    const group = formatGroupFromRound(f.league.round);
-    return group === phase || f.league.round.includes(phase.replace("Grupo ", "Group "));
+    const label = formatRoundLabel(f.league.round);
+    if (phase.startsWith("Grupo ")) {
+      return label === phase || f.league.round.includes(`Group ${phase.replace("Grupo ", "")}`);
+    }
+    const phaseLabels: Partial<Record<PhaseFilter, string>> = {
+      "16avos": "16avos de final",
+      Octavos: "Octavos de final",
+      Cuartos: "Cuartos de final",
+      Semis: "Semifinal",
+      Final: "Final",
+    };
+    return label === phaseLabels[phase];
   });
 }
 

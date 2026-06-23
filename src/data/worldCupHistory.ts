@@ -1,4 +1,5 @@
 import type { HistoricoMundial } from "@/types";
+import { ALL_TIME_TOP_SCORER_THROUGH_2022 } from "@/data/worldCupCareerScorers";
 
 export interface WorldCupEdition extends HistoricoMundial {
   runnerUp: string;
@@ -79,13 +80,13 @@ export const WORLD_CUP_RECORDS: WorldCupRecords = {
     { country: "Francia", titles: 2 },
     { country: "Uruguay", titles: 2 },
   ],
-  allTimeTopScorer: { name: "Miroslav Klose", goals: 16, country: "Alemania" },
+  allTimeTopScorer: { ...ALL_TIME_TOP_SCORER_THROUGH_2022 },
   biggestWin: { score: "10-1", match: "Hungría vs El Salvador", year: 1982 },
   mostGoalsInEdition: { year: 1998, goals: 171 },
   mostTeams: { year: 2026, teams: 48 },
   notes: [
     "Just Fontaine (1958) tiene el récord de goles en un solo Mundial: 13.",
-    "Miroslav Klose es el máximo goleador histórico en Mundiales con 16 goles.",
+    "Miroslav Klose fue el máximo goleador histórico en Mundiales hasta 2022 con 16 goles (Messi puede superarlo sumando el Mundial 2026).",
     "Brasil es la única selección presente en todos los Mundiales.",
     "El Mundial 2026 será el primero con 48 equipos (EE.UU., México, Canadá).",
   ],
@@ -179,14 +180,18 @@ export interface HistoryContextHints {
   searchQuery?: string;
 }
 
-export function formatHistoryContext(hints: HistoryContextHints): string {
+export function formatHistoryContext(
+  hints: HistoryContextHints,
+  allTimeLeader?: { name: string; goals: number; country: string }
+): string {
   const parts: string[] = [];
 
   if (hints.wantsRecords) {
+    const leader = allTimeLeader ?? WORLD_CUP_RECORDS.allTimeTopScorer;
     parts.push(
       "RÉCORDS HISTÓRICOS:",
       `Más títulos: ${WORLD_CUP_RECORDS.mostTitles.map((t) => `${t.country} (${t.titles})`).join(", ")}`,
-      `Máximo goleador histórico: ${WORLD_CUP_RECORDS.allTimeTopScorer.name} (${WORLD_CUP_RECORDS.allTimeTopScorer.goals} goles, ${WORLD_CUP_RECORDS.allTimeTopScorer.country})`,
+      `Máximo goleador histórico: ${leader.name} (${leader.goals} goles, ${leader.country})`,
       `Mayor goleada: ${WORLD_CUP_RECORDS.biggestWin.match} ${WORLD_CUP_RECORDS.biggestWin.score} (${WORLD_CUP_RECORDS.biggestWin.year})`,
       `Edición con más goles: ${WORLD_CUP_RECORDS.mostGoalsInEdition.year} (${WORLD_CUP_RECORDS.mostGoalsInEdition.goals})`,
       WORLD_CUP_RECORDS.notes.join("\n")
@@ -225,14 +230,20 @@ export function formatHistoryContext(hints: HistoryContextHints): string {
 }
 
 /** Resumen breve siempre disponible para el agente (~200 tokens). */
-export function formatCompactHistoryDigest(): string {
+export function formatCompactHistoryDigest(allTimeLeader?: {
+  name: string;
+  goals: number;
+  country?: string;
+}): string {
+  const leader = allTimeLeader ?? ALL_TIME_TOP_SCORER_THROUGH_2022;
+  const leaderNote = allTimeLeader ? " (incl. Mundial 2026)" : " (hasta 2022)";
   const recent = [2022, 2018, 2014, 2010]
     .map((y) => WORLD_CUP_EDITIONS[y])
     .filter(Boolean);
   return [
     "HISTÓRICO MUNDIALES (referencia):",
     `Más títulos: ${WORLD_CUP_RECORDS.mostTitles.map((t) => `${t.country} (${t.titles})`).join(", ")}`,
-    `Máx. goleador histórico: ${WORLD_CUP_RECORDS.allTimeTopScorer.name} (${WORLD_CUP_RECORDS.allTimeTopScorer.goals} goles)`,
+    `Máx. goleador histórico: ${leader.name} (${leader.goals} goles${leaderNote})`,
     "Últimos campeones:",
     ...recent.map((e) => `${e.year}: ${e.champion} (${e.finalScore}) — Bota de Oro: ${e.topScorer.name}`),
   ].join("\n");

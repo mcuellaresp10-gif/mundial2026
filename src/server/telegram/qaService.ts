@@ -4,8 +4,10 @@ import { translateTeamName, teamNameMatchesQuery } from "@/utils/teamNames";
 import {
   getFixtureLineups,
   getPlayerDetail,
+  getWorldCupTopScorers,
   searchPlayers,
 } from "@/server/footballClient";
+import { answerCareerGoalGapQuestion } from "@/utils/worldCupAllTimeScorers";
 import {
   getFixturesOnLocalDay,
   isFixtureLive,
@@ -170,6 +172,14 @@ export async function tryDirectAnswer(
   teamKey?: string
 ): Promise<string | null> {
   const hints = analyzeAgentQuestion(question, teamKey);
+
+  try {
+    const tournamentScorers = await getWorldCupTopScorers();
+    const careerAnswer = answerCareerGoalGapQuestion(question, tournamentScorers);
+    if (careerAnswer) return careerAnswer;
+  } catch {
+    // continuar con otras respuestas directas
+  }
 
   if (hints.wantsPlayerInfo && hints.playerQuery) {
     const playerText = await fetchPlayerText(hints.playerQuery);

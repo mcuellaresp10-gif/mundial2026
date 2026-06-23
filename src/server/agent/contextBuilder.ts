@@ -7,6 +7,11 @@ import {
 } from "@/server/telegram/qaService";
 import { analyzeAgentQuestion, type QuestionHints } from "@/server/agent/questionAnalysis";
 import { formatTournamentPlayerStatsContext } from "@/server/agent/tournamentStatsContext";
+import { getWorldCupTopScorers } from "@/server/footballClient";
+import {
+  formatAllTimeCareerScorersBlock,
+  getLeadingAllTimeScorer,
+} from "@/utils/worldCupAllTimeScorers";
 import {
   BEST_THIRD_QUALIFIERS,
   rankThirdPlaceTeamsFromStandings,
@@ -120,8 +125,33 @@ export async function buildAgentContext(
   hints?: QuestionHints
 ): Promise<{ context: string; sources: string[] }> {
   const h = hints ?? analyzeAgentQuestion(question);
-  const parts: string[] = [formatCompactHistoryDigest()];
+
+  let tournamentScorers: Awaited<ReturnType<typeof getWorldCupTopScorers>> = [];
+  const needsAllTimeScorers =
+    h.wantsRecords ||
+    h.wantsHistory ||
+    h.wantsTournamentPlayerStats ||
+    /messi|mbapp|klose|goleador histor|maximo goleador|record goleador|le falt|alcanzar/.test(
+      question.toLowerCase()
+    );
+
+  if (needsAllTimeScorers) {
+    try {
+      tournamentScorers = await getWorldCupTopScorers();
+    } catch {
+      tournamentScorers = [];
+    }
+  }
+
+  const allTimeLeader = getLeadingAllTimeScorer(tournamentScorers);
+  const parts: string[] = [formatCompactHistoryDigest(allTimeLeader)];
   const sources: string[] = ["historico", "torneo-2026"];
+
+  const allTimeBlock = formatAllTimeCareerScorersBlock(tournamentScorers);
+  if (allTimeBlock) {
+    parts.push(allTimeBlock);
+    sources.push("goleadores-historicos");
+  }
 
   parts.push(buildTelegramContext(fixtures, standings));
 
@@ -168,12 +198,15 @@ export async function buildAgentContext(
   }
 
   if (h.wantsHistory || h.wantsRecords || h.historyYear) {
-    const historyBlock = formatHistoryContext({
-      wantsHistory: h.wantsHistory,
-      historyYear: h.historyYear,
-      wantsRecords: h.wantsRecords || h.wantsHistory,
-      searchQuery: h.historySearchQuery,
-    });
+    const historyBlock = formatHistoryContext(
+      {
+        wantsHistory: h.wantsHistory,
+        historyYear: h.historyYear,
+        wantsRecords: h.wantsRecords || h.wantsHistory,
+        searchQuery: h.historySearchQuery,
+      },
+      allTimeLeader
+    );
     if (historyBlock) {
       parts.push(historyBlock);
       if (!sources.includes("historico-detalle")) sources.push("historico-detalle");

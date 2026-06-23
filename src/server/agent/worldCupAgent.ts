@@ -37,7 +37,13 @@ export async function runAgentTurn(input: AgentTurnInput): Promise<AgentTurnResu
   if (direct && !direct.includes("No encontré") && !direct.includes("No hay partidos")) {
     return {
       answer: direct.replace(/\*/g, ""),
-      sources: hints.wantsLineups ? ["alineaciones"] : hints.wantsPlayerInfo ? ["jugador"] : [],
+      sources: direct.includes("Goleadores históricos")
+        ? ["goleadores-historicos"]
+        : hints.wantsLineups
+          ? ["alineaciones"]
+          : hints.wantsPlayerInfo
+            ? ["jugador"]
+            : [],
       direct: true,
     };
   }

@@ -234,8 +234,25 @@ export function getStatBundle(player: {
 export function getWorldCupTournamentStat(player: {
   statBundle?: PlayerStatBundle;
   statistics: PlayerStatistics[];
+  nationalTeam?: Team;
 }): PlayerStatistics | null {
-  const wc = getStatBundle(player).worldCup;
+  let wc = getStatBundle(player).worldCup;
+
+  if (!wc && player.nationalTeam) {
+    wc = pickWorldCupStat(player.statistics, player.nationalTeam);
+  }
+
+  if (!wc) {
+    const wcRows = player.statistics.filter((s) => isWorldCupStatRow(s));
+    if (wcRows.length === 1) {
+      wc = wcRows[0];
+    } else if (wcRows.length > 1 && player.nationalTeam) {
+      wc = pickWorldCupStat(player.statistics, player.nationalTeam);
+    } else if (wcRows.length > 0) {
+      wc = wcRows[0];
+    }
+  }
+
   if (!wc) return null;
 
   const appearances = wc.games.appearences ?? 0;

@@ -93,6 +93,25 @@ export interface RatedPlayerCandidate {
   teamLogo: string;
   position: string;
   rating: number;
+  goals: number;
+  assists: number;
+  minutes: number;
+}
+
+const SLOT_FILL_ORDER: Record<string, number> = { F: 0, M: 1, D: 2, G: 3 };
+
+function compareCandidates(a: RatedPlayerCandidate, b: RatedPlayerCandidate): number {
+  if (b.rating !== a.rating) return b.rating - a.rating;
+  if (b.goals !== a.goals) return b.goals - a.goals;
+  if (b.assists !== a.assists) return b.assists - a.assists;
+  return b.minutes - a.minutes;
+}
+
+function isEligibleForSlot(candidate: RatedPlayerCandidate, slotPos: string): boolean {
+  if (slotPos === "F") {
+    return candidate.position === "F" || (candidate.position === "M" && candidate.goals > 0);
+  }
+  return candidate.position === slotPos;
 }
 
 export function buildOnceIdealFromCandidates(
@@ -103,10 +122,14 @@ export function buildOnceIdealFromCandidates(
   const used = new Set<number>();
   const result: OnceIdealPlayer[] = [];
 
-  for (const slot of slots) {
+  const orderedSlots = [...slots].sort(
+    (a, b) => (SLOT_FILL_ORDER[a.pos] ?? 9) - (SLOT_FILL_ORDER[b.pos] ?? 9)
+  );
+
+  for (const slot of orderedSlots) {
     const pick = candidates
-      .filter((p) => p.position === slot.pos && !used.has(p.id) && p.rating > 0)
-      .sort((a, b) => b.rating - a.rating)[0];
+      .filter((p) => isEligibleForSlot(p, slot.pos) && !used.has(p.id) && p.rating > 0)
+      .sort(compareCandidates)[0];
 
     if (pick) {
       used.add(pick.id);

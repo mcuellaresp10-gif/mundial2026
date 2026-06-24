@@ -16,6 +16,8 @@ interface PlayerRatingAccumulator {
   teamLogo: string;
   ratingWeighted: number;
   minutes: number;
+  goals: number;
+  assists: number;
   positionMinutes: Map<string, number>;
 }
 
@@ -69,6 +71,8 @@ export function aggregateCandidatesFromFixturePlayerTeams(
             teamLogo: team.logo,
             ratingWeighted: 0,
             minutes: 0,
+            goals: 0,
+            assists: 0,
             positionMinutes: new Map(),
           };
           acc.set(entry.player.id, row);
@@ -76,6 +80,8 @@ export function aggregateCandidatesFromFixturePlayerTeams(
 
         row.ratingWeighted += rating * mins;
         row.minutes += mins;
+        row.goals += stat.goals.total ?? 0;
+        row.assists += stat.goals.assists ?? 0;
         row.positionMinutes.set(pos, (row.positionMinutes.get(pos) ?? 0) + mins);
       }
     }
@@ -91,6 +97,9 @@ export function aggregateCandidatesFromFixturePlayerTeams(
       teamLogo: p.teamLogo,
       position: pickPrimaryPosition(p.positionMinutes),
       rating: roundRating(p.ratingWeighted / p.minutes),
+      goals: p.goals,
+      assists: p.assists,
+      minutes: p.minutes,
     }));
 }
 
@@ -102,16 +111,19 @@ export function mergeWorldCupPoolIntoSquads(squads: Player[], pool: Player[]): P
     const poolPlayer = poolById.get(squad.player.id);
     if (!poolPlayer) return squad;
 
-    const poolBundle = getStatBundle(poolPlayer);
-    if (!poolBundle.worldCup) return squad;
+    const poolWc = getWorldCupTournamentStat({
+      ...poolPlayer,
+      nationalTeam: squad.nationalTeam ?? poolPlayer.nationalTeam,
+    });
+    if (!poolWc) return squad;
 
     const squadBundle = getStatBundle(squad);
     return {
       ...squad,
       statBundle: {
-        club: squadBundle.club ?? poolBundle.club,
-        national: squadBundle.national ?? poolBundle.national,
-        worldCup: poolBundle.worldCup,
+        club: squadBundle.club ?? getStatBundle(poolPlayer).club,
+        national: squadBundle.national ?? getStatBundle(poolPlayer).national,
+        worldCup: poolWc,
       },
     };
   });
@@ -146,6 +158,9 @@ export function playerToOnceIdealCandidate(
     teamLogo: wc.team.logo,
     position: positionToCode(wc.games.position),
     rating: roundRating(rating),
+    goals: wc.goals.total ?? 0,
+    assists: wc.goals.assists ?? 0,
+    minutes,
   };
 }
 

@@ -33,7 +33,7 @@ import {
   pickFeaturedFixture,
 } from "@/lib/liveRefresh";
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
-import { pickClubStat } from "@/utils/playerStats";
+import { isWorldCupStatRow, pickClubStat } from "@/utils/playerStats";
 import { mapPlayersToTopScorers, mapPlayersToTopAssists, mergeTopAssistLists } from "@/utils/tournamentScorers";
 import { isGoalkeeperStat } from "@/utils/tournamentGoalkeepers";
 import { mergeLiveIntoFixtures, mergeFixtureLists, isFixtureListIncomplete } from "@/utils/fixtureMerge";
@@ -832,6 +832,12 @@ function mergePlayerPoolRows(into: Map<number, Player>, rows: Player[]): void {
   }
 }
 
+function enrichWorldCupPoolPlayer(player: Player): Player {
+  const wcTeam = player.statistics.find((s) => isWorldCupStatRow(s))?.team;
+  if (!wcTeam) return player;
+  return enrichPlayerWithStatBundle({ ...player, nationalTeam: wcTeam }, wcTeam);
+}
+
 /** Pool de jugadores con stats del Mundial para enriquecer filas derivadas de eventos. */
 export async function getWorldCupPlayerStatsPool(
   season: number = DEFAULT_SEASON
@@ -857,7 +863,7 @@ export async function getWorldCupPlayerStatsPool(
       if (page >= paging.total || players.length === 0) break;
     }
 
-    const pool = [...byId.values()];
+    const pool = [...byId.values()].map(enrichWorldCupPoolPlayer);
     if (!shouldBypassPlayerStatsCache()) {
       setLocalCache(key, pool, LIVE_TOP_SCORERS_CACHE_MS);
     }

@@ -124,18 +124,34 @@ describe("onceIdealRatings", () => {
 
     const poolPlayer = {
       player: squadPlayer.player,
-      statistics: [matchStat(180, "8.2", "Midfielder")],
-      statBundle: {
-        club: null,
-        national: null,
-        worldCup: matchStat(180, "8.2", "Midfielder"),
-      },
+      statistics: [{ ...matchStat(180, "8.2", "Midfielder"), goals: { total: 5, conceded: 0, assists: 2, saves: 0 } }],
     };
 
     const [merged] = mergeWorldCupPoolIntoSquads([squadPlayer], [poolPlayer]);
     const candidate = playerToOnceIdealCandidate(merged);
     assert.ok(candidate);
     assert.equal(candidate!.rating, 8.2);
+    assert.equal(candidate!.goals, 5);
+  });
+
+  it("resuelve stats del mundial en el pool aunque no tenga statBundle", () => {
+    const squadPlayer = {
+      player: { id: 154, name: "L. Messi", photo: "", firstname: "Lionel", lastname: "Messi", age: 38, birth: { date: null, place: null, country: null }, nationality: "Argentina", height: null, weight: null, injured: false },
+      nationalTeam: team,
+      statistics: [],
+      statBundle: { club: null, national: null, worldCup: null },
+    };
+
+    const poolPlayer = {
+      player: squadPlayer.player,
+      statistics: [{ ...matchStat(270, "7.9", "Attacker"), goals: { total: 5, conceded: 0, assists: 3, saves: 0 } }],
+    };
+
+    const [merged] = mergeWorldCupPoolIntoSquads([squadPlayer], [poolPlayer]);
+    const candidate = playerToOnceIdealCandidate(merged);
+    assert.ok(candidate);
+    assert.equal(candidate!.goals, 5);
+    assert.equal(candidate!.position, "F");
   });
 
   it("aggregateStatistics pondera rating por minutos", () => {

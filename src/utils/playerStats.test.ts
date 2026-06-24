@@ -5,6 +5,7 @@ import {
   isWorldCupStatRow,
   pickWorldCupStat,
   splitPlayerStatistics,
+  getWorldCupTournamentStat,
 } from "./playerStats";
 
 const netherlands: Team = {
@@ -83,5 +84,19 @@ describe("playerStats world cup split", () => {
     );
     assert.ok(wc);
     assert.equal(wc?.games.minutes, 90);
+  });
+
+  it("getWorldCupTournamentStat lee filas del mundial sin statBundle", () => {
+    const wcStat = stat({ id: 1, name: "World Cup", season: 2026 }, netherlands, {
+      appearences: 3,
+      minutes: 270,
+      rating: "8.1",
+    });
+    const resolved = getWorldCupTournamentStat({
+      statistics: [wcStat],
+      nationalTeam: netherlands,
+    });
+    assert.ok(resolved);
+    assert.equal(resolved?.games.minutes, 270);
   });
 });

@@ -5,6 +5,7 @@ const ALLOWED_PATHS = new Set([
   "fixtures/events",
   "fixtures/statistics",
   "fixtures/lineups",
+  "fixtures/players",
   "fixtures/headtohead",
   "standings",
   "teams",
@@ -130,7 +131,12 @@ export function validateFootballProxyRequest(
     }
   }
 
-  if (path === "fixtures/events" || path === "fixtures/statistics" || path === "fixtures/lineups") {
+  if (
+    path === "fixtures/events" ||
+    path === "fixtures/statistics" ||
+    path === "fixtures/lineups" ||
+    path === "fixtures/players"
+  ) {
     if (!searchParams.has("fixture") || entries.length !== 1) {
       return reject(400, "fixture requerido");
     }

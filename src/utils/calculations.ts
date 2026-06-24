@@ -86,8 +86,18 @@ const FORMATION_SLOTS: Record<FormationType, { pos: string; x: number; y: number
   ],
 };
 
-export function buildOnceIdeal(
-  players: Player[],
+export interface RatedPlayerCandidate {
+  id: number;
+  name: string;
+  photo: string;
+  team: string;
+  teamLogo: string;
+  position: string;
+  rating: number;
+}
+
+export function buildOnceIdealFromCandidates(
+  candidates: RatedPlayerCandidate[],
   formation: FormationType = "4-3-3"
 ): OnceIdealPlayer[] {
   const slots = FORMATION_SLOTS[formation];
@@ -95,36 +105,50 @@ export function buildOnceIdeal(
   const result: OnceIdealPlayer[] = [];
 
   for (const slot of slots) {
-    const candidates = players
-      .filter((p) => {
-        const wc = getWorldCupTournamentStat(p);
-        if (!wc) return false;
-        const pos = wc.games.position;
-        return pos === slot.pos && !used.has(p.player.id);
-      })
-      .sort(
-        (a, b) =>
-          parseRating(getWorldCupTournamentStat(b)?.games.rating) -
-          parseRating(getWorldCupTournamentStat(a)?.games.rating)
-      );
+    const pick = candidates
+      .filter((p) => p.position === slot.pos && !used.has(p.id) && p.rating > 0)
+      .sort((a, b) => b.rating - a.rating)[0];
 
-    const pick = candidates[0];
     if (pick) {
-      used.add(pick.player.id);
-      const stat = getWorldCupTournamentStat(pick)!;
+      used.add(pick.id);
       result.push({
-        id: pick.player.id,
-        name: pick.player.name,
-        photo: pick.player.photo,
-        team: translateTeamName(stat.team.name),
-        teamLogo: stat.team.logo,
+        id: pick.id,
+        name: pick.name,
+        photo: pick.photo,
+        team: pick.team,
+        teamLogo: pick.teamLogo,
         position: slot.pos,
-        rating: parseRating(stat.games.rating),
+        rating: pick.rating,
         gridPosition: { x: slot.x, y: slot.y },
       });
     }
   }
   return result;
+}
+
+export function buildOnceIdeal(
+  players: Player[],
+  formation: FormationType = "4-3-3"
+): OnceIdealPlayer[] {
+  const candidates: RatedPlayerCandidate[] = [];
+
+  for (const p of players) {
+    const wc = getWorldCupTournamentStat(p);
+    if (!wc) continue;
+    const rating = parseRating(wc.games.rating);
+    if (rating <= 0) continue;
+    candidates.push({
+      id: p.player.id,
+      name: p.player.name,
+      photo: p.player.photo,
+      team: translateTeamName(wc.team.name),
+      teamLogo: wc.team.logo,
+      position: wc.games.position ?? "M",
+      rating,
+    });
+  }
+
+  return buildOnceIdealFromCandidates(candidates, formation);
 }
 
 export function getFormationSlots(formation: FormationType) {

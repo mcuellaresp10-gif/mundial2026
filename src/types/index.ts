@@ -202,6 +202,16 @@ export interface Lineup {
   substitutes: LineupPlayer[];
 }
 
+export interface FixturePlayerEntry {
+  player: { id: number; name: string; photo: string };
+  statistics: PlayerStatistics[];
+}
+
+export interface FixturePlayersTeam {
+  team: Team;
+  players: FixturePlayerEntry[];
+}
+
 export interface Coach {
   id: number;
   name: string;

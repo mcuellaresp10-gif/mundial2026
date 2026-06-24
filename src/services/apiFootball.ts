@@ -4,6 +4,7 @@ import type {
   Coach,
   Fixture,
   FixtureEvent,
+  FixturePlayersTeam,
   FixtureStatistic,
   Lineup,
   Player,
@@ -976,6 +977,10 @@ export async function getFixtureStatistics(fixtureId: number): Promise<FixtureSt
 
 export async function getFixtureLineups(fixtureId: number): Promise<Lineup[]> {
   return fetchApi<Lineup[]>("fixtures/lineups", { fixture: fixtureId });
+}
+
+export async function getFixturePlayers(fixtureId: number): Promise<FixturePlayersTeam[]> {
+  return fetchApi<FixturePlayersTeam[]>("fixtures/players", { fixture: fixtureId });
 }
 
 export async function getCoaches(teamId: number): Promise<Coach[]> {

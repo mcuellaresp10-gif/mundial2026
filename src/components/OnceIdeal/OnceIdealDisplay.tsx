@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { OnceIdealExperience } from "./OnceIdealExperience";
 import { useOnceIdeal } from "@/hooks/useOnceIdeal";
+import { useOnceIdealJornada } from "@/hooks/useOnceIdealJornada";
 import { useMiXIStore } from "@/stores/useMiXIStore";
 import { getFormationSlots } from "@/utils/calculations";
 import type { FormationType, OnceIdealPlayer } from "@/types";
@@ -22,7 +24,7 @@ export function OnceIdealDisplay() {
         <CardHeader>
           <CardTitle>Once Ideal del Torneo</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Solo jugadores con minutos en el Mundial 2026
+            Promedio de ratings acumulados en el Mundial 2026
           </p>
         </CardHeader>
         <CardContent>
@@ -40,7 +42,8 @@ export function OnceIdealDisplay() {
       <CardHeader className="border-b bg-gradient-to-r from-mundial-blue/5 via-transparent to-mundial-gold/5">
         <CardTitle>Once Ideal del Torneo</CardTitle>
         <p className="text-sm text-muted-foreground mt-1">
-          Equipo del momento · Solo jugadores con minutos en el Mundial 2026
+          Mejores por posición según rating promedio del torneo · Solo jugadores con minutos en el
+          Mundial 2026
         </p>
       </CardHeader>
       <CardContent className="pt-6">
@@ -52,6 +55,90 @@ export function OnceIdealDisplay() {
           showFormationSelector
           isPartial={onceIdeal.length < 11}
         />
+      </CardContent>
+    </Card>
+  );
+}
+
+export function OnceIdealJornadaDisplay() {
+  const [formation, setFormation] = useState<FormationType>("4-3-3");
+  const {
+    jornadas,
+    selectedRound,
+    setSelectedRound,
+    activeJornada,
+    onceIdeal,
+    averageRating,
+    isLoading,
+  } = useOnceIdealJornada(formation);
+
+  if (isLoading) return <Skeleton className="h-[520px] w-full max-w-5xl mx-auto rounded-xl" />;
+
+  if (jornadas.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Once Ideal por Jornada</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Aún no hay jornadas disponibles en el calendario del Mundial 2026.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const playedCount = activeJornada?.playedFixtureIds.length ?? 0;
+  const totalCount = activeJornada?.fixtures.length ?? 0;
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-gradient-to-r from-mundial-blue/5 via-transparent to-mundial-gold/5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Once Ideal por Jornada</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Mejores por posición según rating del partido en la jornada seleccionada
+            </p>
+          </div>
+          <Select
+            value={selectedRound ?? ""}
+            onChange={(e) => setSelectedRound(e.target.value)}
+            className="w-full sm:w-64"
+          >
+            {jornadas.map((j) => (
+              <option key={j.round} value={j.round}>
+                {j.label}
+                {j.playedFixtureIds.length > 0
+                  ? ` (${j.playedFixtureIds.length}/${j.fixtures.length})`
+                  : ""}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-6">
+        {playedCount === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            {activeJornada?.label ?? "Esta jornada"} aún no tiene partidos jugados. El once
+            aparecerá cuando comiencen los encuentros.
+          </p>
+        ) : onceIdeal.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            No hay ratings disponibles para {activeJornada?.label ?? "esta jornada"} (
+            {playedCount}/{totalCount} partidos con datos).
+          </p>
+        ) : (
+          <OnceIdealExperience
+            players={onceIdeal}
+            averageRating={averageRating}
+            formation={formation}
+            onFormationChange={setFormation}
+            showFormationSelector
+            isPartial={onceIdeal.length < 11}
+          />
+        )}
       </CardContent>
     </Card>
   );

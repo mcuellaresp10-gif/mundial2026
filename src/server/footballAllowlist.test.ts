@@ -48,4 +48,9 @@ describe("footballAllowlist", () => {
     const ok = validateFootballProxyRequest(["fixtures/events"], params({ fixture: "12345" }));
     assert.equal(ok.ok, true);
   });
+
+  it("permite fixtures/players con fixture", () => {
+    const ok = validateFootballProxyRequest(["fixtures/players"], params({ fixture: "12345" }));
+    assert.equal(ok.ok, true);
+  });
 });

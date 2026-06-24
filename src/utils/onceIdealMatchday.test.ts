@@ -86,7 +86,7 @@ describe("onceIdealMatchday", () => {
       },
     ];
 
-    const candidates = flattenFixturePlayersTeams(teams);
+    const candidates = flattenFixturePlayersTeams([teams]);
     assert.equal(candidates.length, 2);
     assert.equal(candidates[0].position, "G");
 

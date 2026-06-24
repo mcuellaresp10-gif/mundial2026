@@ -38,11 +38,18 @@ function buildBasePlayerInfo(
   };
 }
 
-function withSquadNumber(stat: PlayerStatistics | null, number: number | null, position: string): PlayerStatistics | null {
+function withSquadNumber(
+  stat: PlayerStatistics | null,
+  number: number | null,
+  fallbackPosition: string
+): PlayerStatistics | null {
   if (!stat) return null;
+  const position = stat.games.position
+    ? positionToCode(stat.games.position)
+    : positionToCode(fallbackPosition);
   return {
     ...stat,
-    games: { ...stat.games, number, position: positionToCode(position) },
+    games: { ...stat.games, number, position },
   };
 }
 

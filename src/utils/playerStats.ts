@@ -82,9 +82,11 @@ export function aggregateStatistics(
     }
 
     const r = parseRating(s.games.rating);
-    if (r > 0) {
-      ratingWeighted += r * w;
-      ratingWeight += w;
+    const ratingMinutes = s.games.minutes ?? 0;
+    const weight = ratingMinutes > 0 ? ratingMinutes : w;
+    if (r > 0 && weight > 0) {
+      ratingWeighted += r * weight;
+      ratingWeight += weight;
     }
   }
 

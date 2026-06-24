@@ -1,12 +1,19 @@
 "use client";
 
 import { useMemo } from "react";
-import { buildOnceIdeal } from "@/utils/calculations";
+import { useQuery } from "@tanstack/react-query";
+import { buildOnceIdealFromCandidates } from "@/utils/calculations";
 import type { FormationType, OnceIdealPlayer } from "@/types";
 import { useTeams, useFixtures } from "./usePartidos";
 import { useAllPlayers } from "./useJugadores";
 import { isFixtureStarted, LIVE_REFRESH_MS } from "@/lib/liveRefresh";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
+import { getWorldCupPlayerStatsPool } from "@/services/apiFootball";
+import { CACHE_TTL_MS } from "@/lib/utils";
+import {
+  buildCandidatesFromPlayers,
+  mergeWorldCupPoolIntoSquads,
+} from "@/utils/onceIdealRatings";
 
 export function useOnceIdeal(formation: FormationType = "4-3-3") {
   const { data: teams } = useTeams();
@@ -19,23 +26,34 @@ export function useOnceIdeal(formation: FormationType = "4-3-3") {
     fixtures.some((f) => isFixtureStarted(f.fixture.status.short));
 
   const liveRefreshMs = tournamentStarted ? LIVE_REFRESH_MS.topScorers : undefined;
+  const staleTime = liveRefreshMs ?? CACHE_TTL_MS;
 
-  const { data: players, isLoading } = useAllPlayers(
+  const { data: players, isLoading: squadsLoading } = useAllPlayers(
     teamIds,
     false,
     teamIds.length > 0,
     liveRefreshMs
   );
 
+  const { data: wcPool = [], isLoading: poolLoading } = useQuery({
+    queryKey: ["worldCupPlayerStatsPool", tournamentStarted ? "live" : "pre"],
+    queryFn: () => getWorldCupPlayerStatsPool(),
+    enabled: teamIds.length > 0,
+    staleTime,
+    refetchInterval: liveRefreshMs ?? false,
+  });
+
   const onceIdeal: OnceIdealPlayer[] = useMemo(() => {
-    if (!players) return [];
-    return buildOnceIdeal(players, formation);
-  }, [players, formation]);
+    if (!players?.length) return [];
+    const merged = mergeWorldCupPoolIntoSquads(players, wcPool);
+    const candidates = buildCandidatesFromPlayers(merged);
+    return buildOnceIdealFromCandidates(candidates, formation);
+  }, [players, wcPool, formation]);
 
   const averageRating = useMemo(() => {
     if (onceIdeal.length === 0) return 0;
     return Math.round((onceIdeal.reduce((s, p) => s + p.rating, 0) / onceIdeal.length) * 10) / 10;
   }, [onceIdeal]);
 
-  return { onceIdeal, averageRating, isLoading };
+  return { onceIdeal, averageRating, isLoading: squadsLoading || poolLoading };
 }

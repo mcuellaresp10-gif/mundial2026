@@ -7,12 +7,11 @@ import type {
 } from "@/types";
 import { isFixtureFinished, isFixtureStarted } from "@/lib/liveRefresh";
 import { parseRating } from "./formatters";
-import { translateTeamName } from "./teamNames";
 import {
   computePlayerRadarFromPlayer,
   mundialAverageRadar,
 } from "./radarMetrics";
-import { getWorldCupTournamentStat } from "./playerStats";
+import { buildCandidatesFromPlayers } from "./onceIdealRatings";
 
 export function averageRating(ratings: number[]): number {
   if (ratings.length === 0) return 0;
@@ -130,25 +129,7 @@ export function buildOnceIdeal(
   players: Player[],
   formation: FormationType = "4-3-3"
 ): OnceIdealPlayer[] {
-  const candidates: RatedPlayerCandidate[] = [];
-
-  for (const p of players) {
-    const wc = getWorldCupTournamentStat(p);
-    if (!wc) continue;
-    const rating = parseRating(wc.games.rating);
-    if (rating <= 0) continue;
-    candidates.push({
-      id: p.player.id,
-      name: p.player.name,
-      photo: p.player.photo,
-      team: translateTeamName(wc.team.name),
-      teamLogo: wc.team.logo,
-      position: wc.games.position ?? "M",
-      rating,
-    });
-  }
-
-  return buildOnceIdealFromCandidates(candidates, formation);
+  return buildOnceIdealFromCandidates(buildCandidatesFromPlayers(players), formation);
 }
 
 export function getFormationSlots(formation: FormationType) {

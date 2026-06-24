@@ -1,0 +1,153 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import type { FixturePlayersTeam } from "@/types";
+import {
+  aggregateCandidatesFromFixturePlayerTeams,
+  mergeWorldCupPoolIntoSquads,
+  playerToOnceIdealCandidate,
+} from "./onceIdealRatings";
+import { aggregateStatistics } from "./playerStats";
+
+const team = {
+  id: 10,
+  name: "Argentina",
+  code: "ARG",
+  country: "Argentina",
+  founded: null,
+  national: true,
+  logo: "a.png",
+};
+
+function matchStat(minutes: number, rating: string, position: string) {
+  return {
+    games: {
+      minutes,
+      rating,
+      position,
+      appearences: 1,
+      lineups: 1,
+      number: 10,
+      captain: false,
+    },
+    team,
+    league: { id: 1, name: "World Cup", country: "World", logo: "", flag: null, season: 2026 },
+    substitutes: { in: 0, out: 0, bench: 0 },
+    shots: { total: 0, on: 0 },
+    goals: { total: 0, conceded: 0, assists: 0, saves: 0 },
+    passes: { total: 0, key: 0, accuracy: null },
+    tackles: { total: 0, blocks: 0, interceptions: 0 },
+    duels: { total: 0, won: 0 },
+    dribbles: { attempts: 0, success: 0, past: 0 },
+    fouls: { drawn: 0, committed: 0 },
+    cards: { yellow: 0, yellowred: 0, red: 0 },
+    penalty: { won: 0, commited: 0, scored: 0, missed: 0, saved: 0 },
+  };
+}
+
+describe("onceIdealRatings", () => {
+  it("pondera el rating por minutos en varios partidos", () => {
+    const groups: FixturePlayersTeam[][] = [
+      [
+        {
+          team,
+          players: [
+            {
+              player: { id: 1, name: "Star", photo: "" },
+              statistics: [matchStat(90, "8.0", "M")],
+            },
+          ],
+        },
+      ],
+      [
+        {
+          team,
+          players: [
+            {
+              player: { id: 1, name: "Star", photo: "" },
+              statistics: [matchStat(45, "7.0", "M")],
+            },
+          ],
+        },
+      ],
+    ];
+
+    const [candidate] = aggregateCandidatesFromFixturePlayerTeams(groups);
+    assert.equal(candidate.rating, 7.67);
+    assert.equal(candidate.position, "M");
+  });
+
+  it("elige la posición donde más minutos jugó", () => {
+    const groups: FixturePlayersTeam[][] = [
+      [
+        {
+          team,
+          players: [
+            {
+              player: { id: 2, name: "Hybrid", photo: "" },
+              statistics: [matchStat(60, "7.5", "D")],
+            },
+          ],
+        },
+      ],
+      [
+        {
+          team,
+          players: [
+            {
+              player: { id: 2, name: "Hybrid", photo: "" },
+              statistics: [matchStat(30, "7.8", "M")],
+            },
+          ],
+        },
+      ],
+    ];
+
+    const [candidate] = aggregateCandidatesFromFixturePlayerTeams(groups);
+    assert.equal(candidate.position, "D");
+  });
+
+  it("prioriza stats del mundial del pool sobre el fetch rápido", () => {
+    const squadPlayer = {
+      player: { id: 99, name: "Test", photo: "", firstname: "Test", lastname: "", age: 25, birth: { date: null, place: null, country: null }, nationality: "X", height: null, weight: null, injured: false },
+      nationalTeam: team,
+      statistics: [],
+      statBundle: {
+        club: null,
+        national: null,
+        worldCup: {
+          ...matchStat(90, "6.0", "Midfielder"),
+          team,
+          league: { id: 10, name: "Friendlies", country: "World", logo: "", flag: null, season: 2026 },
+        },
+      },
+    };
+
+    const poolPlayer = {
+      player: squadPlayer.player,
+      statistics: [matchStat(180, "8.2", "Midfielder")],
+      statBundle: {
+        club: null,
+        national: null,
+        worldCup: matchStat(180, "8.2", "Midfielder"),
+      },
+    };
+
+    const [merged] = mergeWorldCupPoolIntoSquads([squadPlayer], [poolPlayer]);
+    const candidate = playerToOnceIdealCandidate(merged);
+    assert.ok(candidate);
+    assert.equal(candidate!.rating, 8.2);
+  });
+
+  it("aggregateStatistics pondera rating por minutos", () => {
+    const base = matchStat(90, "7.0", "M");
+    const aggregated = aggregateStatistics(
+      [
+        { ...base, games: { ...base.games, minutes: 90, rating: "8.0" } },
+        { ...base, games: { ...base.games, minutes: 45, rating: "7.0" } },
+      ],
+      team,
+      "Mundial"
+    );
+    assert.equal(aggregated?.games.rating, "7.67");
+  });
+});

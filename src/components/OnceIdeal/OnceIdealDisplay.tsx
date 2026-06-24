@@ -24,7 +24,7 @@ export function OnceIdealDisplay() {
         <CardHeader>
           <CardTitle>Once Ideal del Torneo</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Promedio de ratings acumulados en el Mundial 2026
+            Promedio ponderado por minutos en el Mundial 2026 (mín. 45 min)
           </p>
         </CardHeader>
         <CardContent>
@@ -42,8 +42,7 @@ export function OnceIdealDisplay() {
       <CardHeader className="border-b bg-gradient-to-r from-mundial-blue/5 via-transparent to-mundial-gold/5">
         <CardTitle>Once Ideal del Torneo</CardTitle>
         <p className="text-sm text-muted-foreground mt-1">
-          Mejores por posición según rating promedio del torneo · Solo jugadores con minutos en el
-          Mundial 2026
+          Mejores por posición · rating del torneo ponderado por minutos · mín. 45 min jugados
         </p>
       </CardHeader>
       <CardContent className="pt-6">
@@ -99,7 +98,7 @@ export function OnceIdealJornadaDisplay() {
           <div>
             <CardTitle>Once Ideal por Jornada</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Mejores por posición según rating del partido en la jornada seleccionada
+              Mejores por posición · rating del partido ponderado por minutos en la jornada
             </p>
           </div>
           <Select

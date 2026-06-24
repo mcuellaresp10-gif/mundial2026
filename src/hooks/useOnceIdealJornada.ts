@@ -57,9 +57,11 @@ export function useOnceIdealJornada(formation: FormationType = "4-3-3") {
   });
 
   const onceIdeal: OnceIdealPlayer[] = useMemo(() => {
-    const teams = playerQueries.flatMap((q) => q.data ?? []);
-    if (teams.length === 0) return [];
-    const candidates = flattenFixturePlayersTeams(teams);
+    const groups = playerQueries
+      .map((q) => q.data ?? [])
+      .filter((group) => group.length > 0);
+    if (groups.length === 0) return [];
+    const candidates = flattenFixturePlayersTeams(groups);
     return buildOnceIdealFromCandidates(candidates, formation);
   }, [playerQueries, formation]);
 

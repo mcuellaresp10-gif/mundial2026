@@ -1,9 +1,7 @@
 import type { Fixture, FixturePlayersTeam } from "@/types";
-import type { RatedPlayerCandidate } from "@/utils/calculations";
 import { isFixtureFinished, isFixtureStarted } from "@/lib/liveRefresh";
-import { formatRoundLabel, parseRating } from "@/utils/formatters";
-import { positionToCode } from "@/utils/squad";
-import { translateTeamName } from "@/utils/teamNames";
+import { formatRoundLabel } from "@/utils/formatters";
+import { aggregateCandidatesFromFixturePlayerTeams } from "@/utils/onceIdealRatings";
 
 export interface JornadaGroup {
   round: string;
@@ -71,37 +69,6 @@ export function pickLatestFinishedJornada(jornadas: JornadaGroup[]): JornadaGrou
 }
 
 /** Convierte stats por partido en candidatos para el once ideal de jornada. */
-export function flattenFixturePlayersTeams(
-  teams: FixturePlayersTeam[]
-): RatedPlayerCandidate[] {
-  const byId = new Map<number, RatedPlayerCandidate>();
-
-  for (const { team, players } of teams) {
-    for (const entry of players) {
-      const stat = entry.statistics[0];
-      if (!stat) continue;
-
-      const minutes = stat.games.minutes ?? 0;
-      if (minutes <= 0) continue;
-
-      const rating = parseRating(stat.games.rating);
-      if (rating <= 0) continue;
-
-      const position = positionToCode(stat.games.position);
-      const existing = byId.get(entry.player.id);
-      if (existing && existing.rating >= rating) continue;
-
-      byId.set(entry.player.id, {
-        id: entry.player.id,
-        name: entry.player.name,
-        photo: entry.player.photo,
-        team: translateTeamName(team.name),
-        teamLogo: team.logo,
-        position,
-        rating,
-      });
-    }
-  }
-
-  return [...byId.values()];
+export function flattenFixturePlayersTeams(teamsGroups: FixturePlayersTeam[][]) {
+  return aggregateCandidatesFromFixturePlayerTeams(teamsGroups, 1);
 }

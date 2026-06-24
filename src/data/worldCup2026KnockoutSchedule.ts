@@ -34,6 +34,59 @@ export const KNOCKOUT_MATCH_DATES: Record<number, string> = {
   104: "2026-07-19T19:00:00+00:00",
 };
 
+/** Ciudades sede FIFA por partido eliminatorio (M73–M104). */
+export const KNOCKOUT_MATCH_CITIES: Record<number, string> = {
+  73: "Los Angeles",
+  74: "Boston",
+  75: "Monterrey",
+  76: "Houston",
+  77: "Nueva York",
+  78: "Dallas",
+  79: "Ciudad de México",
+  80: "Atlanta",
+  81: "San Francisco",
+  82: "Seattle",
+  83: "Toronto",
+  84: "Los Angeles",
+  85: "Vancouver",
+  86: "Miami",
+  87: "Kansas City",
+  88: "Dallas",
+  89: "Filadelfia",
+  90: "Houston",
+  91: "Nueva York",
+  92: "Ciudad de México",
+  93: "Dallas",
+  94: "Seattle",
+  95: "Atlanta",
+  96: "Vancouver",
+  97: "Boston",
+  98: "Los Angeles",
+  99: "Miami",
+  100: "Kansas City",
+  101: "Dallas",
+  102: "Atlanta",
+  103: "Miami",
+  104: "Nueva York",
+};
+
+export function getKnockoutMatchCity(matchId: number): string {
+  return KNOCKOUT_MATCH_CITIES[matchId] ?? "";
+}
+
 export function getKnockoutMatchDate(matchId: number): string {
   return KNOCKOUT_MATCH_DATES[matchId] ?? "2026-07-01T18:00:00+00:00";
+}
+
+/** Fecha + ciudad para cabecera del cuadro (prioriza fixture API si existe). */
+export function getKnockoutMatchMeta(
+  matchId: number,
+  fixture?: { date: string; venue?: { city?: string | null; name?: string | null } }
+): { date: string; city: string } {
+  const date = fixture?.date ?? getKnockoutMatchDate(matchId);
+  const city =
+    fixture?.venue?.city?.trim() ||
+    fixture?.venue?.name?.trim() ||
+    getKnockoutMatchCity(matchId);
+  return { date, city };
 }

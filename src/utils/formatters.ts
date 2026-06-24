@@ -2,6 +2,20 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { getRatingColor } from "./colors";
 
+export function formatShortKnockoutDate(dateStr: string): string {
+  try {
+    return format(parseISO(dateStr), "d MMM", { locale: es });
+  } catch {
+    return dateStr;
+  }
+}
+
+export function formatKnockoutMatchHeader(dateStr: string, city: string): string {
+  const datePart = formatShortKnockoutDate(dateStr);
+  if (!city) return datePart;
+  return `${datePart} · ${city}`;
+}
+
 export function formatFixtureDate(dateStr: string): string {
   try {
     return format(parseISO(dateStr), "EEE d MMM | HH:mm", { locale: es }).toUpperCase();

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKnockoutBracket } from "@/hooks/useKnockoutBracket";
+import { getKnockoutMatchMeta } from "@/data/worldCup2026KnockoutSchedule";
+import type { Fixture } from "@/types";
 import {
   getKnockoutByRound,
   getRoundOf32BySide,
@@ -14,6 +16,7 @@ import {
 } from "@/utils/knockoutBracket";
 import { GROUP_LETTERS, ROUND_LABELS, type BracketRound, type GroupLetter } from "@/data/worldCup2026Bracket";
 import { translateTeamName } from "@/utils/teamNames";
+import { formatFixtureDate, formatKnockoutMatchHeader } from "@/utils/formatters";
 import { cn } from "@/lib/utils";
 
 function BracketTeamRow({ slot }: { slot: BracketSlotTeam }) {
@@ -50,12 +53,18 @@ function MatchBox({
   home,
   away,
   compact,
+  fixture,
 }: {
   matchId: number;
   home: BracketSlotTeam;
   away: BracketSlotTeam;
   compact?: boolean;
+  fixture?: Fixture | null;
 }) {
+  const meta = getKnockoutMatchMeta(matchId, fixture?.fixture);
+  const header = formatKnockoutMatchHeader(meta.date, meta.city);
+  const fullDate = formatFixtureDate(meta.date);
+
   return (
     <div
       className={cn(
@@ -63,8 +72,12 @@ function MatchBox({
         compact ? "w-[148px]" : "w-[168px]"
       )}
     >
-      <div className="px-2 py-0.5 bg-muted/40 text-[9px] text-muted-foreground border-b border-border/50">
-        M{matchId}
+      <div
+        className="px-2 py-0.5 bg-muted/40 text-[9px] text-muted-foreground border-b border-border/50 flex items-baseline justify-between gap-1"
+        title={fullDate}
+      >
+        <span className="font-medium shrink-0">M{matchId}</span>
+        <span className="truncate text-right">{header}</span>
       </div>
       <BracketTeamRow slot={home} />
       <BracketTeamRow slot={away} />
@@ -72,11 +85,23 @@ function MatchBox({
   );
 }
 
-function R32Column({ matches }: { matches: ResolvedR32Match[] }) {
+function R32Column({
+  matches,
+  fixtureByMatchId,
+}: {
+  matches: ResolvedR32Match[];
+  fixtureByMatchId: Map<number, Fixture>;
+}) {
   return (
     <div className="flex flex-col justify-around gap-3 py-4 min-h-[640px]">
       {matches.map((m) => (
-        <MatchBox key={m.matchId} matchId={m.matchId} home={m.home} away={m.away} />
+        <MatchBox
+          key={m.matchId}
+          matchId={m.matchId}
+          home={m.home}
+          away={m.away}
+          fixture={fixtureByMatchId.get(m.matchId) ?? null}
+        />
       ))}
     </div>
   );
@@ -85,9 +110,11 @@ function R32Column({ matches }: { matches: ResolvedR32Match[] }) {
 function KnockoutColumn({
   matches,
   tall,
+  fixtureByMatchId,
 }: {
   matches: ResolvedBracketMatch[];
   tall?: boolean;
+  fixtureByMatchId: Map<number, Fixture>;
 }) {
   return (
     <div
@@ -97,7 +124,14 @@ function KnockoutColumn({
       )}
     >
       {matches.map((m) => (
-        <MatchBox key={m.matchId} matchId={m.matchId} home={m.home} away={m.away} compact />
+        <MatchBox
+          key={m.matchId}
+          matchId={m.matchId}
+          home={m.home}
+          away={m.away}
+          compact
+          fixture={fixtureByMatchId.get(m.matchId) ?? null}
+        />
       ))}
     </div>
   );
@@ -145,10 +179,12 @@ function BracketHalf({
   side,
   r32,
   knockout,
+  fixtureByMatchId,
 }: {
   side: "left" | "right";
   r32: ResolvedR32Match[];
   knockout: ResolvedBracketMatch[];
+  fixtureByMatchId: Map<number, Fixture>;
 }) {
   const r16 = getKnockoutByRound(knockout, "round_of_16", side);
   const qf = getKnockoutByRound(knockout, "quarterfinal", side);
@@ -161,10 +197,10 @@ function BracketHalf({
         side === "right" && "flex-row-reverse"
       )}
     >
-      <R32Column matches={r32} />
-      <KnockoutColumn matches={r16} tall />
-      <KnockoutColumn matches={qf} />
-      <KnockoutColumn matches={sf} />
+      <R32Column matches={r32} fixtureByMatchId={fixtureByMatchId} />
+      <KnockoutColumn matches={r16} tall fixtureByMatchId={fixtureByMatchId} />
+      <KnockoutColumn matches={qf} fixtureByMatchId={fixtureByMatchId} />
+      <KnockoutColumn matches={sf} fixtureByMatchId={fixtureByMatchId} />
     </div>
   );
 }
@@ -224,7 +260,12 @@ export function KnockoutBracketSection() {
         <CardContent className="p-4">
           <div className="overflow-x-auto pb-2">
             <div className="flex items-center gap-4 min-w-[1100px]">
-              <BracketHalf side="left" r32={leftR32} knockout={bracket.knockoutMatches} />
+              <BracketHalf
+                side="left"
+                r32={leftR32}
+                knockout={bracket.knockoutMatches}
+                fixtureByMatchId={bracket.fixtureByMatchId}
+              />
 
               <div className="flex flex-col items-center justify-center gap-4 shrink-0 px-2">
                 {finalMatch && (
@@ -236,6 +277,7 @@ export function KnockoutBracketSection() {
                       matchId={finalMatch.matchId}
                       home={finalMatch.home}
                       away={finalMatch.away}
+                      fixture={bracket.fixtureByMatchId.get(finalMatch.matchId) ?? null}
                     />
                     <p className="text-[10px] text-muted-foreground">Campeón del mundo</p>
                   </div>
@@ -250,12 +292,18 @@ export function KnockoutBracketSection() {
                       home={bronzeMatch.home}
                       away={bronzeMatch.away}
                       compact
+                      fixture={bracket.fixtureByMatchId.get(bronzeMatch.matchId) ?? null}
                     />
                   </div>
                 )}
               </div>
 
-              <BracketHalf side="right" r32={rightR32} knockout={bracket.knockoutMatches} />
+              <BracketHalf
+                side="right"
+                r32={rightR32}
+                knockout={bracket.knockoutMatches}
+                fixtureByMatchId={bracket.fixtureByMatchId}
+              />
             </div>
           </div>
 

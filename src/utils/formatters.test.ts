@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { olympicRank, olympicRankAscending } from "./formatters";
+import { olympicRank, olympicRankAscending, formatKnockoutMatchHeader } from "./formatters";
+import { getKnockoutMatchCity, getKnockoutMatchMeta } from "@/data/worldCup2026KnockoutSchedule";
 
 describe("olympicRank", () => {
   const table = [
@@ -33,5 +34,13 @@ describe("olympicRank", () => {
     ];
     assert.equal(olympicRankAscending(keepers, 1, "goalsConceded"), 1);
     assert.equal(olympicRankAscending(keepers, 3, "goalsConceded"), 4);
+  });
+});
+
+describe("knockout match header", () => {
+  it("formatea fecha y ciudad junto al código", () => {
+    const meta = getKnockoutMatchMeta(74);
+    assert.equal(getKnockoutMatchCity(74), "Boston");
+    assert.match(formatKnockoutMatchHeader(meta.date, meta.city), /29 jun · Boston/);
   });
 });

@@ -7,6 +7,7 @@ import type {
   FixtureStatistic,
   Lineup,
   Player,
+  PlayerStatistics,
   StandingsGroup,
   Team,
   TeamSquad,
@@ -562,11 +563,39 @@ async function fetchPlayerByIdRaw(id: number, season: number): Promise<Player | 
   }
 }
 
+/** Stats del Mundial — requiere league=1 además de id+season. */
+async function fetchWorldCupPlayerStatsById(playerId: number): Promise<Player["statistics"]> {
+  try {
+    const data = await fetchApi<Player[]>("players", {
+      id: playerId,
+      season: DEFAULT_SEASON,
+      league: LEAGUE_ID,
+    });
+    return data[0]?.statistics ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function dedupePlayerStatistics(stats: PlayerStatistics[]): PlayerStatistics[] {
+  const seen = new Set<string>();
+  const out: PlayerStatistics[] = [];
+  for (const s of stats) {
+    const key = `${s.league.id}:${s.league.season}:${s.team.id}:${s.games.appearences ?? 0}:${s.games.minutes ?? 0}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
 async function fetchPlayerFullStats(playerId: number): Promise<Player["statistics"]> {
-  const rows = await Promise.all(
-    PLAYER_STAT_SEASONS_LIST.map((season) => fetchPlayerByIdRaw(playerId, season))
-  );
-  return rows.flatMap((p) => p?.statistics ?? []);
+  const [seasonRows, wcRows] = await Promise.all([
+    Promise.all(PLAYER_STAT_SEASONS_LIST.map((season) => fetchPlayerByIdRaw(playerId, season))),
+    fetchWorldCupPlayerStatsById(playerId),
+  ]);
+  const fromSeasons = seasonRows.flatMap((p) => p?.statistics ?? []);
+  return dedupePlayerStatistics([...fromSeasons, ...wcRows]);
 }
 
 async function mapAsyncWithConcurrency<T, R>(
@@ -599,15 +628,20 @@ export async function getPlayerProfile(
   nationalTeamId?: number
 ): Promise<Player | null> {
   return resolvePlayerFromSnapshotOr(id, async () => {
-    const [p2025, p2026] = await Promise.all([
+    const [p2025, p2026, wcStats] = await Promise.all([
       fetchPlayerByIdRaw(id, 2025),
       fetchPlayerByIdRaw(id, 2026),
+      fetchWorldCupPlayerStatsById(id),
     ]);
 
     const base = p2025 ?? p2026;
     if (!base) return null;
 
-    const allStats = [...(p2025?.statistics ?? []), ...(p2026?.statistics ?? [])];
+    const allStats = dedupePlayerStatistics([
+      ...(p2025?.statistics ?? []),
+      ...(p2026?.statistics ?? []),
+      ...wcStats,
+    ]);
 
     let nationalTeam: Team | undefined;
     if (nationalTeamId) {

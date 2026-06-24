@@ -44,11 +44,15 @@ export function usePlayers(params: { team?: number; page?: number; search?: stri
 }
 
 export function usePlayer(id: number, nationalTeamId?: number) {
+  const liveActive =
+    getClientTournamentPhase() === "live" || isLiveSessionActive();
+
   return useQuery({
-    queryKey: ["player", id, nationalTeamId],
+    queryKey: ["player", id, nationalTeamId, liveActive ? "live" : "pre"],
     queryFn: () => getPlayerProfile(id, nationalTeamId),
     enabled: id > 0,
-    staleTime: 4 * 60 * 60 * 1000,
+    staleTime: liveActive ? LIVE_REFRESH_MS.topScorers : CACHE_TTL_MS,
+    refetchInterval: liveActive ? LIVE_REFRESH_MS.topScorers : false,
   });
 }
 

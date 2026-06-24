@@ -101,7 +101,7 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
       <TabsContent value="worldcup">
         <StatsGrid
           stat={bundle.worldCup}
-          emptyMessage="Aún no hay estadísticas de Mundial 2026 para este jugador (el torneo no ha comenzado o no ha jugado minutos)."
+          emptyMessage="Aún no hay estadísticas de Mundial 2026 para este jugador (no ha jugado minutos en el torneo)."
         />
       </TabsContent>
 

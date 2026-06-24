@@ -1,7 +1,20 @@
 import type { PlayerStatistics, Team } from "@/types";
-import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
+import { DEFAULT_SEASON, LEAGUE_ID, PLAYER_STAT_SEASON_LABEL, PLAYER_STAT_SEASONS } from "@/lib/utils";
 import { parseRating } from "./formatters";
-const WORLD_CUP_LEAGUE_ID = 1;
+
+const WORLD_CUP_LEAGUE_ID = LEAGUE_ID;
+
+/** Fila de estadísticas del Mundial (league=1 o nombre World Cup). */
+export function isWorldCupStatRow(stat: PlayerStatistics, nationalTeamId?: number): boolean {
+  const name = stat.league.name.toLowerCase();
+  const isWcLeague =
+    stat.league.id === WORLD_CUP_LEAGUE_ID ||
+    name.includes("world cup") ||
+    (stat.league.country === "World" && name.includes("cup"));
+  if (!isWcLeague) return false;
+  if (nationalTeamId != null && stat.team.id !== nationalTeamId) return false;
+  return PLAYER_STAT_SEASONS.includes(stat.league.season as (typeof PLAYER_STAT_SEASONS)[number]);
+}
 
 /** Agrega varias filas de stats (ej. amistosos + eliminatorias con la selección). */
 export function aggregateStatistics(
@@ -167,7 +180,9 @@ export function pickNationalStats(
   statistics: PlayerStatistics[],
   nationalTeam: Team
 ): PlayerStatistics | null {
-  const nationalRows = statistics.filter((s) => s.team.id === nationalTeam.id);
+  const nationalRows = statistics.filter(
+    (s) => s.team.id === nationalTeam.id && !isWorldCupStatRow(s, nationalTeam.id)
+  );
   return aggregateStatistics(
     nationalRows,
     nationalTeam,
@@ -179,12 +194,7 @@ export function pickWorldCupStat(
   statistics: PlayerStatistics[],
   nationalTeam: Team
 ): PlayerStatistics | null {
-  const wcRows = statistics.filter(
-    (s) =>
-      s.league.id === WORLD_CUP_LEAGUE_ID &&
-      s.league.season === 2026 &&
-      s.team.id === nationalTeam.id
-  );
+  const wcRows = statistics.filter((s) => isWorldCupStatRow(s, nationalTeam.id));
   return aggregateStatistics(wcRows, nationalTeam, "Mundial 2026");
 }
 
@@ -218,7 +228,7 @@ export function getStatBundle(player: {
   };
 }
 
-/** Stats del Mundial 2026 solo si el jugador ha participado en el torneo. */
+/** Stats del Mundial 2026 si el jugador tiene minutos o partidos en el torneo. */
 export function getWorldCupTournamentStat(player: {
   statBundle?: PlayerStatBundle;
   statistics: PlayerStatistics[];
@@ -229,8 +239,6 @@ export function getWorldCupTournamentStat(player: {
   const appearances = wc.games.appearences ?? 0;
   const minutes = wc.games.minutes ?? 0;
   if (appearances <= 0 && minutes <= 0) return null;
-
-  if (parseRating(wc.games.rating) <= 0) return null;
 
   return wc;
 }

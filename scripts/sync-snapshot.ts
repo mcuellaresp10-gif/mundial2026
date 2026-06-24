@@ -99,6 +99,12 @@ async function fetchPlayerStats(playerId: number) {
     if (data[0]?.statistics) rows.push(...data[0].statistics);
     await delay(80);
   }
+  const wcData = await apiGet<Player[]>("players", {
+    id: playerId,
+    season: 2026,
+    league: LEAGUE_ID,
+  });
+  if (wcData[0]?.statistics) rows.push(...wcData[0].statistics);
   return rows;
 }
 

@@ -18,6 +18,7 @@ const NAV = [
   { href: "/selecciones", label: "Selecciones" },
   { href: "/grupos", label: "Grupos" },
   { href: "/jugadores", label: "Jugadores" },
+  { href: "/jugadores/scouting", label: "Scouting" },
   { href: "/once-ideal", label: "Once Ideal" },
   { href: "/comparativas", label: "Comparativas" },
   { href: "/estadisticas", label: "Estadísticas" },

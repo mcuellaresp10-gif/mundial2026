@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadarChart } from "@/components/shared/RadarChart";
-import { StatsGrid } from "./PlayerStatsPanel";
+import { StatsGrid, WorldCupStatsGrid } from "./PlayerStatsPanel";
+import { WorldCupScoutingTab } from "./Scouting";
 import type { Player, AnalysisPlayer } from "@/types";
 import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 import { formatPosition } from "@/utils/formatters";
@@ -77,6 +78,7 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
         <TabsTrigger value="club">Club · Temp. {PLAYER_STAT_SEASON_LABEL}</TabsTrigger>
         <TabsTrigger value="national">Selección · Temp. {PLAYER_STAT_SEASON_LABEL}</TabsTrigger>
         <TabsTrigger value="worldcup">Mundial 2026</TabsTrigger>
+        <TabsTrigger value="scouting">Análisis Mundial</TabsTrigger>
         <TabsTrigger value="advanced">Stats avanzadas</TabsTrigger>
         <TabsTrigger value="ai">Análisis IA</TabsTrigger>
       </TabsList>
@@ -99,10 +101,14 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
       </TabsContent>
 
       <TabsContent value="worldcup">
-        <StatsGrid
+        <WorldCupStatsGrid
           stat={bundle.worldCup}
           emptyMessage="Aún no hay estadísticas de Mundial 2026 para este jugador (no ha jugado minutos en el torneo)."
         />
+      </TabsContent>
+
+      <TabsContent value="scouting">
+        <WorldCupScoutingTab player={player} />
       </TabsContent>
 
       <TabsContent value="advanced">

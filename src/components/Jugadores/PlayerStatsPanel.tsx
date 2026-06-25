@@ -41,6 +41,35 @@ export function StatsGrid({ stat, emptyMessage = "Sin datos disponibles" }: Stat
   );
 }
 
+export function WorldCupStatsGrid({ stat, emptyMessage }: StatsGridProps) {
+  if (!stat) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-sm text-muted-foreground">{emptyMessage}</CardContent>
+      </Card>
+    );
+  }
+
+  const minutes = stat.games.minutes ?? 0;
+  const per90 = (value: number) => (minutes > 0 ? ((value / minutes) * 90).toFixed(2) : "0.00");
+
+  return (
+    <div className="space-y-3">
+      <StatsGrid stat={stat} emptyMessage={emptyMessage ?? "Sin datos"} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatBox label="Pases clave" value={stat.passes.key ?? 0} />
+        <StatBox label="Pases clave/90" value={per90(stat.passes.key ?? 0)} />
+        <StatBox label="Regates" value={stat.dribbles.success ?? 0} />
+        <StatBox label="Regates/90" value={per90(stat.dribbles.success ?? 0)} />
+        <StatBox label="Duelos ganados" value={stat.duels.won ?? 0} />
+        <StatBox label="Duelos/90" value={per90(stat.duels.won ?? 0)} />
+        <StatBox label="Entradas" value={stat.tackles.total ?? 0} />
+        <StatBox label="Intercepciones" value={stat.tackles.interceptions ?? 0} />
+      </div>
+    </div>
+  );
+}
+
 function StatBox({
   label,
   value,

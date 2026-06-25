@@ -1,17 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
 import { ComparativaSelecciones } from "@/components/Comparativas/ComparativaSelecciones";
 import { ComparativaJugadores } from "@/components/Comparativas/ComparativaJugadores";
 import { useTeams, useStandings } from "@/hooks/usePartidos";
-import { useAllPlayers } from "@/hooks/useJugadores";
+import { useMemo } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function ComparativasPage() {
   const { data: teams = [] } = useTeams();
   const { data: standingsRaw = [] } = useStandings();
-  const teamIds = useMemo(() => teams.slice(0, 12).map((t) => t.id), [teams]);
-  const { data: players = [] } = useAllPlayers(teamIds);
 
   const allStandings = useMemo(() => {
     const result = [];
@@ -39,7 +36,7 @@ export default function ComparativasPage() {
           <ComparativaSelecciones teams={teams} standings={allStandings} />
         </TabsContent>
         <TabsContent value="players">
-          <ComparativaJugadores players={players} />
+          <ComparativaJugadores />
         </TabsContent>
       </Tabs>
     </div>

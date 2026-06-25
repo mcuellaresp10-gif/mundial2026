@@ -9,6 +9,7 @@ import { ChunkLoadRecovery } from "@/components/shared/ChunkLoadRecovery";
 import { TournamentPhaseSync } from "@/components/shared/TournamentPhaseSync";
 import { LiveScoreSync } from "@/components/shared/LiveScoreSync";
 import { AppShell } from "@/components/shared/AppShell";
+import { GoogleAnalytics } from "@/components/shared/GoogleAnalytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${inter.variable} ${jetbrains.variable} font-sans`}>
+        <GoogleAnalytics />
         <Providers>
           <ThemeProvider>
             <ChunkLoadRecovery />

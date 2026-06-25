@@ -4,6 +4,7 @@ import { PartidosDelDia } from "@/components/Dashboard/PartidosDelDia";
 import { EstadisticasGlobales } from "@/components/Dashboard/EstadisticasGlobales";
 import { ColombiaFocus } from "@/components/Dashboard/ColombiaFocus";
 import { DashboardHero } from "@/components/Dashboard/DashboardHero";
+import { AgenteCallToAction } from "@/components/Dashboard/AgenteCallToAction";
 import { DashboardSkeleton } from "@/components/shared/Loading";
 import { useTeams } from "@/hooks/usePartidos";
 
@@ -15,6 +16,7 @@ export default function DashboardPage() {
   return (
     <div className="@container/dashboard w-full animate-in fade-in">
       <DashboardHero />
+      <AgenteCallToAction />
 
       {/* Magazine layout: contenido principal + sidebar sticky (Colombia) */}
       <div

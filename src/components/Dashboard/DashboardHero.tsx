@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar, BarChart3, Shield, Star, GitCompare, History } from "lucide-react";
+import { Calendar, BarChart3, Shield, Star, GitCompare, History, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUICK_LINKS = [
@@ -10,6 +10,7 @@ const QUICK_LINKS = [
   { href: "/selecciones", label: "Selecciones", icon: Shield },
   { href: "/once-ideal", label: "Once Ideal", icon: Star },
   { href: "/comparativas", label: "Comparativas", icon: GitCompare },
+  { href: "/agente", label: "Agente", icon: MessageCircle },
   { href: "/historico", label: "Histórico", icon: History },
 ] as const;
 

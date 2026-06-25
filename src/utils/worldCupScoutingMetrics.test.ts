@@ -172,3 +172,14 @@ describe("scoutingMetricViews", () => {
     assert.ok(gkViews.includes("defense"));
   });
 });
+
+describe("scoutingStarLabels", () => {
+  it("resuelve etiquetas por nombre e ID", async () => {
+    const { resolveStarLabel, isStarLabelPlayer } = await import("@/config/scoutingStarLabels");
+    assert.equal(resolveStarLabel(154, "L. Messi"), "Messi");
+    assert.equal(resolveStarLabel(999, "K. Mbappé"), "Mbappé");
+    assert.equal(resolveStarLabel(999, "E. Haaland"), "Haaland");
+    assert.equal(resolveStarLabel(999, "Random Player"), null);
+    assert.equal(isStarLabelPlayer(154, "L. Messi"), true);
+  });
+});

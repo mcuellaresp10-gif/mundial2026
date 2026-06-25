@@ -17,6 +17,7 @@ import {
 import type { ScoutingPosition, ScatterConfig } from "@/config/positionMetricProfiles";
 import type { ScoutingMetricViewId } from "@/config/scoutingMetricViews";
 import { resolveScatterConfig } from "@/config/scoutingMetricViews";
+import { resolveStarLabel } from "@/config/scoutingStarLabels";
 import type { ScoutingProfile } from "@/utils/worldCupScoutingMetrics";
 import { getScatterPoint, scatterColorPercent } from "@/utils/worldCupScoutingMetrics";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ export interface ScatterPoint {
   x: number;
   y: number;
   color: number;
+  starLabel?: string | null;
 }
 
 interface ScoutingScatterProps {
@@ -96,7 +98,10 @@ export function ScoutingScatter({
     () =>
       profiles
         .filter((p) => p.position === position)
-        .map((p) => getScatterPoint(p, config.x.key, config.y.key, config.color.key)),
+        .map((p) => ({
+          ...getScatterPoint(p, config.x.key, config.y.key, config.color.key),
+          starLabel: resolveStarLabel(p.playerId, p.name),
+        })),
     [profiles, position, config]
   );
 
@@ -112,7 +117,7 @@ export function ScoutingScatter({
   return (
     <div className="space-y-2">
       <ResponsiveContainer width="100%" height={height}>
-        <ScatterChart margin={{ top: 12, right: 12, bottom: 24, left: 8 }}>
+        <ScatterChart margin={{ top: 28, right: 16, bottom: 24, left: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis
             type="number"
@@ -157,19 +162,39 @@ export function ScoutingScatter({
                 colorIsRate ? 0 : colorMin,
                 colorIsRate ? 100 : colorMax
               );
+              const label = payload.starLabel;
+              const labelY = cy - (isHighlight ? 14 : 11);
               return (
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={isHighlight ? 8 : 5}
-                  fill={fill}
-                  stroke={isHighlight ? "hsl(var(--mundial-gold))" : "hsl(var(--background))"}
-                  strokeWidth={isHighlight ? 2.5 : 1}
-                  style={{ cursor: onSelect ? "pointer" : "default" }}
-                  onClick={() => onSelect?.(payload.id)}
-                  onMouseEnter={() => setHoverId(payload.id)}
-                  onMouseLeave={() => setHoverId(null)}
-                />
+                <g>
+                  {label && (
+                    <text
+                      x={cx}
+                      y={labelY}
+                      textAnchor="middle"
+                      fontSize={10}
+                      fontWeight={600}
+                      fill="hsl(var(--foreground))"
+                      stroke="hsl(var(--background))"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                      pointerEvents="none"
+                    >
+                      {label}
+                    </text>
+                  )}
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={isHighlight ? 8 : 5}
+                    fill={fill}
+                    stroke={isHighlight ? "hsl(var(--mundial-gold))" : "hsl(var(--background))"}
+                    strokeWidth={isHighlight ? 2.5 : 1}
+                    style={{ cursor: onSelect ? "pointer" : "default" }}
+                    onClick={() => onSelect?.(payload.id)}
+                    onMouseEnter={() => setHoverId(payload.id)}
+                    onMouseLeave={() => setHoverId(null)}
+                  />
+                </g>
               );
             }}
           />
@@ -181,6 +206,7 @@ export function ScoutingScatter({
             {points.length} jugadores · prom. X {avgX.toFixed(2)} · prom. Y {avgY.toFixed(2)}
           </span>
           <span>{config.colorLabel}</span>
+          <span className="text-[10px]">· estrellas etiquetadas</span>
         </div>
       )}
     </div>

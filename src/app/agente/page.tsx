@@ -6,8 +6,8 @@ export default function AgentePage() {
       <div>
         <h1 className="text-3xl font-bold">Agente del Mundial</h1>
         <p className="text-muted-foreground mt-1">
-          Pregunta lo que quieras sobre el Mundial 2026 y la historia de los torneos — datos,
-          probabilidades y curiosidades al estilo de un experto en estadísticas.
+          Historia completa de los Mundiales (1930-2022) con enfoque en el torneo 2026 en vivo:
+          tablas, probabilidades, récords y curiosidades.
         </p>
       </div>
       <MundialAgentChat />

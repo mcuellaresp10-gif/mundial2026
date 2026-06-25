@@ -8,12 +8,12 @@ import { useAgentChat } from "@/hooks/useAgentChat";
 import { cn } from "@/lib/utils";
 
 const SUGGESTED_PROMPTS = [
-  "¿Quién es favorito para ganar el Grupo A?",
-  "Curiosidades del Mundial de 1986",
-  "¿Cuál es la probabilidad de que Colombia clasifique?",
-  "Compara Argentina 2022 vs Brasil 2002",
-  "¿Cuáles son los 8 mejores terceros ahora?",
-  "¿Qué selección tiene más títulos del Mundial?",
+  "¿Cómo va Argentina en el Mundial 2026 y qué títulos tiene en su historia?",
+  "¿Quién es favorito para ganar el Grupo A según las probabilidades?",
+  "Cuéntame la cronología de campeones del Mundial desde 1930",
+  "Compara el Brasil de 1970 con el estado actual del torneo",
+  "¿Cuántos títulos tiene Alemania y cómo va en 2026?",
+  "Curiosidades del Mundial de 1986 y qué récords vigilan en 2026",
 ];
 
 function formatAnswer(text: string): string {
@@ -62,9 +62,9 @@ export function MundialAgentChat() {
       <CardHeader className="pb-3 border-b border-border shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-lg">Experto en datos del Mundial</CardTitle>
+            <CardTitle className="text-lg">Experto Mundial — Historia & 2026</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Estadísticas, historia, probabilidades y curiosidades · Mundial 2026
+              Historia completa 1930-2022 · enfoque en el Mundial 2026 en vivo
             </p>
           </div>
           {messages.length > 0 && (

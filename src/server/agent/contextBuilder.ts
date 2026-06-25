@@ -1,5 +1,5 @@
 import type { Fixture, StandingsGroup } from "@/types";
-import { formatHistoryContext, formatCompactHistoryDigest } from "@/data/worldCupHistory";
+import { formatHistoryContext, formatCompactHistoryDigest, formatWorldCup2026FramingBlock, formatTeamWorldCupHistory, formatHistoricalAnalysisGuide } from "@/data/worldCupHistory";
 import { buildTelegramContext } from "@/server/telegram/formatters";
 import {
   fetchLineupsText,
@@ -144,8 +144,24 @@ export async function buildAgentContext(
   }
 
   const allTimeLeader = getLeadingAllTimeScorer(tournamentScorers);
-  const parts: string[] = [formatCompactHistoryDigest(allTimeLeader)];
-  const sources: string[] = ["historico", "torneo-2026"];
+  const parts: string[] = [
+    formatWorldCup2026FramingBlock(),
+    formatCompactHistoryDigest(allTimeLeader),
+  ];
+  const sources: string[] = ["mundial-2026", "historico"];
+
+  if (h.wantsHistoricalAnalysis || h.wantsHistory || h.wantsTeamHistory) {
+    parts.push(formatHistoricalAnalysisGuide(h.teamKey));
+    if (!sources.includes("lente-historico")) sources.push("lente-historico");
+  }
+
+  if (h.teamKey && (h.wantsTeamHistory || h.wantsHistoricalAnalysis || h.wantsTeamStats || h.wantsHistory)) {
+    const teamHist = formatTeamWorldCupHistory(h.teamKey);
+    if (teamHist) {
+      parts.push(teamHist);
+      if (!sources.includes("historico-equipo")) sources.push("historico-equipo");
+    }
+  }
 
   const allTimeBlock = formatAllTimeCareerScorersBlock(tournamentScorers);
   if (allTimeBlock) {
@@ -197,12 +213,21 @@ export async function buildAgentContext(
     sources.push("mejores-terceros");
   }
 
-  if (h.wantsHistory || h.wantsRecords || h.historyYear) {
+  if (
+    h.wantsHistory ||
+    h.wantsRecords ||
+    h.historyYear ||
+    h.wantsHistoricalAnalysis ||
+    h.wantsFullTimeline
+  ) {
     const historyBlock = formatHistoryContext(
       {
-        wantsHistory: h.wantsHistory,
+        wantsHistory: h.wantsHistory || h.wantsHistoricalAnalysis,
         historyYear: h.historyYear,
         wantsRecords: h.wantsRecords || h.wantsHistory,
+        wantsFullTimeline: h.wantsFullTimeline,
+        wantsHistoricalAnalysis: h.wantsHistoricalAnalysis,
+        teamKey: h.teamKey,
         searchQuery: h.historySearchQuery,
       },
       allTimeLeader

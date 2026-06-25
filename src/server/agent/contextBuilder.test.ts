@@ -82,7 +82,20 @@ describe("buildAgentContext", () => {
     );
     assert.match(context, /1986/);
     assert.match(context, /Maradona/i);
+    assert.match(context, /MUNDIAL 2026/);
     assert.ok(sources.includes("historico"));
+  });
+
+  it("incluye historial de selección y lente histórico", async () => {
+    clearAgentProbCache();
+    const { context, sources } = await buildAgentContext(
+      "¿Cuántos títulos tiene Brasil y cómo va en 2026?",
+      [],
+      makeStandings()
+    );
+    assert.match(context, /HISTORIAL MUNDIAL — Brasil/i);
+    assert.match(context, /LENTE HISTÓRICO/);
+    assert.ok(sources.includes("historico-equipo"));
   });
 
   it("incluye probabilidades cuando se solicitan", async () => {

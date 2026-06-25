@@ -1,5 +1,6 @@
 import type { HistoricoMundial } from "@/types";
 import { ALL_TIME_TOP_SCORER_THROUGH_2022 } from "@/data/worldCupCareerScorers";
+import { teamNameMatchesQuery, translateTeamName } from "@/utils/teamNames";
 
 export interface WorldCupEdition extends HistoricoMundial {
   runnerUp: string;
@@ -177,7 +178,94 @@ export interface HistoryContextHints {
   wantsHistory?: boolean;
   historyYear?: number;
   wantsRecords?: boolean;
+  wantsFullTimeline?: boolean;
+  wantsHistoricalAnalysis?: boolean;
+  teamKey?: string;
   searchQuery?: string;
+}
+
+export interface TeamWorldCupHistory {
+  teamLabel: string;
+  titles: WorldCupEdition[];
+  runnerUps: WorldCupEdition[];
+  hosts: WorldCupEdition[];
+}
+
+export function getTeamWorldCupHistory(teamQuery: string): TeamWorldCupHistory | null {
+  const titles: WorldCupEdition[] = [];
+  const runnerUps: WorldCupEdition[] = [];
+  const hosts: WorldCupEdition[] = [];
+  let teamLabel = teamQuery;
+
+  for (const edition of Object.values(WORLD_CUP_EDITIONS)) {
+    if (teamNameMatchesQuery(edition.champion, teamQuery)) {
+      titles.push(edition);
+      teamLabel = translateTeamName(edition.champion);
+    }
+    if (teamNameMatchesQuery(edition.runnerUp, teamQuery)) runnerUps.push(edition);
+    if (teamNameMatchesQuery(edition.host, teamQuery)) hosts.push(edition);
+  }
+
+  if (titles.length === 0 && runnerUps.length === 0 && hosts.length === 0) return null;
+
+  titles.sort((a, b) => b.year - a.year);
+  runnerUps.sort((a, b) => b.year - a.year);
+  hosts.sort((a, b) => b.year - a.year);
+
+  return { teamLabel, titles, runnerUps, hosts };
+}
+
+export function formatTeamWorldCupHistory(teamQuery: string): string | null {
+  const history = getTeamWorldCupHistory(teamQuery);
+  if (!history) return null;
+
+  const lines = [
+    `HISTORIAL MUNDIAL — ${history.teamLabel} (1930-2022):`,
+    history.titles.length
+      ? `Campeonatos (${history.titles.length}): ${history.titles.map((e) => `${e.year} vs ${translateTeamName(e.runnerUp)} (${e.finalScore})`).join(" · ")}`
+      : "Campeonatos: ninguno en el registro histórico",
+    history.runnerUps.length
+      ? `Finales perdidas: ${history.runnerUps.map((e) => `${e.year} vs ${translateTeamName(e.champion)}`).join(" · ")}`
+      : null,
+    history.hosts.length
+      ? `Sede: ${history.hosts.map((e) => `${e.year} (${e.host})`).join(" · ")}`
+      : null,
+    "Usa la tabla y probabilidades del Mundial 2026 en el contexto para el estado ACTUAL de esta selección.",
+  ];
+
+  return lines.filter(Boolean).join("\n");
+}
+
+export function formatWorldCup2026FramingBlock(): string {
+  return [
+    "MUNDIAL 2026 — EDICIÓN ACTUAL (PRIORIDAD EN RESPUESTAS):",
+    "Torneo en curso: 48 selecciones · sedes EE.UU., México y Canadá · primer Mundial tricontinental.",
+    "Formato: 12 grupos de 4; avanzan 32 (1º y 2º de cada grupo + 8 mejores terceros).",
+    "Para estado actual (marcadores, tablas, goleadores, probabilidades, alineaciones) usa SOLO los bloques en vivo del contexto.",
+    "Enriquece con historia 1930-2022 cuando ayude a interpretar favoritos, presión, récords en juego o paralelos tácticos.",
+  ].join("\n");
+}
+
+export function formatChronologicalTimeline(): string {
+  const lines = getAllEditionYears().map((year) => {
+    const e = WORLD_CUP_EDITIONS[year];
+    if (!e) return null;
+    return `${year} · ${e.host} · ${e.champion} campeón · final ${e.finalScore} · Bota de Oro ${e.topScorer.name} (${e.topScorer.goals}G)`;
+  });
+  return ["CRONOLOGÍA MUNDIALES (1930-2022):", ...lines.filter(Boolean)].join("\n");
+}
+
+export function formatHistoricalAnalysisGuide(teamKey?: string): string {
+  const teamLine = teamKey
+    ? `Selección detectada en la pregunta: contrasta su historial con su situación en el Mundial 2026.`
+    : "Si la pregunta menciona una selección, cruza su palmarés histórico con su grupo y probabilidades 2026.";
+  return [
+    "LENTE HISTÓRICO → MUNDIAL 2026:",
+    "1) Responde primero lo que preguntan sobre el torneo actual si aplica.",
+    "2) Aporta contexto histórico verificable (campeones, récords, ediciones clave).",
+    "3) Cierra con implicación para 2026: favoritismo, presión, récord en juego o paralelo.",
+    teamLine,
+  ].join("\n");
 }
 
 export function formatHistoryContext(
@@ -209,21 +297,32 @@ export function formatHistoryContext(
       parts.push(
         "EDICIONES RELACIONADAS:",
         hits
-          .slice(0, 4)
+          .slice(0, 6)
           .map(formatEditionBlock)
           .join("\n\n")
       );
     }
   }
 
-  if (hints.wantsHistory && !hints.wantsRecords) {
-    const recent = [2022, 2018, 2014, 2010, 2006, 2002]
+  if (hints.wantsFullTimeline) {
+    parts.push(formatChronologicalTimeline());
+  }
+
+  if (hints.wantsHistory && !hints.wantsRecords && !hints.historyYear && !hints.searchQuery) {
+    const recent = [2022, 2018, 2014, 2010, 2006, 2002, 1998, 1994]
       .map((y) => WORLD_CUP_EDITIONS[y])
       .filter(Boolean);
     parts.push(
       "RESUMEN MUNDIALES RECIENTES:",
       recent.map(formatEditionBlock).join("\n\n")
     );
+  } else if (
+    hints.wantsHistoricalAnalysis &&
+    !hints.wantsFullTimeline &&
+    !hints.historyYear &&
+    !hints.searchQuery
+  ) {
+    parts.push(formatChronologicalTimeline());
   }
 
   return parts.join("\n\n");
@@ -241,7 +340,8 @@ export function formatCompactHistoryDigest(allTimeLeader?: {
     .map((y) => WORLD_CUP_EDITIONS[y])
     .filter(Boolean);
   return [
-    "HISTÓRICO MUNDIALES (referencia):",
+    "HISTÓRICO MUNDIALES (1930-2022 · referencia):",
+    `Corpus: ${getAllEditionYears().length} ediciones documentadas.`,
     `Más títulos: ${WORLD_CUP_RECORDS.mostTitles.map((t) => `${t.country} (${t.titles})`).join(", ")}`,
     `Máx. goleador histórico: ${leader.name} (${leader.goals} goles${leaderNote})`,
     "Últimos campeones:",

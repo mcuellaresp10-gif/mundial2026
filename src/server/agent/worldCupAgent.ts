@@ -1,7 +1,7 @@
 import type { Fixture, StandingsGroup } from "@/types";
 import { callAIChat } from "@/server/aiClient";
 import { buildAgentContext } from "@/server/agent/contextBuilder";
-import { buildAgentMessages } from "@/server/agent/prompts";
+import { buildAgentMessages, agentMaxTokensForHints } from "@/server/agent/prompts";
 import { analyzeAgentQuestion } from "@/server/agent/questionAnalysis";
 import { tryDirectAnswer } from "@/server/telegram/qaService";
 import type { FairPlayRecord } from "@/utils/fairPlay";
@@ -49,8 +49,8 @@ export async function runAgentTurn(input: AgentTurnInput): Promise<AgentTurnResu
   }
 
   const { context, sources } = await buildAgentContext(trimmed, fixtures, standings, fairPlay, hints);
-  const chatMessages = buildAgentMessages(context, messages, trimmed);
-  const raw = await callAIChat(chatMessages);
+  const chatMessages = buildAgentMessages(context, messages, trimmed, hints);
+  const raw = await callAIChat(chatMessages, { maxTokens: agentMaxTokensForHints(hints) });
   const answer = raw.trim() || "No pude generar una respuesta. Intenta reformular la pregunta.";
 
   return { answer, sources, direct: false };
@@ -62,7 +62,8 @@ export async function answerWorldCupQuestion(
   context: string,
   history: AgentChatMessage[] = []
 ): Promise<string> {
-  const chatMessages = buildAgentMessages(context, history, question);
-  const raw = await callAIChat(chatMessages, { maxTokens: 800 });
+  const hints = analyzeAgentQuestion(question);
+  const chatMessages = buildAgentMessages(context, history, question, hints);
+  const raw = await callAIChat(chatMessages, { maxTokens: agentMaxTokensForHints(hints) });
   return raw.trim() || "No pude generar una respuesta.";
 }

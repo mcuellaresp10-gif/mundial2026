@@ -5,6 +5,10 @@ import {
   searchHistory,
   WORLD_CUP_EDITIONS,
   WORLD_CUP_RECORDS,
+  getTeamWorldCupHistory,
+  formatTeamWorldCupHistory,
+  formatChronologicalTimeline,
+  formatWorldCup2026FramingBlock,
 } from "@/data/worldCupHistory";
 
 describe("worldCupHistory", () => {
@@ -35,5 +39,20 @@ describe("worldCupHistory", () => {
   it("expone récords históricos", () => {
     assert.equal(WORLD_CUP_RECORDS.allTimeTopScorer.name, "Miroslav Klose");
     assert.ok(WORLD_CUP_RECORDS.mostTitles[0].titles >= 4);
+  });
+
+  it("resume palmarés por selección", () => {
+    const br = getTeamWorldCupHistory("brasil");
+    assert.ok(br);
+    assert.ok(br!.titles.length >= 5);
+    const block = formatTeamWorldCupHistory("brasil");
+    assert.match(block!, /Campeonatos \(5\)/);
+  });
+
+  it("expone cronología y framing 2026 para el agente", () => {
+    const timeline = formatChronologicalTimeline();
+    assert.match(timeline, /1930/);
+    assert.match(timeline, /2022/);
+    assert.match(formatWorldCup2026FramingBlock(), /48 selecciones/);
   });
 });

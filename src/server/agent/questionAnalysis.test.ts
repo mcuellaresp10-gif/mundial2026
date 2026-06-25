@@ -38,5 +38,25 @@ describe("analyzeAgentQuestion", () => {
   it("detecta preguntas sobre historia de mundiales", () => {
     const h = analyzeAgentQuestion("Cuéntame la historia de los mundiales");
     assert.equal(h.wantsHistory, true);
+    assert.equal(h.wantsHistoricalAnalysis, false);
+  });
+
+  it("detecta análisis histórico con enfoque 2026", () => {
+    const h = analyzeAgentQuestion("Compara el Brasil de 1970 con cómo va el torneo actual");
+    assert.equal(h.wantsHistoricalAnalysis, true);
+    assert.equal(h.wantsHistory, true);
+    assert.ok(h.teamKey?.includes("brasil"));
+  });
+
+  it("detecta cronología completa de ediciones", () => {
+    const h = analyzeAgentQuestion("Lista todos los campeones del mundial desde 1930");
+    assert.equal(h.wantsFullTimeline, true);
+    assert.equal(h.wantsHistoricalAnalysis, true);
+  });
+
+  it("detecta historial de selección", () => {
+    const h = analyzeAgentQuestion("¿Cuántas veces ha sido campeón Argentina?");
+    assert.equal(h.wantsTeamHistory, true);
+    assert.equal(h.wantsHistory, true);
   });
 });

@@ -11,6 +11,9 @@ export interface QuestionHints {
   wantsBestThirds: boolean;
   wantsTeamStats: boolean;
   wantsTournamentPlayerStats: boolean;
+  wantsHistoricalAnalysis: boolean;
+  wantsFullTimeline: boolean;
+  wantsTeamHistory: boolean;
   historySearchQuery?: string;
 }
 
@@ -126,10 +129,29 @@ export function analyzeAgentQuestion(raw: string, teamKey?: string): QuestionHin
       /club juega|equipo juega|en que club|en qué club|donde juega|dónde juega/.test(text)) &&
     !aggregatePlayerStats;
 
+  const wantsFullTimeline =
+    /todos los mundiales|todas las ediciones|historia completa|cronologia|cronología|linea de tiempo|línea de tiempo|desde 1930|22 ediciones|lista de campeones/.test(
+      text
+    );
+
+  const wantsHistoricalAnalysis =
+    wantsFullTimeline ||
+    /compar|context|tradicion|tradición|a lo largo|paralel|como le ha ido|como le fue|leyenda|dinast|dinastía|historicamente|históricamente|en otros mundiales|antes vs|versus|vs\s+\d{4}|evolucion|evolución|palmar[eé]s|trayectoria en mundiales|camino al titulo|camino al título/.test(
+      text
+    );
+
   const wantsHistory =
+    wantsHistoricalAnalysis ||
+    wantsFullTimeline ||
     /historia|historico|historia|mundiales|mundial(es)?\s+(pasado|anterior|de\s+\d|del\s+\d)|campeon|campeón|campeones|record|records|récord|goleador historico|goleador histórico|balon de oro|balón de oro|bota de oro|maradona|pele|pelé|messi|final del|semifinal|curiosidad|curiosidades|edicion|edición|copa del mundo|world cup|cuantos mundiales|cuántos mundiales|todos los mundiales|primer mundial|ultimo mundial|último mundial/.test(
       text
     ) || !!historyYear;
+
+  const wantsTeamHistory =
+    !!extractTeamKey(text) &&
+    (wantsHistory ||
+      wantsHistoricalAnalysis ||
+      /historia|titulo|título|campeon|campeón|tradicion|tradición|otras veces|en que mundiales|cuantas veces|cuántas veces/.test(text));
 
   const wantsProbabilities =
     /probabil|favorit|chance|opcion|opción|clasifica|clasific|monte carlo|simul|predic|pronost|percent|porcent/.test(
@@ -167,7 +189,10 @@ export function analyzeAgentQuestion(raw: string, teamKey?: string): QuestionHin
     wantsBestThirds,
     wantsTeamStats,
     wantsTournamentPlayerStats,
-    historySearchQuery: wantsHistory ? raw : undefined,
+    wantsHistoricalAnalysis,
+    wantsFullTimeline,
+    wantsTeamHistory,
+    historySearchQuery: wantsHistory || wantsHistoricalAnalysis ? raw : undefined,
   };
 }
 

@@ -183,7 +183,7 @@ export function ArmarMiXI() {
       <CardContent>
         {players.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">
-            Selecciona jugadores desde la página de Jugadores para armar tu once ideal. Tu
+            Explora jugadores en Estadísticas jugadores para armar tu once ideal. Tu
             selección se guarda automáticamente.
           </p>
         ) : (

@@ -14,6 +14,11 @@ import {
   type ResolvedBracketMatch,
   type ResolvedR32Match,
 } from "@/utils/knockoutBracket";
+import {
+  BracketSlotProbabilities,
+  getCandidatesForSlot,
+} from "@/components/Grupos/BracketSlotProbabilities";
+import type { KnockoutSlotKey, KnockoutSlotCandidate } from "@/utils/knockoutSlotProbabilities";
 import { GROUP_LETTERS, ROUND_LABELS, type BracketRound, type GroupLetter } from "@/data/worldCup2026Bracket";
 import { translateTeamName } from "@/utils/teamNames";
 import { formatFixtureDate, formatKnockoutMatchHeader } from "@/utils/formatters";
@@ -54,12 +59,16 @@ function MatchBox({
   away,
   compact,
   fixture,
+  slotProbabilities,
+  showProbabilities = false,
 }: {
   matchId: number;
   home: BracketSlotTeam;
   away: BracketSlotTeam;
   compact?: boolean;
   fixture?: Fixture | null;
+  slotProbabilities?: Map<KnockoutSlotKey, KnockoutSlotCandidate[]>;
+  showProbabilities?: boolean;
 }) {
   const meta = getKnockoutMatchMeta(matchId, fixture?.fixture);
   const header = formatKnockoutMatchHeader(meta.date, meta.city);
@@ -69,18 +78,43 @@ function MatchBox({
     <div
       className={cn(
         "rounded-md border border-border bg-card/80 shadow-sm overflow-hidden",
-        compact ? "w-[148px]" : "w-[168px]"
+        showProbabilities ? "w-[210px]" : compact ? "w-[148px]" : "w-[168px]"
       )}
     >
       <div
-        className="px-2 py-0.5 bg-muted/40 text-[9px] text-muted-foreground border-b border-border/50 flex items-baseline justify-between gap-1"
+        className="px-2 py-1 bg-muted/40 text-[10px] border-b border-border/50"
         title={fullDate}
       >
-        <span className="font-medium shrink-0">M{matchId}</span>
-        <span className="truncate text-right">{header}</span>
+        <p className="font-semibold text-foreground truncate">{meta.city}</p>
+        <div className="flex items-baseline justify-between gap-1 text-muted-foreground">
+          <span className="text-[9px]">{header.split("·").pop()?.trim() ?? header}</span>
+          <span className="font-medium shrink-0 text-[9px]">M{matchId}</span>
+        </div>
       </div>
-      <BracketTeamRow slot={home} />
-      <BracketTeamRow slot={away} />
+      {showProbabilities && slotProbabilities ? (
+        <>
+          <BracketSlotProbabilities
+            matchId={matchId}
+            side="home"
+            slot={home}
+            candidates={getCandidatesForSlot(slotProbabilities, matchId, "home")}
+          />
+          <div className="text-[9px] text-center text-muted-foreground py-0.5 bg-muted/20 border-y border-border/30">
+            vs
+          </div>
+          <BracketSlotProbabilities
+            matchId={matchId}
+            side="away"
+            slot={away}
+            candidates={getCandidatesForSlot(slotProbabilities, matchId, "away")}
+          />
+        </>
+      ) : (
+        <>
+          <BracketTeamRow slot={home} />
+          <BracketTeamRow slot={away} />
+        </>
+      )}
     </div>
   );
 }
@@ -88,12 +122,14 @@ function MatchBox({
 function R32Column({
   matches,
   fixtureByMatchId,
+  slotProbabilities,
 }: {
   matches: ResolvedR32Match[];
   fixtureByMatchId: Map<number, Fixture>;
+  slotProbabilities: Map<KnockoutSlotKey, KnockoutSlotCandidate[]>;
 }) {
   return (
-    <div className="flex flex-col justify-around gap-3 py-4 min-h-[640px]">
+    <div className="flex flex-col justify-around gap-3 py-4 min-h-[720px]">
       {matches.map((m) => (
         <MatchBox
           key={m.matchId}
@@ -101,6 +137,8 @@ function R32Column({
           home={m.home}
           away={m.away}
           fixture={fixtureByMatchId.get(m.matchId) ?? null}
+          slotProbabilities={slotProbabilities}
+          showProbabilities
         />
       ))}
     </div>
@@ -180,11 +218,13 @@ function BracketHalf({
   r32,
   knockout,
   fixtureByMatchId,
+  slotProbabilities,
 }: {
   side: "left" | "right";
   r32: ResolvedR32Match[];
   knockout: ResolvedBracketMatch[];
   fixtureByMatchId: Map<number, Fixture>;
+  slotProbabilities: Map<KnockoutSlotKey, KnockoutSlotCandidate[]>;
 }) {
   const r16 = getKnockoutByRound(knockout, "round_of_16", side);
   const qf = getKnockoutByRound(knockout, "quarterfinal", side);
@@ -197,7 +237,11 @@ function BracketHalf({
         side === "right" && "flex-row-reverse"
       )}
     >
-      <R32Column matches={r32} fixtureByMatchId={fixtureByMatchId} />
+      <R32Column
+        matches={r32}
+        fixtureByMatchId={fixtureByMatchId}
+        slotProbabilities={slotProbabilities}
+      />
       <KnockoutColumn matches={r16} tall fixtureByMatchId={fixtureByMatchId} />
       <KnockoutColumn matches={qf} fixtureByMatchId={fixtureByMatchId} />
       <KnockoutColumn matches={sf} fixtureByMatchId={fixtureByMatchId} />
@@ -206,7 +250,7 @@ function BracketHalf({
 }
 
 export function KnockoutBracketSection() {
-  const { bracket, isLoading, hasData } = useKnockoutBracket();
+  const { bracket, slotProbabilities, isLoading, hasData } = useKnockoutBracket();
 
   if (isLoading) {
     return (
@@ -245,6 +289,7 @@ export function KnockoutBracketSection() {
         <h2 className="text-xl font-semibold">Cuadro eliminatorio</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Proyección según tabla actual · Los 2 primeros de cada grupo + 8 mejores terceros.
+          Los 16avos muestran probabilidades Monte Carlo por slot (1.000 simulaciones).
           {bracket.isProvisional && (
             <span className="block mt-0.5">
               Proyección en vivo: los cruces de terceros usan el ranking actual de mejores terceros
@@ -259,12 +304,13 @@ export function KnockoutBracketSection() {
       <Card className="overflow-hidden">
         <CardContent className="p-4">
           <div className="overflow-x-auto pb-2">
-            <div className="flex items-center gap-4 min-w-[1100px]">
+            <div className="flex items-center gap-4 min-w-[1200px]">
               <BracketHalf
                 side="left"
                 r32={leftR32}
                 knockout={bracket.knockoutMatches}
                 fixtureByMatchId={bracket.fixtureByMatchId}
+                slotProbabilities={slotProbabilities}
               />
 
               <div className="flex flex-col items-center justify-center gap-4 shrink-0 px-2">
@@ -303,6 +349,7 @@ export function KnockoutBracketSection() {
                 r32={rightR32}
                 knockout={bracket.knockoutMatches}
                 fixtureByMatchId={bracket.fixtureByMatchId}
+                slotProbabilities={slotProbabilities}
               />
             </div>
           </div>

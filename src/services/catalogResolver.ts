@@ -25,6 +25,16 @@ async function trySnapshotCatalog<T>(
   return getter();
 }
 
+/** Snapshot de standings sin gate de fase — fallback cuando la API viene vacía. */
+async function loadSnapshotStandingsFallback(): Promise<import("@/types").StandingsGroup[]> {
+  await loadSnapshot();
+  return (await getSnapshotStandings()) ?? [];
+}
+
+function hasStandingsData(value: unknown): value is import("@/types").StandingsGroup[] {
+  return Array.isArray(value) && value.length > 0;
+}
+
 export async function resolveTeamsFromSnapshotOr<T>(
   fallback: () => Promise<T>
 ): Promise<T> {
@@ -47,12 +57,25 @@ export async function resolveFixturesFromSnapshotOr<T>(
 export async function resolveStandingsFromSnapshotOr<T>(
   fallback: () => Promise<T>
 ): Promise<T> {
-  if (shouldUseLiveApiForScores(getClientTournamentPhase()) || isLiveSessionActive()) {
-    return fallback();
+  const preferLive =
+    shouldUseLiveApiForScores(getClientTournamentPhase()) || isLiveSessionActive();
+
+  if (preferLive) {
+    const live = await fallback();
+    if (hasStandingsData(live)) return live;
+    const snap = await loadSnapshotStandingsFallback();
+    if (hasStandingsData(snap)) return snap as T;
+    return live;
   }
+
   const snap = await trySnapshotCatalog(getSnapshotStandings);
-  if (snap?.length) return snap as T;
-  return fallback();
+  if (hasStandingsData(snap)) return snap as T;
+
+  const live = await fallback();
+  if (hasStandingsData(live)) return live;
+
+  const fallbackSnap = await loadSnapshotStandingsFallback();
+  return (hasStandingsData(fallbackSnap) ? fallbackSnap : live) as T;
 }
 
 export async function resolvePlayersFromSnapshotOr(

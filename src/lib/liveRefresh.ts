@@ -230,16 +230,23 @@ export const LIVE_REFRESH_MS = {
   standingsLive: 45 * 1000,
   /** Próximo partido cuando hay juego en curso. */
   nextFixture: 20 * 1000,
-  /** Poll dedicado live=all. */
+  /** Poll dedicado live=all (partido en curso o ventana de kickoff). */
   livePoll: 30 * 1000,
+  /** Poll live=all sin partidos en curso — detecta kickoff y evita spam. */
+  livePollIdle: 90 * 1000,
   /** Goleadores API y eventos en dashboard. */
   topScorers: 5 * 60 * 1000,
   /** Goleadores/asistidores con partido en curso. */
   topScorersLive: 60 * 1000,
 } as const;
 
-export function getLiveRefreshInterval(): number {
-  return LIVE_REFRESH_MS.livePoll;
+export function getLivePollInterval(aggressive: boolean): number {
+  return aggressive ? LIVE_REFRESH_MS.livePoll : LIVE_REFRESH_MS.livePollIdle;
+}
+
+/** @param aggressive true = partido en vivo o ventana de kickoff */
+export function getLiveRefreshInterval(aggressive = true): number {
+  return getLivePollInterval(aggressive);
 }
 
 export const NORMAL_STALE_MS = 4 * 60 * 60 * 1000;

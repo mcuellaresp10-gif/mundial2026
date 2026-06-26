@@ -216,7 +216,7 @@ function resolveThirdSlot(
   };
 }
 
-function resolveR32Match(
+export function resolveR32Match(
   def: RoundOf32Definition,
   byGroup: Map<GroupLetter, { states: TeamGroupState[]; rows: StandingTeam[] }>,
   annexMap: Record<string, string> | null,

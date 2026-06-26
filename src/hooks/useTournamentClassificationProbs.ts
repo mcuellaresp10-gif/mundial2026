@@ -81,5 +81,6 @@ export function useTournamentClassificationProbs() {
     probMap,
     isLoading,
     groups,
+    h2hMap,
   };
 }

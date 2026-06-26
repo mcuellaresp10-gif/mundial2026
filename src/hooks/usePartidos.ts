@@ -20,7 +20,7 @@ import {
   LIVE_REFRESH_MS,
   NORMAL_STALE_MS,
   shouldPollFixtures,
-  getLiveRefreshInterval,
+  getLivePollInterval,
 } from "@/lib/liveRefresh";
 import type { PhaseFilter } from "@/types";
 import { formatRoundLabel } from "@/utils/formatters";
@@ -30,21 +30,17 @@ import { isWorldCupLive } from "@/services/tournamentPhase";
 import { mergeFixtureLists } from "@/utils/fixtureMerge";
 import type { Fixture } from "@/types";
 
-const LIVE_FULL_LIST_REFRESH_MS = 60 * 1000;
-
-function fixturesPollInterval(): number | false {
-  if (isLiveSessionActive()) return getLiveRefreshInterval();
-  return LIVE_REFRESH_MS.fixtures;
+function fixturesPollInterval(fixtures?: Fixture[]): number | false {
+  const aggressive = shouldPollFixtures(fixtures);
+  if (isLiveSessionActive()) return getLivePollInterval(aggressive);
+  if (aggressive) return LIVE_REFRESH_MS.fixtures;
+  return false;
 }
 
 function shouldFastRefreshFixtures(
   fixtures: import("@/types").Fixture[] | undefined
 ): boolean {
-  return (
-    isLiveSessionActive() ||
-    shouldPollFixtures(fixtures) ||
-    getClientTournamentPhase() === "live"
-  );
+  return isLiveSessionActive() || shouldPollFixtures(fixtures);
 }
 
 export function useTeams(season = DEFAULT_SEASON) {
@@ -73,14 +69,16 @@ export function useFixtures(params?: {
       return existing?.length ? mergeFixtureLists(existing, fresh) : fresh;
     },
     refetchOnMount:
-      !isSingle &&
-      (isLiveSessionActive() || getClientTournamentPhase() === "live")
+      !isSingle && isLiveSessionActive()
         ? "always"
         : undefined,
     staleTime: (query) => {
       const fixtures = query.state.data;
       if (isSingle || shouldFastRefreshFixtures(fixtures)) {
-        return isLiveSessionActive() ? getLiveRefreshInterval() : LIVE_REFRESH_MS.fixtures;
+        const aggressive = shouldPollFixtures(fixtures);
+        return isLiveSessionActive()
+          ? getLivePollInterval(aggressive)
+          : LIVE_REFRESH_MS.fixtures;
       }
       return NORMAL_STALE_MS;
     },
@@ -88,18 +86,16 @@ export function useFixtures(params?: {
       const fixtures = query.state.data;
       if (isSingle) {
         if (shouldFastRefreshFixtures(fixtures)) {
-          return fixturesPollInterval();
+          return fixturesPollInterval(fixtures);
         }
         return false;
       }
       const isBaseList = !params?.team && !params?.status && params?.id == null;
-      if (isLiveSessionActive() && isBaseList) {
-        return LIVE_FULL_LIST_REFRESH_MS;
-      }
-      // useLiveScoreSync fusiona live=all en la lista; evita polling duplicado.
+      // useLiveScoreSync refresca la lista base durante sesión en vivo.
+      if (isLiveSessionActive() && isBaseList) return false;
       if (isLiveSessionActive()) return false;
       if (shouldFastRefreshFixtures(fixtures)) {
-        return fixturesPollInterval();
+        return fixturesPollInterval(fixtures);
       }
       return false;
     },
@@ -112,18 +108,29 @@ export function useFixture(fixtureId: number) {
     queryKey: ["fixtures", { id: fixtureId }],
     queryFn: () => getFixtures({ id: fixtureId }),
     enabled: fixtureId > 0,
-    staleTime: isLiveSessionActive() ? getLiveRefreshInterval() : LIVE_REFRESH_MS.fixtures,
+    staleTime: (query) => {
+      const fixture = query.state.data?.[0];
+      const aggressive =
+        !!fixture &&
+        (isFixtureLive(fixture.fixture.status.short) ||
+          isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short));
+      return isLiveSessionActive()
+        ? getLivePollInterval(aggressive)
+        : LIVE_REFRESH_MS.fixtures;
+    },
     refetchInterval: (query) => {
       const fixture = query.state.data?.[0];
       if (!fixture) return fixturesPollInterval() || LIVE_REFRESH_MS.fixtures;
       if (
         isFixtureLive(fixture.fixture.status.short) ||
         isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short) ||
-        isLiveSessionActive() ||
-        getClientTournamentPhase() === "live"
+        isLiveSessionActive()
       ) {
+        const aggressive =
+          isFixtureLive(fixture.fixture.status.short) ||
+          isWithinKickoffWindow(fixture.fixture.date, fixture.fixture.status.short);
         return isLiveSessionActive()
-          ? LIVE_REFRESH_MS.fixtureDetail
+          ? getLivePollInterval(aggressive)
           : LIVE_REFRESH_MS.fixtures;
       }
       return false;
@@ -149,9 +156,6 @@ export function useNextFixture() {
       ) {
         return LIVE_REFRESH_MS.nextFixture;
       }
-      if (getClientTournamentPhase() === "live") {
-        return LIVE_REFRESH_MS.nextFixture;
-      }
       return false;
     },
   });
@@ -162,13 +166,13 @@ export function useStandings(season = DEFAULT_SEASON) {
     queryKey: ["standings", season],
     queryFn: () => getStandings(season),
     staleTime: LIVE_REFRESH_MS.standingsLive,
+    refetchOnMount: (query) => (query.state.data?.length ?? 0) === 0,
     refetchOnWindowFocus: () =>
       isLiveSessionActive() || getClientTournamentPhase() === "live",
     refetchInterval: (query) => {
       const standings = query.state.data ?? [];
       if (isLiveSessionActive()) return LIVE_REFRESH_MS.standingsLive;
       if (isWorldCupLive(standings)) return LIVE_REFRESH_MS.standings;
-      if (getClientTournamentPhase() === "live") return LIVE_REFRESH_MS.standingsLive;
       return false;
     },
   });

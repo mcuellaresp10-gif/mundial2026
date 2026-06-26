@@ -5,8 +5,10 @@ const CACHE_TTL = 4 * 60 * 60 * 1000;
 const LIVE_CACHE_TTL = 60 * 1000;
 const LIVE_DETAIL_CACHE_TTL = 25 * 1000;
 const LIVE_STANDINGS_CACHE_TTL = 2 * 60 * 1000;
+const EMPTY_LIVE_CACHE_TTL = 90 * 1000;
 
 const LIVE_SESSION_LIVE_TTL = 40 * 1000;
+const LIVE_SESSION_EMPTY_LIVE_TTL = 90 * 1000;
 const LIVE_SESSION_FIXTURE_TTL = 30 * 1000;
 const LIVE_SESSION_LEAGUE_TTL = 5 * 60 * 1000;
 const LIVE_SESSION_DETAIL_TTL = 25 * 1000;
@@ -54,7 +56,13 @@ function getCacheTtl(path: string, search: string, liveSession: boolean): number
   return CACHE_TTL;
 }
 
-const cache = new Map<string, { data: unknown; timestamp: number }>();
+interface CacheEntry {
+  data: unknown;
+  timestamp: number;
+  emptyLive?: boolean;
+}
+
+const cache = new Map<string, CacheEntry>();
 let dailyRequestCount = 0;
 let dailyResetDate = new Date().toDateString();
 
@@ -66,15 +74,20 @@ function getCacheKey(path: string, search: string): string {
   return `${path}?${search}`;
 }
 
-function getFromCache(key: string, ttl: number): { data: unknown; stale: boolean } | null {
+function getFromCache(
+  key: string,
+  ttl: number,
+  emptyLiveTtl?: number
+): { data: unknown; stale: boolean } | null {
   const entry = cache.get(key);
   if (!entry) return null;
-  const stale = Date.now() - entry.timestamp > ttl;
+  const effectiveTtl = entry.emptyLive && emptyLiveTtl != null ? emptyLiveTtl : ttl;
+  const stale = Date.now() - entry.timestamp > effectiveTtl;
   return { data: entry.data, stale };
 }
 
-function setCache(key: string, data: unknown): void {
-  cache.set(key, { data, timestamp: Date.now() });
+function setCache(key: string, data: unknown, emptyLive = false): void {
+  cache.set(key, { data, timestamp: Date.now(), emptyLive });
 }
 
 function trackRequest(): void {
@@ -126,7 +139,12 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
   const cacheKey = getCacheKey(path, search);
   const liveSession = isLiveSessionRequest(request);
   const cacheTtl = getCacheTtl(path, search, liveSession);
-  const cached = getFromCache(cacheKey, cacheTtl);
+  const emptyLiveTtl = search.includes("live=all")
+    ? liveSession
+      ? LIVE_SESSION_EMPTY_LIVE_TTL
+      : EMPTY_LIVE_CACHE_TTL
+    : undefined;
+  const cached = getFromCache(cacheKey, cacheTtl, emptyLiveTtl);
 
   if (cached && !cached.stale) {
     return NextResponse.json(cached.data, {
@@ -170,9 +188,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
       search.includes("live=all") &&
       Array.isArray((data as { response?: unknown[] }).response) &&
       ((data as { response: unknown[] }).response?.length ?? 0) === 0;
-    if (!isEmptyLive) {
-      setCache(cacheKey, data);
-    }
+    setCache(cacheKey, data, isEmptyLive);
 
     return NextResponse.json(data, {
       headers: {

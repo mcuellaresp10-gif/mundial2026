@@ -27,7 +27,6 @@ import {
 import { DEFAULT_SEASON, LEAGUE_ID, PLAYER_STAT_SEASONS } from "@/lib/utils";
 import {
   isFixtureLive,
-  isFixtureStarted,
   isPlausibleLiveFixture,
   isWithinKickoffWindow,
   pickFeaturedFixture,
@@ -41,7 +40,11 @@ import {
   applyFixtureHistory,
   upsertFixtureHistory,
 } from "@/services/fixtureHistory";
-import { getSnapshotCatalogFixtures } from "@/services/snapshotStore";
+import {
+  getSnapshotCatalogFixtures,
+  getSnapshotStandings,
+  loadSnapshot,
+} from "@/services/snapshotStore";
 
 const client = axios.create({ baseURL: "/api/football" });
 const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
@@ -87,7 +90,14 @@ async function fetchApi<T>(
       }
       return [] as T;
     }
-    if (!bypassCache) setLocalCache(key, data.response);
+    if (!bypassCache) {
+      const response = data.response;
+      const isEmptyStandings =
+        path === "standings" &&
+        Array.isArray(response) &&
+        response.length === 0;
+      if (!isEmptyStandings) setLocalCache(key, response);
+    }
     return data.response;
   } catch (error) {
     const stale = getStaleLocalCache<T>(key);
@@ -98,9 +108,7 @@ async function fetchApi<T>(
 
 const LIVE_FIXTURE_CACHE_MS = 30 * 1000;
 const LIVE_SESSION_LIST_CACHE_MS = 30 * 1000;
-const EMPTY_LIVE_CACHE_MS = 10 * 1000;
-
-let tournamentStartedFlag: boolean | null = null;
+const EMPTY_LIVE_CACHE_MS = 90 * 1000;
 
 function fixtureNeedsFreshScore(fixture: Fixture): boolean {
   return (
@@ -114,14 +122,13 @@ function fixtureNeedsFreshScore(fixture: Fixture): boolean {
 async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
   const params = { live: "all" };
   const key = cacheKey("fixtures", { ...params, scope: "worldcup-live" });
-  const bypassCache = isLiveSessionActive();
+  const sessionActive = isLiveSessionActive();
 
-  if (!bypassCache) {
-    const cached = getLocalCache<Fixture[]>(key);
-    if (cached && cached.length > 0) {
-      const filtered = cached.filter((f) => isPlausibleLiveFixture(f));
-      if (filtered.length > 0) return filtered;
-    }
+  const cached = getLocalCache<Fixture[]>(key);
+  if (cached) {
+    if (cached.length === 0) return cached;
+    const filtered = cached.filter((f) => isPlausibleLiveFixture(f));
+    if (filtered.length > 0 && !sessionActive) return filtered;
   }
 
   try {
@@ -132,13 +139,11 @@ async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
     const list = (data.response ?? [])
       .filter((f) => f.league.id === LEAGUE_ID)
       .filter((f) => isPlausibleLiveFixture(f));
-    if (!bypassCache) {
-      setLocalCache(key, list, list.length > 0 ? LIVE_FIXTURE_CACHE_MS : EMPTY_LIVE_CACHE_MS);
-    }
+    setLocalCache(key, list, list.length > 0 ? LIVE_FIXTURE_CACHE_MS : EMPTY_LIVE_CACHE_MS);
     return list;
   } catch {
-    if (!bypassCache) removeLocalCache(key);
-    return [];
+    if (!sessionActive) removeLocalCache(key);
+    return getStaleLocalCache<Fixture[]>(key) ?? [];
   }
 }
 
@@ -233,7 +238,7 @@ async function fetchFinishedFixturesPaginated(
   forceRefresh = false
 ): Promise<Fixture[]> {
   const key = cacheKey("fixtures-wc-ft", { league: LEAGUE_ID, season });
-  const bypassCache = forceRefresh || isLiveSessionActive() || tournamentStartedFlag === true;
+  const bypassCache = forceRefresh || isLiveSessionActive();
   if (!bypassCache) {
     const cached = getLocalCache<Fixture[]>(key);
     if (cached?.length) return cached;
@@ -263,7 +268,7 @@ async function fetchAllWorldCupFixturesFromApi(
   forceRefresh = false
 ): Promise<Fixture[]> {
   const key = cacheKey("fixtures-wc-all", { league: LEAGUE_ID, season });
-  const bypassCache = forceRefresh || isLiveSessionActive() || tournamentStartedFlag === true;
+  const bypassCache = forceRefresh || isLiveSessionActive();
   const cached = bypassCache ? null : getLocalCache<Fixture[]>(key);
   const kickoffSoon = cached?.some((f) => fixtureNeedsFreshScore(f)) ?? false;
   if (cached && !kickoffSoon) return cached;
@@ -336,34 +341,18 @@ async function fetchStandingsFromApi(
   }
 }
 
-async function isWorldCupSessionActive(): Promise<boolean> {
-  if (isLiveSessionActive() || tournamentStartedFlag) return true;
-
-  const live = await fetchLiveWorldCupFixtures();
-  if (live.length > 0) {
-    tournamentStartedFlag = true;
-    return true;
-  }
-
-  const all = await fetchAllWorldCupFixturesFromApi();
-  const started = all.some((f) => isFixtureStarted(f.fixture.status.short));
-  if (started) tournamentStartedFlag = true;
-  return started;
-}
-
 let loadWorldCupFixturesInFlight: Promise<Fixture[]> | null = null;
 
 async function loadWorldCupFixturesImpl(season = DEFAULT_SEASON): Promise<Fixture[]> {
-  const live = await fetchLiveWorldCupFixtures();
+  const inLiveMode = isLiveSessionActive();
+  const live = inLiveMode ? await fetchLiveWorldCupFixtures() : [];
   const liveIds = new Set(live.map((f) => f.fixture.id));
-  const sessionActive = await isWorldCupSessionActive();
-  const inLiveMode = sessionActive || isLiveSessionActive();
 
   const catalog = await getSnapshotCatalogFixtures();
   let list: Fixture[] = catalog.length > 0 ? [...catalog] : [];
 
   if (inLiveMode) {
-    const fromApi = await fetchAllWorldCupFixturesFromApi(season, sessionActive);
+    const fromApi = await fetchAllWorldCupFixturesFromApi(season, true);
     list = mergeFixtureLists(list, fromApi);
   } else {
     const snap = await resolveFixturesFromSnapshotOr(() =>
@@ -373,7 +362,7 @@ async function loadWorldCupFixturesImpl(season = DEFAULT_SEASON): Promise<Fixtur
   }
 
   // Siempre traer FT: el snapshot/catálogo trae NS y sin esto J1 desaparece en la 1ª carga.
-  let finished = await fetchFinishedFixturesPaginated(season, sessionActive);
+  let finished = await fetchFinishedFixturesPaginated(season, inLiveMode);
   list = mergeFixtureLists(list, finished);
   if (finished.length > 0) await upsertFixtureHistory(finished);
 
@@ -392,13 +381,6 @@ async function loadWorldCupFixturesImpl(season = DEFAULT_SEASON): Promise<Fixtur
     if (isFixtureListIncomplete(list)) {
       console.warn(`[fixtures] Lista incompleta tras ensamblaje: ${list.length} partidos`);
     }
-  }
-
-  if (
-    live.length > 0 ||
-    list.some((f) => isFixtureStarted(f.fixture.status.short))
-  ) {
-    tournamentStartedFlag = true;
   }
 
   return list;
@@ -462,8 +444,11 @@ export async function getNextFixture(): Promise<Fixture | null> {
 }
 
 export async function getStandings(season: number = DEFAULT_SEASON): Promise<StandingsGroup[]> {
-  if (isLiveSessionActive() || (await isWorldCupSessionActive())) {
-    return fetchStandingsFromApi(season);
+  if (isLiveSessionActive()) {
+    const live = await fetchStandingsFromApi(season);
+    if (live.length > 0) return live;
+    await loadSnapshot();
+    return (await getSnapshotStandings()) ?? [];
   }
   return resolveStandingsFromSnapshotOr(async () =>
     fetchApi<StandingsGroup[]>("standings", { league: LEAGUE_ID, season })

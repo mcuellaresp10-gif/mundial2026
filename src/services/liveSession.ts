@@ -1,10 +1,8 @@
 import type { Fixture, StandingsGroup } from "@/types";
 import {
-  hasAnyStartedFixture,
   isPlausibleLiveFixture,
   shouldPollFixtures,
 } from "@/lib/liveRefresh";
-import { isWorldCupLive } from "@/services/tournamentPhase";
 
 const SESSION_KEY = "mundial2026_live_session";
 const CACHE_CLEARED_KEY = "mundial2026_live_cache_cleared";
@@ -73,34 +71,47 @@ export interface LiveSessionSignals {
   liveWorldCupCount?: number;
 }
 
-export function shouldActivateLiveSession(signals: LiveSessionSignals): boolean {
-  if (isLiveSessionActive()) return true;
-  const { fixtures = [], standings = [], liveWorldCupCount = 0 } = signals;
+/** Solo mantener sesión en vivo cuando hay partidos en curso o ventana de kickoff. */
+export function shouldKeepLiveSession(signals: LiveSessionSignals): boolean {
+  const { fixtures = [], liveWorldCupCount = 0 } = signals;
   if (liveWorldCupCount > 0) return true;
   if (shouldPollFixtures(fixtures)) return true;
-  if (hasAnyStartedFixture(fixtures)) return true;
-  if (isWorldCupLive(standings)) return true;
   if (fixtures.some((f) => isPlausibleLiveFixture(f))) return true;
   return false;
 }
 
-/** Activa modo Mundial en vivo (persiste en sessionStorage hasta cerrar pestaña). */
+/** @deprecated Usar shouldKeepLiveSession */
+export function shouldActivateLiveSession(signals: LiveSessionSignals): boolean {
+  return shouldKeepLiveSession(signals);
+}
+
+/** Activa modo Mundial en vivo (persiste en sessionStorage hasta desactivar o cerrar pestaña). */
 export function activateLiveSession(signals?: LiveSessionSignals): void {
-  if (signals && !shouldActivateLiveSession(signals) && !isLiveSessionActive()) return;
+  if (signals && !shouldKeepLiveSession(signals)) return;
   if (isLiveSessionActive()) return;
   writeSessionFlag(true);
   clearLiveFixtureLocalCache();
 }
 
+export function deactivateLiveSession(): void {
+  if (!isLiveSessionActive()) return;
+  writeSessionFlag(false);
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(CACHE_CLEARED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Sincroniza estado de sesión en vivo según datos actuales. */
 export function syncLiveSession(signals: LiveSessionSignals): boolean {
-  if (shouldActivateLiveSession(signals)) {
+  if (shouldKeepLiveSession(signals)) {
     activateLiveSession(signals);
     return true;
   }
   if (isLiveSessionActive()) {
-    clearLiveFixtureLocalCache();
-    return true;
+    deactivateLiveSession();
   }
   return false;
 }

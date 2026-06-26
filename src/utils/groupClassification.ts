@@ -565,6 +565,124 @@ function countsToOutcomes(
   return { probFirst, probSecond, probBestThird, probClassify };
 }
 
+interface PreparedGroupSim {
+  group: TournamentGroupInput;
+  baseStates: TeamGroupState[];
+  pending: Fixture[];
+  lambdasMap: Map<number, FixtureLambdas>;
+  completedMatches: GroupMatchResult[];
+  teamIds: Set<number>;
+}
+
+function prepareGroupMonteCarlo(
+  groups: TournamentGroupInput[],
+  h2hMap: H2HMap,
+  simulations: number
+) {
+  const groupPrepared: PreparedGroupSim[] = groups.map((group) => {
+    const baseStates = group.groupStandings.map((s) =>
+      standingToState(s, group.isPreTournament)
+    );
+    const teamIds = getGroupTeamIds(group.groupStandings);
+    const completedMatches = collectGroupMatchResults(
+      group.completedGroupFixtures,
+      teamIds
+    );
+    const pending = getFixturesForSimulation(group);
+    const baseTotalGoals = avgGoalsFromFixtures(group.completedGroupFixtures);
+    const lambdasMap = buildLambdasMap(
+      pending,
+      baseStates,
+      h2hMap,
+      group.isPreTournament,
+      baseTotalGoals
+    );
+    return {
+      group,
+      baseStates,
+      pending,
+      lambdasMap,
+      completedMatches,
+      teamIds,
+    };
+  });
+
+  const hasSimWork = groupPrepared.some((g) => g.pending.length > 0);
+  return { groupPrepared, runs: hasSimWork ? simulations : 0 };
+}
+
+export interface GroupStageMonteCarloRun {
+  rankedRowsByLetter: Map<string, StandingTeam[]>;
+  bestThirdIds: Set<number>;
+}
+
+function executeGroupStageMonteCarloRun(
+  groupPrepared: PreparedGroupSim[],
+  fairPlayByTeam: Map<number, FairPlayRecord>
+): GroupStageMonteCarloRun {
+  const groupFinalStates: TeamGroupState[][] = [];
+  const matchesByGroup: GroupMatchResult[][] = [];
+  const rankedRowsByLetter = new Map<string, StandingTeam[]>();
+
+  for (const prepared of groupPrepared) {
+    let finalStates = prepared.baseStates;
+    let allMatches = [...prepared.completedMatches];
+
+    if (prepared.pending.length > 0) {
+      const simulated = simulateFixtures(
+        prepared.baseStates,
+        prepared.pending,
+        prepared.lambdasMap
+      );
+      finalStates = simulated.states;
+      allMatches = [...prepared.completedMatches, ...simulated.simulatedMatches];
+    }
+
+    groupFinalStates.push(finalStates);
+    matchesByGroup.push(allMatches);
+
+    const letter = normalizeGroupLabel(prepared.group.groupLabel);
+    const ranked = rankGroupTeams(finalStates, allMatches, fairPlayByTeam, Math.random);
+    const rowsById = new Map(prepared.group.groupStandings.map((s) => [s.team.id, s]));
+    rankedRowsByLetter.set(
+      letter,
+      ranked.map((state, index) => {
+        const row = rowsById.get(state.teamId)!;
+        return { ...row, rank: index + 1 };
+      })
+    );
+  }
+
+  const bestThirdIds = pickBestThirdQualifiers(
+    groupFinalStates,
+    matchesByGroup,
+    fairPlayByTeam
+  );
+
+  return { rankedRowsByLetter, bestThirdIds };
+}
+
+/** Ejecuta simulaciones Monte Carlo de fase de grupos (para cuadro, etc.). */
+export function forEachGroupStageMonteCarloRun(
+  groups: TournamentGroupInput[],
+  h2hMap: H2HMap,
+  fairPlayByTeam: Map<number, FairPlayRecord> = new Map(),
+  simulations = DEFAULT_SIMULATIONS,
+  onRun: (run: GroupStageMonteCarloRun) => void
+): number {
+  if (groups.length === 0) return 0;
+  const { groupPrepared, runs: preparedRuns } = prepareGroupMonteCarlo(
+    groups,
+    h2hMap,
+    simulations
+  );
+  const runs = preparedRuns > 0 ? simulations : 0;
+  for (let i = 0; i < runs; i++) {
+    onRun(executeGroupStageMonteCarloRun(groupPrepared, fairPlayByTeam));
+  }
+  return runs;
+}
+
 function outcomesToSimResult(
   outcomes: TeamOutcomeProbs,
   options: {
@@ -601,80 +719,22 @@ export function simulateTournamentOutcomeProbabilities(
   const counts = initOutcomeCounts(allTeamIds);
   const isPreTournament = groups.every((g) => g.isPreTournament);
 
-  const groupPrepared = groups.map((group) => {
-    const baseStates = group.groupStandings.map((s) =>
-      standingToState(s, group.isPreTournament)
-    );
-    const teamIds = getGroupTeamIds(group.groupStandings);
-    const completedMatches = collectGroupMatchResults(
-      group.completedGroupFixtures,
-      teamIds
-    );
-    const pending = getFixturesForSimulation(group);
-    const baseTotalGoals = avgGoalsFromFixtures(group.completedGroupFixtures);
-    const lambdasMap = buildLambdasMap(
-      pending,
-      baseStates,
-      h2hMap,
-      group.isPreTournament,
-      baseTotalGoals
-    );
-    return {
-      group,
-      baseStates,
-      pending,
-      lambdasMap,
-      completedMatches,
-      teamIds,
-    };
-  });
-
-  const hasSimWork = groupPrepared.some((g) => g.pending.length > 0);
-  const runs = hasSimWork ? simulations : 0;
+  const { groupPrepared, runs } = prepareGroupMonteCarlo(groups, h2hMap, simulations);
 
   for (let i = 0; i < runs; i++) {
-    const groupFinalStates: TeamGroupState[][] = [];
-    const matchesByGroup: GroupMatchResult[][] = [];
+    const iteration = executeGroupStageMonteCarloRun(groupPrepared, fairPlayByTeam);
 
-    for (const prepared of groupPrepared) {
-      let finalStates = prepared.baseStates;
-      let allMatches = [...prepared.completedMatches];
-
-      if (prepared.pending.length > 0) {
-        const simulated = simulateFixtures(
-          prepared.baseStates,
-          prepared.pending,
-          prepared.lambdasMap
-        );
-        finalStates = simulated.states;
-        allMatches = [...prepared.completedMatches, ...simulated.simulatedMatches];
-      }
-
-      groupFinalStates.push(finalStates);
-      matchesByGroup.push(allMatches);
-
-      for (const state of finalStates) {
-        const rank = getGroupRankWithMatches(
-          finalStates,
-          state.teamId,
-          allMatches,
-          fairPlayByTeam,
-          Math.random
-        );
-        if (rank === 1) {
-          counts.first.set(state.teamId, (counts.first.get(state.teamId) ?? 0) + 1);
-        } else if (rank === 2) {
-          counts.second.set(state.teamId, (counts.second.get(state.teamId) ?? 0) + 1);
+    for (const rows of iteration.rankedRowsByLetter.values()) {
+      for (const row of rows) {
+        if (row.rank === 1) {
+          counts.first.set(row.team.id, (counts.first.get(row.team.id) ?? 0) + 1);
+        } else if (row.rank === 2) {
+          counts.second.set(row.team.id, (counts.second.get(row.team.id) ?? 0) + 1);
         }
       }
     }
 
-    const bestThirds = pickBestThirdQualifiers(
-      groupFinalStates,
-      matchesByGroup,
-      fairPlayByTeam
-    );
-    for (const teamId of bestThirds) {
+    for (const teamId of iteration.bestThirdIds) {
       counts.bestThird.set(teamId, (counts.bestThird.get(teamId) ?? 0) + 1);
     }
   }

@@ -44,13 +44,4 @@ export function ChartCard({
   );
 }
 
-export const CHART_COLORS = {
-  gold: "#FCD116",
-  blue: "#003DA5",
-  red: "#CE1126",
-  green: "#008751",
-  orange: "#FF6B00",
-  teal: "#00A1DE",
-};
-
-export const PIE_COLORS = ["#FCD116", "#003DA5", "#CE1126", "#008751", "#FF6B00", "#00A1DE", "#9333ea"];
+export { CHART_COLORS, PIE_COLORS, CHART_GOLD } from "./chartTheme";

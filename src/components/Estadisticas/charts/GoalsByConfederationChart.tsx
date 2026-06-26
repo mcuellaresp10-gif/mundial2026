@@ -1,17 +1,24 @@
 "use client";
 
 import {
-  BarChart,
   Bar,
+  BarChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 import { ChartCard } from "./ChartCard";
-import { CONFEDERATION_COLORS, type Confederation } from "@/utils/confederations";
+import {
+  CHART_HEIGHT,
+  CHART_HEIGHT_MD,
+  chartBarSeriesProps,
+  chartGridProps,
+  chartTooltipProps,
+  chartXAxisProps,
+  chartYAxisProps,
+} from "./chartTheme";
 import type { ChartDatum } from "@/utils/tournamentAnalytics";
 
 interface GoalsByConfederationChartProps {
@@ -25,20 +32,13 @@ export function GoalsByConfederationChart({ data }: GoalsByConfederationChartPro
       description="Total de goles anotados por selecciones de cada confederación"
       empty={data.length === 0}
     >
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={data} layout="vertical" margin={{ left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-          <YAxis type="category" dataKey="label" width={120} tick={{ fontSize: 10 }} />
-          <Tooltip />
-          <Bar dataKey="value" name="Goles" radius={[0, 4, 4, 0]}>
-            {data.map((entry, i) => (
-              <Cell
-                key={i}
-                fill={CONFEDERATION_COLORS[(entry.confed as Confederation) ?? "UEFA"]}
-              />
-            ))}
-          </Bar>
+          <CartesianGrid {...chartGridProps} />
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <YAxis type="category" dataKey="label" width={120} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+          <Tooltip {...chartTooltipProps} />
+          <Bar dataKey="value" name="Goles" {...chartBarSeriesProps} radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -56,20 +56,20 @@ export function ConfederacionEfficiencyChart({ data }: ConfederacionEfficiencyCh
       description="Promedio de goles anotados por partido jugado (por confederación)"
       empty={data.length === 0}
     >
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT_MD}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-          <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={0} angle={-20} textAnchor="end" height={60} />
-          <YAxis tick={{ fontSize: 11 }} />
-          <Tooltip formatter={(v) => [`${v} goles/partido`, "Promedio"]} />
-          <Bar dataKey="value" name="Promedio" radius={[4, 4, 0, 0]}>
-            {data.map((entry, i) => (
-              <Cell
-                key={i}
-                fill={CONFEDERATION_COLORS[(entry.confed as Confederation) ?? "UEFA"]}
-              />
-            ))}
-          </Bar>
+          <CartesianGrid {...chartGridProps} />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+            interval={0}
+            angle={-20}
+            textAnchor="end"
+            height={60}
+          />
+          <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <Tooltip {...chartTooltipProps} formatter={(v) => [`${v} goles/partido`, "Promedio"]} />
+          <Bar dataKey="value" name="Promedio" {...chartBarSeriesProps} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -88,20 +88,13 @@ export function PointsByConfederationChart({ data }: PointsByConfederationChartP
       empty={data.length === 0}
       emptyMessage="Disponible cuando hay tablas de posiciones"
     >
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={data} layout="vertical" margin={{ left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-          <YAxis type="category" dataKey="label" width={120} tick={{ fontSize: 10 }} />
-          <Tooltip formatter={(v) => [v, "Puntos"]} />
-          <Bar dataKey="value" name="Puntos" radius={[0, 4, 4, 0]}>
-            {data.map((entry, i) => (
-              <Cell
-                key={i}
-                fill={CONFEDERATION_COLORS[(entry.confed as Confederation) ?? "UEFA"]}
-              />
-            ))}
-          </Bar>
+          <CartesianGrid {...chartGridProps} />
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <YAxis type="category" dataKey="label" width={120} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+          <Tooltip {...chartTooltipProps} formatter={(v) => [v, "Puntos"]} />
+          <Bar dataKey="value" name="Puntos" {...chartBarSeriesProps} radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -120,25 +113,26 @@ export function ConfederationPointsEfficiencyChart({ data }: ConfederationPoints
       empty={data.length === 0}
       emptyMessage="Disponible cuando hay partidos jugados en fase de grupos"
     >
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-          <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={0} angle={-20} textAnchor="end" height={60} />
-          <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
+          <CartesianGrid {...chartGridProps} />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+            interval={0}
+            angle={-20}
+            textAnchor="end"
+            height={60}
+          />
+          <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} unit="%" />
           <Tooltip
+            {...chartTooltipProps}
             formatter={(v, _n, item) => {
               const payload = item.payload as ChartDatum;
               return [`${v}% (${payload.points} de ${payload.maxPoints} pts posibles)`, "Eficiencia"];
             }}
           />
-          <Bar dataKey="value" name="Eficiencia" radius={[4, 4, 0, 0]}>
-            {data.map((entry, i) => (
-              <Cell
-                key={i}
-                fill={CONFEDERATION_COLORS[(entry.confed as Confederation) ?? "UEFA"]}
-              />
-            ))}
-          </Bar>
+          <Bar dataKey="value" name="Eficiencia" {...chartBarSeriesProps} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

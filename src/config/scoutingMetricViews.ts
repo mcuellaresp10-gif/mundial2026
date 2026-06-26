@@ -40,7 +40,7 @@ const SHARED_VIEWS: ScoutingMetricView[] = [
     id: "dribbles",
     label: "Regates",
     description:
-      "Regates completados vs intentados por 90 min. El color indica el % de éxito. Acumulado del torneo.",
+      "Regates completados vs intentados por 90 min. Acumulado del torneo.",
     scatter: {
       x: { key: "dribblesSuccess90", label: "Regates completados/90" },
       y: { key: "dribblesAttempts90", label: "Regates intentados/90" },
@@ -53,7 +53,7 @@ const SHARED_VIEWS: ScoutingMetricView[] = [
     id: "passing",
     label: "Pases",
     description:
-      "Pases clave vs volumen total de pases por 90 min. El color muestra la precisión de pase del torneo.",
+      "Pases clave vs volumen total de pases por 90 min.",
     scatter: {
       x: { key: "keyPasses90", label: "Pases clave/90" },
       y: { key: "passes90", label: "Pases totales/90" },
@@ -65,7 +65,7 @@ const SHARED_VIEWS: ScoutingMetricView[] = [
     id: "shooting",
     label: "Disparos",
     description:
-      "Remates totales vs tiros a puerta por 90 min. El color refleja goles/90 (eficacia final).",
+      "Remates totales vs tiros a puerta por 90 min.",
     scatter: {
       x: { key: "shots90", label: "Remates/90" },
       y: { key: "shotsOn90", label: "Tiros a puerta/90" },

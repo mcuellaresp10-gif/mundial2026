@@ -15,7 +15,6 @@ import {
   ChartExportButton,
   ScoutingRadarWC,
   ScoutingScatter,
-  ScoutingScatterLegend,
   ScoutingPer90Table,
   ScoutingMetricViewPicker,
 } from "@/components/Jugadores/Scouting";
@@ -141,7 +140,6 @@ export function ComparativaJugadores() {
                   metricView={metricView}
                   highlightIds={highlightIds}
                 />
-                <ScoutingScatterLegend position={posFilter} metricView={metricView} />
               </div>
             </div>
             <ScoutingPer90Table profile={profileA} compareProfile={profileB} />

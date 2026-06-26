@@ -5,7 +5,6 @@ export { WorldCupScoutingTab } from "./WorldCupScoutingTab";
 export { ScoutingRadarWC, peerAverageRadarFromPool, syntheticPeerProfile } from "./ScoutingRadarWC";
 export {
   ScoutingScatter,
-  ScoutingScatterLegend,
   ScoutingSelectedCard,
 } from "./ScoutingScatter";
 export {

@@ -19,7 +19,6 @@ import {
   peerAverageRadarFromPool,
   syntheticPeerProfile,
   ScoutingScatter,
-  ScoutingScatterLegend,
   ScoutingSelectedCard,
   ScoutingMetricViewPicker,
 } from "@/components/Jugadores/Scouting";
@@ -142,7 +141,6 @@ export function ScoutingExplorer() {
                   selectedId={selectedProfile?.playerId}
                   onSelect={setSelectedId}
                 />
-                <ScoutingScatterLegend position={position} metricView={metricView} />
               </CardContent>
             </Card>
           </div>

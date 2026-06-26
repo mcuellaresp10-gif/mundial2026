@@ -15,7 +15,6 @@ import {
   peerAverageRadarFromPool,
   syntheticPeerProfile,
   ScoutingScatter,
-  ScoutingScatterLegend,
   ScoutingPer90Table,
   ScoutingPercentileBar,
   ScoutingSummaryHeader,
@@ -127,7 +126,6 @@ export function WorldCupScoutingTab({ player }: WorldCupScoutingTabProps) {
               metricView={metricView}
               highlightIds={[profile.playerId]}
             />
-            <ScoutingScatterLegend position={profile.position} metricView={metricView} />
           </CardContent>
         </Card>
       </div>

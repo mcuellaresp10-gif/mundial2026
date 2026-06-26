@@ -12,15 +12,16 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  ZAxis,
 } from "recharts";
 import type { ScoutingPosition, ScatterConfig } from "@/config/positionMetricProfiles";
 import type { ScoutingMetricViewId } from "@/config/scoutingMetricViews";
 import { resolveScatterConfig } from "@/config/scoutingMetricViews";
 import { resolveStarLabel } from "@/config/scoutingStarLabels";
 import type { ScoutingProfile } from "@/utils/worldCupScoutingMetrics";
-import { getScatterPoint, scatterColorPercent } from "@/utils/worldCupScoutingMetrics";
+import { getScatterPoint } from "@/utils/worldCupScoutingMetrics";
 import { cn } from "@/lib/utils";
+
+const SCATTER_DOT_FILL = "#FCD116";
 
 export interface ScatterPoint {
   id: number;
@@ -30,7 +31,6 @@ export interface ScatterPoint {
   teamLogo: string;
   x: number;
   y: number;
-  color: number;
   starLabel?: string | null;
 }
 
@@ -51,19 +51,14 @@ function CustomTooltip({
   payload,
   xLabel,
   yLabel,
-  colorLabel,
-  colorIsRate,
 }: {
   active?: boolean;
   payload?: { payload: ScatterPoint }[];
   xLabel: string;
   yLabel: string;
-  colorLabel: string;
-  colorIsRate?: boolean;
 }) {
   if (!active || !payload?.[0]) return null;
   const p = payload[0].payload;
-  const colorDisplay = colorIsRate ? `${p.color.toFixed(1)}%` : p.color.toFixed(2);
   return (
     <div className="rounded-lg border bg-card p-2 shadow-lg text-xs max-w-[200px]">
       <p className="font-semibold truncate">{p.name}</p>
@@ -72,9 +67,6 @@ function CustomTooltip({
         {xLabel}: {p.x.toFixed(2)}
       </p>
       <p className="font-mono">{yLabel}: {p.y.toFixed(2)}</p>
-      <p className="font-mono text-muted-foreground">
-        {colorLabel}: {colorDisplay}
-      </p>
     </div>
   );
 }
@@ -98,18 +90,29 @@ export function ScoutingScatter({
     () =>
       profiles
         .filter((p) => p.position === position)
-        .map((p) => ({
-          ...getScatterPoint(p, config.x.key, config.y.key, config.color.key),
-          starLabel: resolveStarLabel(p.playerId, p.name),
-        })),
+        .map((p) => {
+          const { id, name, photo, team, teamLogo, x, y } = getScatterPoint(
+            p,
+            config.x.key,
+            config.y.key,
+            config.color.key
+          );
+          return {
+            id,
+            name,
+            photo,
+            team,
+            teamLogo,
+            x,
+            y,
+            starLabel: resolveStarLabel(p.playerId, p.name),
+          };
+        }),
     [profiles, position, config]
   );
 
   const avgX = points.length ? points.reduce((s, p) => s + p.x, 0) / points.length : 0;
   const avgY = points.length ? points.reduce((s, p) => s + p.y, 0) / points.length : 0;
-  const colorMin = points.length ? Math.min(...points.map((p) => p.color)) : 0;
-  const colorMax = points.length ? Math.max(...points.map((p) => p.color)) : 100;
-  const colorIsRate = config.color.isRate ?? false;
 
   const highlightSet = new Set(highlightIds);
   const activeId = selectedId ?? hoverId;
@@ -133,18 +136,10 @@ export function ScoutingScatter({
             tick={{ fontSize: 10 }}
             label={{ value: config.y.label, angle: -90, position: "insideLeft", fontSize: 11 }}
           />
-          <ZAxis type="number" dataKey="color" range={[40, 120]} />
           <ReferenceLine x={avgX} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" />
           <ReferenceLine y={avgY} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" />
           <Tooltip
-            content={
-              <CustomTooltip
-                xLabel={config.x.label}
-                yLabel={config.y.label}
-                colorLabel={config.colorLabel}
-                colorIsRate={colorIsRate}
-              />
-            }
+            content={<CustomTooltip xLabel={config.x.label} yLabel={config.y.label} />}
             cursor={{ strokeDasharray: "3 3" }}
           />
           <Scatter
@@ -157,11 +152,6 @@ export function ScoutingScatter({
               const { cx = 0, cy = 0, payload } = props;
               if (!payload) return <g />;
               const isHighlight = highlightSet.has(payload.id) || payload.id === activeId;
-              const fill = scatterColorPercent(
-                payload.color,
-                colorIsRate ? 0 : colorMin,
-                colorIsRate ? 100 : colorMax
-              );
               const label = payload.starLabel;
               const labelY = cy - (isHighlight ? 14 : 11);
               return (
@@ -186,7 +176,8 @@ export function ScoutingScatter({
                     cx={cx}
                     cy={cy}
                     r={isHighlight ? 8 : 5}
-                    fill={fill}
+                    fill={SCATTER_DOT_FILL}
+                    fillOpacity={isHighlight ? 1 : 0.72}
                     stroke={isHighlight ? "hsl(var(--mundial-gold))" : "hsl(var(--background))"}
                     strokeWidth={isHighlight ? 2.5 : 1}
                     style={{ cursor: onSelect ? "pointer" : "default" }}
@@ -205,28 +196,9 @@ export function ScoutingScatter({
           <span>
             {points.length} jugadores · prom. X {avgX.toFixed(2)} · prom. Y {avgY.toFixed(2)}
           </span>
-          <span>{config.colorLabel}</span>
           <span className="text-[10px]">· estrellas etiquetadas</span>
         </div>
       )}
-    </div>
-  );
-}
-
-export function ScoutingScatterLegend({
-  position,
-  metricView = "default",
-  scatterConfig,
-}: {
-  position: ScoutingPosition;
-  metricView?: ScoutingMetricViewId;
-  scatterConfig?: ScatterConfig;
-}) {
-  const config = scatterConfig ?? resolveScatterConfig(position, metricView);
-  return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <span className="inline-block h-3 w-16 rounded bg-gradient-to-r from-red-500 via-yellow-500 to-emerald-500" />
-      <span>{config.colorLabel}</span>
     </div>
   );
 }

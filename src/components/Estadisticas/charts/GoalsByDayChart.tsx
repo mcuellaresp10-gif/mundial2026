@@ -9,7 +9,15 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { ChartCard, CHART_COLORS } from "./ChartCard";
+import { ChartCard } from "./ChartCard";
+import {
+  CHART_HEIGHT,
+  chartAreaSeriesProps,
+  chartGridProps,
+  chartTooltipProps,
+  chartXAxisProps,
+  chartYAxisProps,
+} from "./chartTheme";
 import type { ChartDatum } from "@/utils/tournamentAnalytics";
 
 interface GoalsByDayChartProps {
@@ -24,21 +32,13 @@ export function GoalsByDayChart({ data, compact }: GoalsByDayChartProps) {
       description={compact ? "Últimos 7 días con partidos" : "Total de goles anotados cada jornada calendario"}
       empty={data.length === 0}
     >
-      <ResponsiveContainer width="100%" height={compact ? 160 : 260}>
+      <ResponsiveContainer width="100%" height={compact ? 160 : CHART_HEIGHT}>
         <AreaChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-          <Tooltip />
-          <Area
-            type="monotone"
-            dataKey="value"
-            name="Goles"
-            stroke={CHART_COLORS.gold}
-            fill={CHART_COLORS.gold}
-            fillOpacity={0.25}
-            strokeWidth={2}
-          />
+          <CartesianGrid {...chartGridProps} />
+          <XAxis dataKey="label" {...chartXAxisProps} />
+          <YAxis {...chartYAxisProps} />
+          <Tooltip {...chartTooltipProps} />
+          <Area dataKey="value" name="Goles" {...chartAreaSeriesProps} />
         </AreaChart>
       </ResponsiveContainer>
     </ChartCard>

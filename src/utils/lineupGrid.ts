@@ -1,15 +1,30 @@
 import type { LineupPlayer } from "@/types";
 
+/** Márgenes internos para que número + nombre quepan dentro del césped. */
+const LINEUP_PITCH_INSET = { top: 14, right: 10, bottom: 20, left: 10 };
+
 const POS_BAND_Y: Record<string, number> = {
   G: 88,
-  D: 72,
-  M: 50,
-  F: 22,
+  D: 68,
+  M: 48,
+  F: 20,
 };
 
 export interface PitchPoint {
   x: number;
   y: number;
+}
+
+/** Normaliza coordenadas 0–100 al área jugable con márgenes. */
+export function toSafeLineupPitchCoord(x: number, y: number): PitchPoint {
+  const width = 100 - LINEUP_PITCH_INSET.left - LINEUP_PITCH_INSET.right;
+  const height = 100 - LINEUP_PITCH_INSET.top - LINEUP_PITCH_INSET.bottom;
+  const nx = Math.min(100, Math.max(0, x));
+  const ny = Math.min(100, Math.max(0, y));
+  return {
+    x: LINEUP_PITCH_INSET.left + (nx / 100) * width,
+    y: LINEUP_PITCH_INSET.top + (ny / 100) * height,
+  };
 }
 
 function parseGrid(grid: string): { row: number; col: number } | null {
@@ -26,8 +41,8 @@ function fallbackByPosition(
   countInPos: number
 ): PitchPoint {
   const band = POS_BAND_Y[pos] ?? 50;
-  const x = countInPos <= 1 ? 50 : ((indexInPos + 1) / (countInPos + 1)) * 86 + 7;
-  return { x, y: band };
+  const rawX = countInPos <= 1 ? 50 : ((indexInPos + 1) / (countInPos + 1)) * 100;
+  return toSafeLineupPitchCoord(rawX, band);
 }
 
 /** Convierte grid API-Football (fila:columna) a % en el campo. Portero abajo. */
@@ -52,9 +67,9 @@ export function lineupGridToPitch(
         .map((p) => p.col);
       const maxCol = Math.max(...colsInRow, col, 1);
 
-      const x = (col / (maxCol + 1)) * 86 + 7;
-      const y = 92 - ((row - 1) / Math.max(maxRow - 1, 1)) * 82;
-      return { x, y };
+      const rawX = (col / (maxCol + 1)) * 100;
+      const rawY = 100 - ((row - 1) / Math.max(maxRow - 1, 1)) * 100;
+      return toSafeLineupPitchCoord(rawX, rawY);
     }
   }
 
@@ -81,4 +96,9 @@ export function lineupPlayersToPitch(
 
     return { player: entry, point };
   });
+}
+
+/** Porteros y delanteros extremos: etiqueta hacia el interior del campo. */
+export function shouldFlipLineupLabel(y: number): boolean {
+  return y >= 68;
 }

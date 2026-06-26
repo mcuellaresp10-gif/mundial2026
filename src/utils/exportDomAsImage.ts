@@ -12,7 +12,7 @@ function getExportBackground(node?: HTMLElement): string {
   const rootBg = getComputedStyle(document.documentElement).backgroundColor;
   if (rootBg && rootBg !== "rgba(0, 0, 0, 0)" && rootBg !== "transparent") return rootBg;
 
-  return document.documentElement.classList.contains("dark") ? "#0b1220" : "#fafafa";
+  return "#0b1220";
 }
 
 /** Next.js Image optimizer URLs share the same path; html-to-image caches by path unless query params are kept. */

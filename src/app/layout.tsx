@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { SplashScreen } from "@/components/shared/SplashScreen";
 import { StyleGuard } from "@/components/shared/StyleGuard";
 import { ChunkLoadRecovery } from "@/components/shared/ChunkLoadRecovery";
@@ -26,25 +25,32 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Mundial 2026 — Análisis Táctico & Estadísticas",
   description: "Plataforma integral de análisis táctico y estadísticas del FIFA World Cup 2026",
+  themeColor: "#0F172A",
 };
+
+const forceDarkScript = `
+  document.documentElement.classList.add('dark');
+  try { localStorage.removeItem('mundial-theme'); } catch (e) {}
+`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" className="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: forceDarkScript }} />
+      </head>
       <body className={`${inter.variable} ${jetbrains.variable} font-sans`}>
         <GoogleAnalytics />
         <Suspense fallback={null}>
           <NavigationEvents />
         </Suspense>
         <Providers>
-          <ThemeProvider>
-            <ChunkLoadRecovery />
-            <TournamentPhaseSync />
-            <LiveScoreSync />
-            <StyleGuard />
-            <SplashScreen />
-            <AppShell>{children}</AppShell>
-          </ThemeProvider>
+          <ChunkLoadRecovery />
+          <TournamentPhaseSync />
+          <LiveScoreSync />
+          <StyleGuard />
+          <SplashScreen />
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

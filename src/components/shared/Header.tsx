@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Menu, Moon, RefreshCw, Sun } from "lucide-react";
+import { Menu, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchGlobal } from "./SearchGlobal";
-import { useThemeStore } from "@/stores/useThemeStore";
 import { useUIStore } from "@/stores/useUIStore";
 import { useRefreshAll } from "@/hooks/usePartidos";
 import { isLiveSessionActive } from "@/services/liveSession";
@@ -27,8 +26,6 @@ const NAV = [
 
 export function Header() {
   const pathname = usePathname();
-  const theme = useThemeStore((s) => s.theme);
-  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const lastRefresh = useUIStore((s) => s.lastRefresh);
   const setLastRefresh = useUIStore((s) => s.setLastRefresh);
@@ -101,9 +98,6 @@ export function Header() {
             title="Actualizar ahora"
           >
             <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="text-white" onClick={toggleTheme}>
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
         </div>
       </div>

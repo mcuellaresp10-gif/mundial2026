@@ -1,7 +1,11 @@
 import Script from "next/script";
-import { GA_MEASUREMENT_ID } from "@/lib/analytics";
+import { GA_MEASUREMENT_ID, GA_MEASUREMENT_IDS } from "@/lib/analytics";
 
 export function GoogleAnalytics() {
+  const configLines = GA_MEASUREMENT_IDS.map(
+    (id) => `gtag('config', '${id}', { send_page_view: false });`
+  ).join("\n          ");
+
   return (
     <>
       <Script
@@ -14,7 +18,7 @@ export function GoogleAnalytics() {
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: false });
+          ${configLines}
         `}
       </Script>
     </>

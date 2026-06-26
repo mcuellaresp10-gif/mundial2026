@@ -12,6 +12,21 @@ import {
 import type { ScoutingPosition } from "@/config/positionMetricProfiles";
 import { getPositionProfile } from "@/config/positionMetricProfiles";
 import type { ScoutingProfile } from "@/utils/worldCupScoutingMetrics";
+import { CHART_GOLD } from "@/components/Estadisticas/charts/chartTheme";
+
+const RADAR_PLAYER = {
+  stroke: CHART_GOLD,
+  fill: CHART_GOLD,
+  fillOpacity: 0.25,
+  strokeWidth: 2,
+};
+
+const RADAR_COMPARE = {
+  stroke: "hsl(var(--muted-foreground))",
+  fill: "hsl(var(--muted-foreground))",
+  fillOpacity: 0.12,
+  strokeWidth: 1.5,
+};
 
 interface ScoutingRadarWCProps {
   profile: ScoutingProfile;
@@ -44,22 +59,14 @@ export function ScoutingRadarWC({
       <RechartsRadar data={chartData}>
         <PolarGrid stroke="hsl(var(--border))" />
         <PolarAngleAxis dataKey="stat" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} />
-        <PolarRadiusAxis angle={90} domain={[0, 10]} tick={{ fontSize: 9 }} />
-        <Radar
-          name={labelA ?? profile.name}
-          dataKey="A"
-          stroke="hsl(var(--mundial-red))"
-          fill="hsl(var(--mundial-red))"
-          fillOpacity={0.35}
+        <PolarRadiusAxis
+          angle={90}
+          domain={[0, 10]}
+          tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
         />
-        <Radar
-          name={labelB}
-          dataKey="B"
-          stroke="hsl(var(--muted-foreground))"
-          fill="hsl(var(--muted-foreground))"
-          fillOpacity={0.15}
-        />
-        <Legend />
+        <Radar name={labelA ?? profile.name} dataKey="A" {...RADAR_PLAYER} />
+        <Radar name={labelB} dataKey="B" {...RADAR_COMPARE} />
+        <Legend wrapperStyle={{ fontSize: "12px", color: "hsl(var(--muted-foreground))" }} />
       </RechartsRadar>
     </ResponsiveContainer>
   );

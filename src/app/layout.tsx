@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
@@ -10,6 +11,7 @@ import { TournamentPhaseSync } from "@/components/shared/TournamentPhaseSync";
 import { LiveScoreSync } from "@/components/shared/LiveScoreSync";
 import { AppShell } from "@/components/shared/AppShell";
 import { GoogleAnalytics } from "@/components/shared/GoogleAnalytics";
+import { NavigationEvents } from "@/components/shared/NavigationEvents";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,6 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" suppressHydrationWarning>
       <body className={`${inter.variable} ${jetbrains.variable} font-sans`}>
         <GoogleAnalytics />
+        <Suspense fallback={null}>
+          <NavigationEvents />
+        </Suspense>
         <Providers>
           <ThemeProvider>
             <ChunkLoadRecovery />

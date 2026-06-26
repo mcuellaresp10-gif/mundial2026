@@ -191,7 +191,8 @@ function fallbackCandidatesForRef(
   return candidates.sort((a, b) => b.probability - a.probability).slice(0, MAX_CANDIDATES);
 }
 
-function clinchedFromSlot(slot: BracketSlotTeam): KnockoutSlotCandidate[] | null {
+function clinchedFromSlot(ref: BracketSlotRef, slot: BracketSlotTeam): KnockoutSlotCandidate[] | null {
+  if (ref.type === "third") return null;
   if (!slot.team || slot.provisional) return null;
   return [
     {
@@ -201,6 +202,30 @@ function clinchedFromSlot(slot: BracketSlotTeam): KnockoutSlotCandidate[] | null
       probability: 100,
     },
   ];
+}
+
+export function canShowSlotAsClinched(
+  ref: BracketSlotRef | null,
+  slot: BracketSlotTeam,
+  candidates: KnockoutSlotCandidate[],
+  allGroupsFinished: boolean
+): boolean {
+  if (!slot.team || slot.provisional || candidates.length === 0) return false;
+  if (ref?.type === "third") {
+    return (
+      allGroupsFinished &&
+      candidates.length === 1 &&
+      candidates[0].teamId === slot.team.teamId
+    );
+  }
+  return candidates.length === 1 && candidates[0].teamId === slot.team.teamId;
+}
+
+export function isSlotClinched(candidates: KnockoutSlotCandidate[]): boolean {
+  return (
+    candidates.length === 1 &&
+    candidates[0].probability >= CLINCHED_PROB_THRESHOLD
+  );
 }
 
 export function simulateKnockoutSlotProbabilities(
@@ -230,7 +255,7 @@ export function simulateKnockoutSlotProbabilities(
       const key = knockoutSlotKey(def.matchId, side);
       const resolvedSlot = bracket?.roundOf32.find((m) => m.matchId === def.matchId)?.[side];
 
-      const clinched = resolvedSlot ? clinchedFromSlot(resolvedSlot) : null;
+      const clinched = resolvedSlot ? clinchedFromSlot(ref, resolvedSlot) : null;
       if (clinched) {
         result.set(key, clinched);
         continue;
@@ -247,11 +272,4 @@ export function simulateKnockoutSlotProbabilities(
   }
 
   return result;
-}
-
-export function isSlotClinched(candidates: KnockoutSlotCandidate[]): boolean {
-  return (
-    candidates.length === 1 &&
-    candidates[0].probability >= CLINCHED_PROB_THRESHOLD
-  );
 }

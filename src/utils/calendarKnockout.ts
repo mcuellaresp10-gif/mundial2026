@@ -184,6 +184,7 @@ export function buildStaticKnockoutBracket(fixtures: Fixture[] = []): KnockoutBr
     qualifyingThirdGroups: [],
     annexKey: null,
     isProvisional: true,
+    allGroupsFinished: false,
     rankedBestThirds: [],
   };
 }

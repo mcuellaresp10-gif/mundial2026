@@ -61,6 +61,7 @@ function MatchBox({
   fixture,
   slotProbabilities,
   showProbabilities = false,
+  allGroupsFinished = false,
 }: {
   matchId: number;
   home: BracketSlotTeam;
@@ -69,6 +70,7 @@ function MatchBox({
   fixture?: Fixture | null;
   slotProbabilities?: Map<KnockoutSlotKey, KnockoutSlotCandidate[]>;
   showProbabilities?: boolean;
+  allGroupsFinished?: boolean;
 }) {
   const meta = getKnockoutMatchMeta(matchId, fixture?.fixture);
   const header = formatKnockoutMatchHeader(meta.date, meta.city);
@@ -98,6 +100,7 @@ function MatchBox({
             side="home"
             slot={home}
             candidates={getCandidatesForSlot(slotProbabilities, matchId, "home")}
+            allGroupsFinished={allGroupsFinished}
           />
           <div className="text-[9px] text-center text-muted-foreground py-0.5 bg-muted/20 border-y border-border/30">
             vs
@@ -107,6 +110,7 @@ function MatchBox({
             side="away"
             slot={away}
             candidates={getCandidatesForSlot(slotProbabilities, matchId, "away")}
+            allGroupsFinished={allGroupsFinished}
           />
         </>
       ) : (
@@ -127,6 +131,7 @@ function R32Column({
   matches: ResolvedR32Match[];
   fixtureByMatchId: Map<number, Fixture>;
   slotProbabilities: Map<KnockoutSlotKey, KnockoutSlotCandidate[]>;
+  allGroupsFinished?: boolean;
 }) {
   return (
     <div className="flex flex-col justify-around gap-3 py-4 min-h-[720px]">
@@ -138,6 +143,7 @@ function R32Column({
           away={m.away}
           fixture={fixtureByMatchId.get(m.matchId) ?? null}
           slotProbabilities={slotProbabilities}
+          allGroupsFinished={allGroupsFinished}
           showProbabilities
         />
       ))}
@@ -219,12 +225,14 @@ function BracketHalf({
   knockout,
   fixtureByMatchId,
   slotProbabilities,
+  allGroupsFinished,
 }: {
   side: "left" | "right";
   r32: ResolvedR32Match[];
   knockout: ResolvedBracketMatch[];
   fixtureByMatchId: Map<number, Fixture>;
   slotProbabilities: Map<KnockoutSlotKey, KnockoutSlotCandidate[]>;
+  allGroupsFinished?: boolean;
 }) {
   const r16 = getKnockoutByRound(knockout, "round_of_16", side);
   const qf = getKnockoutByRound(knockout, "quarterfinal", side);
@@ -241,6 +249,7 @@ function BracketHalf({
         matches={r32}
         fixtureByMatchId={fixtureByMatchId}
         slotProbabilities={slotProbabilities}
+        allGroupsFinished={allGroupsFinished}
       />
       <KnockoutColumn matches={r16} tall fixtureByMatchId={fixtureByMatchId} />
       <KnockoutColumn matches={qf} fixtureByMatchId={fixtureByMatchId} />
@@ -311,6 +320,7 @@ export function KnockoutBracketSection() {
                 knockout={bracket.knockoutMatches}
                 fixtureByMatchId={bracket.fixtureByMatchId}
                 slotProbabilities={slotProbabilities}
+                allGroupsFinished={bracket.allGroupsFinished}
               />
 
               <div className="flex flex-col items-center justify-center gap-4 shrink-0 px-2">
@@ -350,6 +360,7 @@ export function KnockoutBracketSection() {
                 knockout={bracket.knockoutMatches}
                 fixtureByMatchId={bracket.fixtureByMatchId}
                 slotProbabilities={slotProbabilities}
+                allGroupsFinished={bracket.allGroupsFinished}
               />
             </div>
           </div>

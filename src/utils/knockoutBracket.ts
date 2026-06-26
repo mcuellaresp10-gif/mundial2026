@@ -95,6 +95,8 @@ export interface KnockoutBracketResult {
   qualifyingThirdGroups: GroupLetter[];
   annexKey: string | null;
   isProvisional: boolean;
+  /** Los 12 grupos terminaron la fase de grupos. */
+  allGroupsFinished: boolean;
   /** Mejores terceros proyectados (misma fuente que la tabla de mejores terceros). */
   rankedBestThirds: ReturnType<typeof rankThirdPlaceTeamsFromStandings>;
 }
@@ -186,7 +188,8 @@ function resolveThirdSlot(
   thirdRows: Map<GroupLetter, StandingTeam>,
   annexMap: Record<string, string> | null,
   bestThirdIds: Set<number>,
-  groupFinished: (g: GroupLetter) => boolean
+  groupFinished: (g: GroupLetter) => boolean,
+  allGroupsFinished: boolean
 ): BracketSlotTeam {
   if (!annexMap) {
     return {
@@ -212,7 +215,8 @@ function resolveThirdSlot(
   return {
     label: slotLabel(ref, thirdGroup),
     team: qualifies && row ? toBracketTeam(row) : null,
-    provisional: !qualifies || !groupFinished(thirdGroup),
+    // Mejor tercero no está cerrado hasta que terminen los 12 grupos.
+    provisional: !qualifies || !groupFinished(thirdGroup) || !allGroupsFinished,
   };
 }
 
@@ -222,11 +226,19 @@ export function resolveR32Match(
   annexMap: Record<string, string> | null,
   bestThirdIds: Set<number>,
   thirdRows: Map<GroupLetter, StandingTeam>,
-  groupFinished: (g: GroupLetter) => boolean
+  groupFinished: (g: GroupLetter) => boolean,
+  allGroupsFinished = false
 ): ResolvedR32Match {
   const resolveSlot = (ref: BracketSlotRef): BracketSlotTeam => {
     if (ref.type === "third") {
-      return resolveThirdSlot(ref, thirdRows, annexMap, bestThirdIds, groupFinished);
+      return resolveThirdSlot(
+        ref,
+        thirdRows,
+        annexMap,
+        bestThirdIds,
+        groupFinished,
+        allGroupsFinished
+      );
     }
     return resolveDirectSlot(ref, byGroup, groupFinished);
   };
@@ -537,8 +549,18 @@ export function resolveKnockoutBracket(
       : null;
   const annexMap = annexKey ? lookupAnnexC(new Set(qualifyingThirdGroups)) : null;
 
+  const allGroupsFinished = GROUP_LETTERS.every((g) => groupFinished(g));
+
   const roundOf32 = ROUND_OF_32.map((def) =>
-    resolveR32Match(def, byGroup, annexMap, bestThirdIds, thirdRows, groupFinished)
+    resolveR32Match(
+      def,
+      byGroup,
+      annexMap,
+      bestThirdIds,
+      thirdRows,
+      groupFinished,
+      allGroupsFinished
+    )
   );
 
   const initialKnockout: ResolvedBracketMatch[] = [];
@@ -582,7 +604,6 @@ export function resolveKnockoutBracket(
     }));
   }
 
-  const allGroupsFinished = GROUP_LETTERS.every((g) => groupFinished(g));
   const isProvisional =
     !allGroupsFinished ||
     !annexMap ||
@@ -596,6 +617,7 @@ export function resolveKnockoutBracket(
     qualifyingThirdGroups,
     annexKey,
     isProvisional,
+    allGroupsFinished,
     rankedBestThirds,
   };
 }

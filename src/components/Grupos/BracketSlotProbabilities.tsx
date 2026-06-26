@@ -6,8 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import { ROUND_OF_32, type BracketSlotRef } from "@/data/worldCup2026Bracket";
 import { translateTeamName } from "@/utils/teamNames";
 import {
-  CLINCHED_PROB_THRESHOLD,
-  isSlotClinched,
+  canShowSlotAsClinched,
   type KnockoutSlotCandidate,
   type KnockoutSlotKey,
 } from "@/utils/knockoutSlotProbabilities";
@@ -67,17 +66,17 @@ export function BracketSlotProbabilities({
   side,
   slot,
   candidates,
+  allGroupsFinished = false,
 }: {
   matchId: number;
   side: "home" | "away";
   slot: BracketSlotTeam;
   candidates: KnockoutSlotCandidate[];
+  allGroupsFinished?: boolean;
 }) {
   const ref = getSlotRef(matchId, side);
   const sourceLabel = ref ? slotSourceLabel(ref) : slot.label;
-  const clinched =
-    isSlotClinched(candidates) ||
-    Boolean(slot.team && !slot.provisional && candidates[0]?.probability === 100);
+  const clinched = canShowSlotAsClinched(ref, slot, candidates, allGroupsFinished);
 
   return (
     <div className="px-2 py-1.5 border-b border-border/50 last:border-0">
@@ -137,5 +136,3 @@ export function getCandidatesForSlot(
 ): KnockoutSlotCandidate[] {
   return slotProbabilities.get(`${matchId}:${side}`) ?? [];
 }
-
-export { CLINCHED_PROB_THRESHOLD };

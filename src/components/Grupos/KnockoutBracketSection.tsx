@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import type { KnockoutSlotKey, KnockoutSlotCandidate } from "@/utils/knockoutSlo
 import { GROUP_LETTERS, ROUND_LABELS, type BracketRound, type GroupLetter } from "@/data/worldCup2026Bracket";
 import { translateTeamName } from "@/utils/teamNames";
 import { formatFixtureDate, formatKnockoutMatchHeader } from "@/utils/formatters";
+import { DomImageExportButtons } from "@/components/shared/DomImageExportButtons";
 import { cn } from "@/lib/utils";
 
 function BracketTeamRow({ slot }: { slot: BracketSlotTeam }) {
@@ -272,6 +274,7 @@ function BracketHalf({
 }
 
 export function KnockoutBracketSection() {
+  const exportRef = useRef<HTMLDivElement>(null);
   const { bracket, slotProbabilities, isLoading, hasData } = useKnockoutBracket();
 
   if (isLoading) {
@@ -307,18 +310,25 @@ export function KnockoutBracketSection() {
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-lg md:text-xl font-semibold">Cuadro eliminatorio</h2>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1">
-          Proyección según tabla actual · Los 2 primeros de cada grupo + 8 mejores terceros.
-          Los 16avos muestran probabilidades Monte Carlo por slot (1.000 simulaciones).
-          {bracket.isProvisional && (
-            <span className="block mt-0.5">
-              Proyección en vivo: los cruces de terceros usan el ranking actual de mejores terceros
-              (Anexo C FIFA). Los marcados con * en las tiras de grupo son mejores terceros proyectados.
-            </span>
-          )}
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-lg md:text-xl font-semibold">Cuadro eliminatorio</h2>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">
+            Proyección según tabla actual · Los 2 primeros de cada grupo + 8 mejores terceros.
+            Los 16avos muestran probabilidades Monte Carlo por slot (1.000 simulaciones).
+            {bracket.isProvisional && (
+              <span className="block mt-0.5">
+                Proyección en vivo: los cruces de terceros usan el ranking actual de mejores terceros
+                (Anexo C FIFA). Los marcados con * en las tiras de grupo son mejores terceros proyectados.
+              </span>
+            )}
+          </p>
+        </div>
+        <DomImageExportButtons
+          targetRef={exportRef}
+          filename="cuadro-eliminatorio-mundial-2026.png"
+          className="shrink-0"
+        />
       </div>
 
       <div className="hidden lg:block">
@@ -329,64 +339,79 @@ export function KnockoutBracketSection() {
         <CardContent className="p-2 sm:p-4">
           <BracketScrollHint />
           <div className="overflow-x-auto overflow-y-auto pb-2 overscroll-x-contain [-webkit-overflow-scrolling:touch] scroll-smooth max-lg:max-h-[72dvh] lg:max-h-none">
-            <div className="flex items-center gap-2 sm:gap-4 min-w-[980px] sm:min-w-[1100px] lg:min-w-[1200px] px-1 max-lg:origin-top-left max-lg:[zoom:0.56]">
-              <BracketHalf
-                side="left"
-                r32={leftR32}
-                knockout={bracket.knockoutMatches}
-                fixtureByMatchId={bracket.fixtureByMatchId}
-                slotProbabilities={slotProbabilities}
-                allGroupsFinished={bracket.allGroupsFinished}
-              />
-
-              <div className="flex flex-col items-center justify-center gap-4 shrink-0 px-2">
-                {finalMatch && (
-                  <div className="text-center space-y-2">
-                    <p className="text-xs font-semibold text-mundial-gold uppercase tracking-wide">
-                      {ROUND_LABELS.final}
-                    </p>
-                    <MatchBox
-                      matchId={finalMatch.matchId}
-                      home={finalMatch.home}
-                      away={finalMatch.away}
-                      fixture={bracket.fixtureByMatchId.get(finalMatch.matchId) ?? null}
-                    />
-                    <p className="text-[10px] text-muted-foreground">Campeón del mundo</p>
-                  </div>
-                )}
-                {bronzeMatch && (
-                  <div className="text-center space-y-1">
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase">
-                      {ROUND_LABELS.third_place}
-                    </p>
-                    <MatchBox
-                      matchId={bronzeMatch.matchId}
-                      home={bronzeMatch.home}
-                      away={bronzeMatch.away}
-                      compact
-                      fixture={bracket.fixtureByMatchId.get(bronzeMatch.matchId) ?? null}
-                    />
-                  </div>
-                )}
+            <div
+              ref={exportRef}
+              className="inline-block rounded-lg bg-card p-3 sm:p-4"
+            >
+              <div className="mb-3 border-b border-border pb-2 text-center">
+                <p className="text-sm font-semibold text-foreground">Cuadro eliminatorio · Mundial 2026</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Proyección según tabla actual · Mundial 2026
+                </p>
               </div>
 
-              <BracketHalf
-                side="right"
-                r32={rightR32}
-                knockout={bracket.knockoutMatches}
-                fixtureByMatchId={bracket.fixtureByMatchId}
-                slotProbabilities={slotProbabilities}
-                allGroupsFinished={bracket.allGroupsFinished}
-              />
-            </div>
-          </div>
+              <div
+                data-bracket-zoom
+                className="flex items-center gap-2 sm:gap-4 min-w-[980px] sm:min-w-[1100px] lg:min-w-[1200px] px-1 max-lg:origin-top-left max-lg:[zoom:0.56]"
+              >
+                <BracketHalf
+                  side="left"
+                  r32={leftR32}
+                  knockout={bracket.knockoutMatches}
+                  fixtureByMatchId={bracket.fixtureByMatchId}
+                  slotProbabilities={slotProbabilities}
+                  allGroupsFinished={bracket.allGroupsFinished}
+                />
 
-          <div className="mt-4 flex flex-wrap gap-2 text-[10px] text-muted-foreground border-t border-border pt-3">
-            {(Object.entries(ROUND_LABELS) as [BracketRound, string][]).map(([key, label]) => (
-              <span key={key} className="rounded bg-muted/50 px-2 py-0.5">
-                {label}
-              </span>
-            ))}
+                <div className="flex flex-col items-center justify-center gap-4 shrink-0 px-2">
+                  {finalMatch && (
+                    <div className="text-center space-y-2">
+                      <p className="text-xs font-semibold text-mundial-gold uppercase tracking-wide">
+                        {ROUND_LABELS.final}
+                      </p>
+                      <MatchBox
+                        matchId={finalMatch.matchId}
+                        home={finalMatch.home}
+                        away={finalMatch.away}
+                        fixture={bracket.fixtureByMatchId.get(finalMatch.matchId) ?? null}
+                      />
+                      <p className="text-[10px] text-muted-foreground">Campeón del mundo</p>
+                    </div>
+                  )}
+                  {bronzeMatch && (
+                    <div className="text-center space-y-1">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase">
+                        {ROUND_LABELS.third_place}
+                      </p>
+                      <MatchBox
+                        matchId={bronzeMatch.matchId}
+                        home={bronzeMatch.home}
+                        away={bronzeMatch.away}
+                        compact
+                        fixture={bracket.fixtureByMatchId.get(bronzeMatch.matchId) ?? null}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <BracketHalf
+                  side="right"
+                  r32={rightR32}
+                  knockout={bracket.knockoutMatches}
+                  fixtureByMatchId={bracket.fixtureByMatchId}
+                  slotProbabilities={slotProbabilities}
+                  allGroupsFinished={bracket.allGroupsFinished}
+                />
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2 text-[10px] text-muted-foreground border-t border-border pt-3">
+                {(Object.entries(ROUND_LABELS) as [BracketRound, string][]).map(([key, label]) => (
+                  <span key={key} className="rounded bg-muted/50 px-2 py-0.5">
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

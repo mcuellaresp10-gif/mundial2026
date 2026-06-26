@@ -1,9 +1,18 @@
 import type { Options } from "html-to-image/lib/types";
 
-function getExportBackground(): string {
-  const bg = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
-  if (bg) return `hsl(${bg})`;
-  return document.documentElement.classList.contains("dark") ? "hsl(222 47% 6%)" : "hsl(0 0% 98%)";
+const TRANSPARENT_PIXEL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+function getExportBackground(node?: HTMLElement): string {
+  if (node) {
+    const bg = getComputedStyle(node).backgroundColor;
+    if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") return bg;
+  }
+
+  const rootBg = getComputedStyle(document.documentElement).backgroundColor;
+  if (rootBg && rootBg !== "rgba(0, 0, 0, 0)" && rootBg !== "transparent") return rootBg;
+
+  return document.documentElement.classList.contains("dark") ? "#0b1220" : "#fafafa";
 }
 
 /** Next.js Image optimizer URLs share the same path; html-to-image caches by path unless query params are kept. */
@@ -22,90 +31,57 @@ export function resolveDirectImageUrl(src: string): string {
   return src;
 }
 
-function prepareCloneForExport(node: HTMLElement, sourceNode: HTMLElement): void {
-  node.style.position = "fixed";
-  node.style.left = "-100000px";
-  node.style.top = "0";
-  node.style.zIndex = "-1";
-  node.style.background = getExportBackground();
-
+function withTemporaryExportStyles<T>(node: HTMLElement, run: () => Promise<T>): Promise<T> {
   const zoomTarget = node.querySelector<HTMLElement>("[data-bracket-zoom]");
+  const previousZoom = zoomTarget?.style.zoom ?? "";
   if (zoomTarget) zoomTarget.style.zoom = "1";
 
-  const sourceImages = sourceNode.querySelectorAll("img");
-  const cloneImages = node.querySelectorAll("img");
-  cloneImages.forEach((img, index) => {
-    const source = sourceImages[index];
-    const rawSrc = source?.currentSrc || source?.src || img.getAttribute("src") || "";
-    img.src = resolveDirectImageUrl(rawSrc);
-    img.removeAttribute("srcset");
-    img.removeAttribute("sizes");
-    img.crossOrigin = "anonymous";
+  return run().finally(() => {
+    if (zoomTarget) zoomTarget.style.zoom = previousZoom;
   });
 }
 
-function waitForImages(node: HTMLElement): Promise<void> {
-  const images = [...node.querySelectorAll("img")];
-  return Promise.all(
-    images.map(
-      (img) =>
-        new Promise<void>((resolve) => {
-          if (img.complete && img.naturalWidth > 0) {
-            resolve();
-            return;
-          }
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-        })
-    )
-  ).then(() => undefined);
-}
-
-export function getDomImageCaptureOptions(overrides?: Partial<Options>): Options {
+export function getDomImageCaptureOptions(node?: HTMLElement, overrides?: Partial<Options>): Options {
   return {
     cacheBust: true,
     includeQueryParams: true,
     pixelRatio: 2,
-    backgroundColor: getExportBackground(),
-    fetchRequestInit: { mode: "cors", credentials: "omit" },
+    skipFonts: true,
+    backgroundColor: getExportBackground(node),
+    imagePlaceholder: TRANSPARENT_PIXEL,
+    onImageErrorHandler: () => undefined,
     ...overrides,
   };
 }
 
-function createExportClone(node: HTMLElement): HTMLElement {
-  const clone = node.cloneNode(true) as HTMLElement;
-  prepareCloneForExport(clone, node);
-  document.body.appendChild(clone);
-  return clone;
-}
-
-async function withExportClone<T>(
+async function captureFromNode<T>(
   node: HTMLElement,
   overrides: Partial<Options> | undefined,
-  capture: (clone: HTMLElement, options: Options) => Promise<T>
+  capture: (target: HTMLElement, options: Options) => Promise<T>
 ): Promise<T> {
-  const clone = createExportClone(node);
-  try {
-    await waitForImages(clone);
-    return await capture(clone, getDomImageCaptureOptions(overrides));
-  } finally {
-    clone.remove();
-  }
+  return withTemporaryExportStyles(node, async () => {
+    const options = getDomImageCaptureOptions(node, {
+      width: node.scrollWidth,
+      height: node.scrollHeight,
+      ...overrides,
+    });
+    return capture(node, options);
+  });
 }
 
 export async function captureDomAsBlob(node: HTMLElement, overrides?: Partial<Options>): Promise<Blob> {
-  return withExportClone(node, overrides, async (clone, options) => {
+  return captureFromNode(node, overrides, async (target, options) => {
     const { toBlob } = await import("html-to-image");
-    const blob = await toBlob(clone, options);
+    const blob = await toBlob(target, options);
     if (!blob) throw new Error("No se pudo generar la imagen");
     return blob;
   });
 }
 
 export async function captureDomAsPngDataUrl(node: HTMLElement, overrides?: Partial<Options>): Promise<string> {
-  return withExportClone(node, overrides, async (clone, options) => {
+  return captureFromNode(node, overrides, async (target, options) => {
     const { toPng } = await import("html-to-image");
-    return toPng(clone, options);
+    return toPng(target, options);
   });
 }
 
@@ -118,7 +94,10 @@ export async function downloadDomAsPng(
   const link = document.createElement("a");
   link.download = filename;
   link.href = dataUrl;
+  link.rel = "noopener";
+  document.body.appendChild(link);
   link.click();
+  link.remove();
 }
 
 export function canCopyImagesToClipboard(): boolean {
@@ -140,4 +119,17 @@ export async function copyDomAsImage(node: HTMLElement, overrides?: Partial<Opti
     "image/png": Promise.resolve(blob),
   });
   await navigator.clipboard.write([clipboardItem]);
+}
+
+export function getDomExportErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message === "CLIPBOARD_UNAVAILABLE") {
+      if (typeof window !== "undefined" && !window.isSecureContext) {
+        return "Copiar imagen requiere HTTPS o localhost (no IP local). Usa Descargar PNG.";
+      }
+      return "Tu navegador no permite copiar imágenes. Usa Descargar PNG.";
+    }
+    return error.message;
+  }
+  return "No se pudo exportar la imagen.";
 }

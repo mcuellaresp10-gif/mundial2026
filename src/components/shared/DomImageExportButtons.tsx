@@ -7,6 +7,7 @@ import {
   canCopyImagesToClipboard,
   copyDomAsImage,
   downloadDomAsPng,
+  getDomExportErrorMessage,
 } from "@/utils/exportDomAsImage";
 import { cn } from "@/lib/utils";
 
@@ -14,13 +15,6 @@ interface DomImageExportButtonsProps {
   targetRef: React.RefObject<HTMLElement | null>;
   filename?: string;
   className?: string;
-}
-
-function getCopyUnavailableMessage(): string {
-  if (typeof window !== "undefined" && !window.isSecureContext) {
-    return "Copiar imagen requiere HTTPS o localhost (no IP local). Usa Descargar PNG.";
-  }
-  return "Tu navegador no permite copiar imágenes. Usa Descargar PNG.";
 }
 
 export function DomImageExportButtons({
@@ -37,9 +31,21 @@ export function DomImageExportButtons({
     setCopySupported(canCopyImagesToClipboard());
   }, []);
 
-  async function handleCopy() {
+  function getTargetNode(): HTMLElement | null {
     const node = targetRef.current;
+    if (!node) {
+      setErrorMessage("El cuadro aún no está listo. Espera a que cargue e inténtalo de nuevo.");
+    }
+    return node;
+  }
+
+  async function handleCopy() {
+    const node = getTargetNode();
     if (!node) return;
+    if (!copySupported) {
+      setErrorMessage(copyUnavailableMessage);
+      return;
+    }
     setCopyState("loading");
     setErrorMessage(null);
     try {
@@ -47,25 +53,20 @@ export function DomImageExportButtons({
       setCopyState("done");
       window.setTimeout(() => setCopyState("idle"), 2500);
     } catch (error) {
-      const message =
-        error instanceof Error && error.message === "CLIPBOARD_UNAVAILABLE"
-          ? getCopyUnavailableMessage()
-          : "No se pudo copiar la imagen. Usa Descargar PNG.";
-      setErrorMessage(message);
+      setErrorMessage(getDomExportErrorMessage(error));
       setCopyState("idle");
     }
   }
 
   async function handleDownload() {
-    const node = targetRef.current;
+    const node = getTargetNode();
     if (!node) return;
     setDownloadState("loading");
     setErrorMessage(null);
     try {
       await downloadDomAsPng(node, filename);
-    } catch {
-      setErrorMessage("No se pudo descargar la imagen.");
-      window.setTimeout(() => setErrorMessage(null), 3500);
+    } catch (error) {
+      setErrorMessage(getDomExportErrorMessage(error));
     } finally {
       setDownloadState("idle");
     }
@@ -73,6 +74,11 @@ export function DomImageExportButtons({
 
   const copyLabel =
     copyState === "loading" ? "Copiando…" : copyState === "done" ? "¡Copiado!" : "Copiar imagen";
+
+  const copyUnavailableMessage =
+    typeof window !== "undefined" && !window.isSecureContext
+      ? "Copiar imagen requiere HTTPS o localhost (no IP local). Usa Descargar PNG."
+      : "Tu navegador no permite copiar imágenes. Usa Descargar PNG.";
 
   return (
     <div className={cn("flex flex-col items-stretch sm:items-end gap-1.5", className)}>
@@ -82,8 +88,8 @@ export function DomImageExportButtons({
           variant="outline"
           size="sm"
           onClick={handleCopy}
-          disabled={!copySupported || copyState === "loading" || downloadState === "loading"}
-          title={copySupported ? "Copiar al portapapeles" : getCopyUnavailableMessage()}
+          disabled={copyState === "loading" || downloadState === "loading"}
+          title={copySupported ? "Copiar al portapapeles" : copyUnavailableMessage}
         >
           {copyState === "done" ? (
             <Check className="h-4 w-4 mr-1.5 text-emerald-600" />
@@ -104,7 +110,7 @@ export function DomImageExportButtons({
         </Button>
       </div>
       {errorMessage && (
-        <p className="text-[11px] text-muted-foreground sm:text-right max-w-xs">{errorMessage}</p>
+        <p className="text-[11px] text-destructive sm:text-right max-w-xs">{errorMessage}</p>
       )}
     </div>
   );

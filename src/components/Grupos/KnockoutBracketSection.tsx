@@ -127,6 +127,7 @@ function R32Column({
   matches,
   fixtureByMatchId,
   slotProbabilities,
+  allGroupsFinished,
 }: {
   matches: ResolvedR32Match[];
   fixtureByMatchId: Map<number, Fixture>;

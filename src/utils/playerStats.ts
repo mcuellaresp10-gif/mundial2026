@@ -4,16 +4,12 @@ import { parseRating } from "./formatters";
 
 const WORLD_CUP_LEAGUE_ID = LEAGUE_ID;
 
-/** Fila de estadísticas del Mundial (league=1 o nombre World Cup). */
+/** Fila de estadísticas del Mundial 2026 (solo torneo final, league=1 season=2026). */
 export function isWorldCupStatRow(stat: PlayerStatistics, nationalTeamId?: number): boolean {
-  const name = stat.league.name.toLowerCase();
-  const isWcLeague =
-    stat.league.id === WORLD_CUP_LEAGUE_ID ||
-    name.includes("world cup") ||
-    (stat.league.country === "World" && name.includes("cup"));
-  if (!isWcLeague) return false;
+  if (stat.league.id !== WORLD_CUP_LEAGUE_ID) return false;
+  if (stat.league.season !== DEFAULT_SEASON) return false;
   if (nationalTeamId != null && stat.team.id !== nationalTeamId) return false;
-  return PLAYER_STAT_SEASONS.includes(stat.league.season as (typeof PLAYER_STAT_SEASONS)[number]);
+  return true;
 }
 
 /** Agrega varias filas de stats (ej. amistosos + eliminatorias con la selección). */
@@ -236,21 +232,15 @@ export function getWorldCupTournamentStat(player: {
   statistics: PlayerStatistics[];
   nationalTeam?: Team;
 }): PlayerStatistics | null {
-  let wc = getStatBundle(player).worldCup;
+  let wc: PlayerStatistics | null = null;
 
-  if (!wc && player.nationalTeam) {
+  if (player.statBundle) {
+    wc = player.statBundle.worldCup;
+  } else if (player.nationalTeam) {
     wc = pickWorldCupStat(player.statistics, player.nationalTeam);
-  }
-
-  if (!wc) {
+  } else {
     const wcRows = player.statistics.filter((s) => isWorldCupStatRow(s));
-    if (wcRows.length === 1) {
-      wc = wcRows[0];
-    } else if (wcRows.length > 1 && player.nationalTeam) {
-      wc = pickWorldCupStat(player.statistics, player.nationalTeam);
-    } else if (wcRows.length > 0) {
-      wc = wcRows[0];
-    }
+    wc = wcRows.length === 1 ? wcRows[0] : wcRows.length > 1 ? wcRows[0] : null;
   }
 
   if (!wc) return null;

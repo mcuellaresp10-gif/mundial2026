@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTeams } from "@/hooks/usePartidos";
 import { useColombiaData } from "@/hooks/useEstadisticasAggregadas";
-import { useTeamPlayers, getTopWorldCupPlayers } from "@/hooks/useJugadores";
+import { useTeamWorldCupKeyPlayers } from "@/hooks/useJugadores";
 import { useClasificacionProb } from "@/hooks/useClasificacionProb";
 import { ClassificationProbDisplay } from "@/components/shared/ClassificationProbDisplay";
 import { MatchTeamPair } from "@/components/shared/TeamLink";
@@ -21,11 +21,9 @@ export function ColombiaFocus() {
     [teams]
   );
   const colombiaData = useColombiaData(colombiaTeam?.id);
-  const { data: players = [] } = useTeamPlayers(colombiaTeam?.id);
-
-  const topWorldCupPlayers = useMemo(
-    () => getTopWorldCupPlayers(players, 5),
-    [players]
+  const { keyPlayers: topWorldCupPlayers, isLoading: loadingKeyPlayers } = useTeamWorldCupKeyPlayers(
+    colombiaTeam?.id,
+    5
   );
 
   const { probability: classProb, outcomes, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
@@ -145,7 +143,9 @@ export function ColombiaFocus() {
               </div>
             )}
 
-            {topWorldCupPlayers.length > 0 ? (
+            {loadingKeyPlayers ? (
+              <Skeleton className="h-40 w-full rounded-xl" />
+            ) : topWorldCupPlayers.length > 0 ? (
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
                   Jugadores clave en el Mundial
@@ -176,7 +176,7 @@ export function ColombiaFocus() {
                           {player.name}
                         </Link>
                         <p className="text-[10px] text-muted-foreground truncate">
-                          {player.goals}G · {player.assists}A · {player.matches} PJ
+                          {player.goals}G · {player.assists}A · {player.matches} PJ (Mundial)
                         </p>
                       </div>
                       <span

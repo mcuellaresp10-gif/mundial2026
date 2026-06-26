@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { getPlayers, getPlayerProfile, getAllSquadsForTeams, getTeamSquadPlayers, getWorldCupTopScorers, getWorldCupAssistLeaders, getWorldCupPlayerStatsPool, getWorldCupGoalkeepersForTeams, getFixtureEvents, getFixtureLineups } from "@/services/apiFootball";
+import { getPlayers, getPlayerProfile, getAllSquadsForTeams, getTeamSquadPlayers, getWorldCupTopScorers, getWorldCupAssistLeaders, getWorldCupPlayerStatsPool, getWorldCupGoalkeepersForTeams, getFixtureEvents, getFixtureLineups, getFixturePlayers } from "@/services/apiFootball";
 import { DEFAULT_SEASON, CACHE_TTL_MS } from "@/lib/utils";
 import type { Player, TopScorerEntry, TopGoalkeeperEntry, Fixture, Lineup } from "@/types";
 import { parseRating } from "@/utils/formatters";
@@ -34,6 +34,12 @@ import {
 } from "@/utils/tournamentGoalkeepers";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 import { isLiveSessionActive } from "@/services/liveSession";
+import type { FixturePlayersTeam } from "@/types";
+import {
+  aggregateCandidatesFromFixturePlayerTeams,
+  mergeWorldCupPoolIntoSquads,
+} from "@/utils/onceIdealRatings";
+import type { RatedPlayerCandidate } from "@/utils/calculations";
 
 export function usePlayers(params: { team?: number; page?: number; search?: string }) {
   return useQuery({
@@ -402,4 +408,122 @@ export function getTopWorldCupPlayers(players: Player[], limit = 5): TopScorerEn
       return b!.matches - a!.matches;
     })
     .slice(0, limit) as TopScorerEntry[];
+}
+
+function ratedCandidatesToTopScorers(
+  candidates: RatedPlayerCandidate[],
+  limit: number
+): TopScorerEntry[] {
+  return [...candidates]
+    .sort((a, b) => {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      if (b.goals !== a.goals) return b.goals - a.goals;
+      return b.assists - a.assists;
+    })
+    .slice(0, limit)
+    .map((c) => ({
+      playerId: c.id,
+      name: c.name,
+      photo: c.photo,
+      team: c.team,
+      teamLogo: c.teamLogo,
+      goals: c.goals,
+      assists: c.assists,
+      matches: c.minutes > 0 ? Math.max(1, Math.round(c.minutes / 90)) : 0,
+      rating: c.rating,
+    }));
+}
+
+function filterPlayersForNationalTeam(players: Player[], teamId: number): Player[] {
+  return players.filter((p) => {
+    if (p.nationalTeam?.id === teamId) return true;
+    const wc = getWorldCupTournamentStat(p);
+    return wc?.team.id === teamId;
+  });
+}
+
+function keyPlayersFromFixturePlayerTeams(
+  teamsGroups: FixturePlayersTeam[][],
+  teamId: number,
+  limit: number
+): TopScorerEntry[] {
+  const filteredGroups = teamsGroups
+    .map((teams) => teams.filter((t) => t.team.id === teamId))
+    .filter((group) => group.length > 0);
+  if (filteredGroups.length === 0) return [];
+  return ratedCandidatesToTopScorers(
+    aggregateCandidatesFromFixturePlayerTeams(filteredGroups, 1),
+    limit
+  );
+}
+
+/** Jugadores clave del Mundial para una selección (pool API + fallback por ratings de partido). */
+export function useTeamWorldCupKeyPlayers(teamId?: number, limit = 5) {
+  const { data: fixtures = [] } = useFixtures({ team: teamId });
+  const { data: squad = [], isLoading: squadLoading } = useTeamPlayers(teamId);
+
+  const tournamentStarted =
+    getClientTournamentPhase() === "live" ||
+    fixtures.some((f) => isFixtureStarted(f.fixture.status.short));
+
+  const liveRefreshMs = tournamentStarted ? LIVE_REFRESH_MS.topScorers : undefined;
+  const staleTime = liveRefreshMs ?? CACHE_TTL_MS;
+
+  const { data: wcPool = [], isLoading: poolLoading } = useQuery({
+    queryKey: ["worldCupPlayerStatsPool", "teamKey", teamId, tournamentStarted ? "live" : "pre"],
+    queryFn: () => getWorldCupPlayerStatsPool(),
+    enabled: !!teamId,
+    staleTime,
+    refetchInterval: liveRefreshMs ?? false,
+  });
+
+  const mergedPlayers = useMemo(() => {
+    if (!teamId) return [];
+    const merged = !squad.length
+      ? wcPool
+      : mergeWorldCupPoolIntoSquads(squad, wcPool);
+    return filterPlayersForNationalTeam(merged, teamId);
+  }, [squad, wcPool, teamId]);
+
+  const fromSeasonStats = useMemo(
+    () => getTopWorldCupPlayers(mergedPlayers, limit),
+    [mergedPlayers, limit]
+  );
+
+  const finishedFixtureIds = useMemo(() => {
+    if (!teamId) return [];
+    return dedupeFixturesByMatch(fixtures)
+      .filter((f) => isFixtureFinished(f.fixture.status.short))
+      .filter((f) => f.teams.home.id === teamId || f.teams.away.id === teamId)
+      .map((f) => f.fixture.id);
+  }, [fixtures, teamId]);
+
+  const useFixtureFallback = fromSeasonStats.length === 0 && finishedFixtureIds.length > 0;
+
+  const fixturePlayerQueries = useQueries({
+    queries: finishedFixtureIds.map((fixtureId) => ({
+      queryKey: ["fixturePlayers", "teamKey", teamId, fixtureId],
+      queryFn: () => getFixturePlayers(fixtureId),
+      enabled: useFixtureFallback && fixtureId > 0,
+      staleTime: CACHE_TTL_MS,
+    })),
+  });
+
+  const fromFixtures = useMemo(() => {
+    if (!useFixtureFallback || !teamId) return [];
+    const groups = fixturePlayerQueries
+      .map((q) => q.data ?? [])
+      .filter((group) => group.length > 0);
+    return keyPlayersFromFixturePlayerTeams(groups, teamId, limit);
+  }, [useFixtureFallback, teamId, fixturePlayerQueries, limit]);
+
+  const keyPlayers = fromSeasonStats.length > 0 ? fromSeasonStats : fromFixtures;
+
+  const fixturesLoading =
+    useFixtureFallback && fixturePlayerQueries.some((q) => q.isLoading && !q.data);
+
+  return {
+    keyPlayers,
+    isLoading: squadLoading || poolLoading || fixturesLoading,
+  };
 }

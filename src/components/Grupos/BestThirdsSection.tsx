@@ -43,7 +43,51 @@ export function BestThirdsSection() {
         </p>
       </CardHeader>
       <CardContent className="px-0 pb-3">
-        <div className="overflow-x-auto">
+        {/* Móvil: tarjetas compactas sin scroll horizontal */}
+        <ul className="md:hidden divide-y divide-border">
+          {rankedThirds.map((entry) => {
+            const { row } = entry;
+            const probBestThird = probMap.get(row.team.id)?.probBestThird;
+            return (
+              <li
+                key={row.team.id}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2.5",
+                  entry.qualifies && "bg-emerald-500/5"
+                )}
+              >
+                <span className="w-5 text-center text-xs tabular-nums text-muted-foreground shrink-0">
+                  {entry.rankAmongThirds}
+                </span>
+                <span className="w-6 text-center text-xs font-semibold shrink-0">
+                  {entry.groupLetter}
+                </span>
+                <Link
+                  href={`/selecciones/${row.team.id}`}
+                  className="flex items-center gap-2 min-w-0 flex-1 hover:text-mundial-gold transition-colors"
+                >
+                  <div className="relative w-5 h-5 shrink-0">
+                    <Image src={row.team.logo} alt="" fill className="object-contain" sizes="20px" />
+                  </div>
+                  <span className="truncate text-sm">{translateTeamName(row.team.name)}</span>
+                </Link>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-bold text-mundial-gold tabular-nums">{row.points} pts</p>
+                  <p className="text-[10px] tabular-nums text-muted-foreground">
+                    {loadingProbs ? "…" : probBestThird != null ? `${probBestThird}%` : "—"}
+                  </p>
+                </div>
+                {entry.qualifies ? (
+                  <span className="text-[9px] font-semibold uppercase text-emerald-600 dark:text-emerald-400 shrink-0">
+                    ✓
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="hidden md:block overflow-x-auto overscroll-x-contain">
           <table className="w-full text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">

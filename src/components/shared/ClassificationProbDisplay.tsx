@@ -101,19 +101,25 @@ export function ClassificationProbCells({
   outcomes,
   isLoading,
   columns = "123",
+  hideOnMobile = false,
 }: {
   outcomes?: Pick<TeamOutcomeProbs, "probFirst" | "probSecond" | "probBestThird"> | null;
   isLoading: boolean;
   columns?: "12" | "123";
+  hideOnMobile?: boolean;
 }) {
   const showBestThird = columns === "123";
   const colCount = showBestThird ? 3 : 2;
+  const cellClass = hideOnMobile ? "hidden md:table-cell" : "";
 
   if (isLoading) {
     return (
       <>
         {Array.from({ length: colCount }).map((_, i) => (
-          <td key={i} className="py-2.5 px-1 text-center text-muted-foreground">
+          <td
+            key={i}
+            className={cn("py-2.5 px-1 text-center text-muted-foreground", cellClass)}
+          >
             …
           </td>
         ))}
@@ -125,7 +131,10 @@ export function ClassificationProbCells({
     return (
       <>
         {Array.from({ length: colCount }).map((_, i) => (
-          <td key={i} className="py-2.5 px-1 text-center text-muted-foreground">
+          <td
+            key={i}
+            className={cn("py-2.5 px-1 text-center text-muted-foreground", cellClass)}
+          >
             —
           </td>
         ))}
@@ -135,14 +144,29 @@ export function ClassificationProbCells({
 
   return (
     <>
-      <td className="py-2.5 px-1 text-center tabular-nums font-mono text-xs">
+      <td
+        className={cn(
+          "py-2.5 px-1 text-center tabular-nums font-mono text-xs",
+          cellClass
+        )}
+      >
         {outcomes.probFirst}%
       </td>
-      <td className="py-2.5 px-1 text-center tabular-nums font-mono text-xs">
+      <td
+        className={cn(
+          "py-2.5 px-1 text-center tabular-nums font-mono text-xs",
+          cellClass
+        )}
+      >
         {outcomes.probSecond}%
       </td>
       {showBestThird && (
-        <td className="py-2.5 px-1 text-center tabular-nums font-mono text-xs">
+        <td
+          className={cn(
+            "py-2.5 px-1 text-center tabular-nums font-mono text-xs",
+            cellClass
+          )}
+        >
           {outcomes.probBestThird}%
         </td>
       )}

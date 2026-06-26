@@ -79,8 +79,12 @@ function MatchBox({
   return (
     <div
       className={cn(
-        "rounded-md border border-border bg-card/80 shadow-sm overflow-hidden",
-        showProbabilities ? "w-[210px]" : compact ? "w-[148px]" : "w-[168px]"
+        "rounded-md border border-border bg-card/80 shadow-sm overflow-hidden shrink-0",
+        showProbabilities
+          ? "w-[168px] sm:w-[190px] lg:w-[210px]"
+          : compact
+            ? "w-[112px] sm:w-[130px] lg:w-[148px]"
+            : "w-[128px] sm:w-[148px] lg:w-[168px]"
       )}
     >
       <div
@@ -135,7 +139,7 @@ function R32Column({
   allGroupsFinished?: boolean;
 }) {
   return (
-    <div className="flex flex-col justify-around gap-3 py-4 min-h-[720px]">
+    <div className="flex flex-col gap-2 py-2 justify-around sm:gap-3 sm:py-4 min-h-[520px] sm:min-h-[600px] lg:min-h-[720px]">
       {matches.map((m) => (
         <MatchBox
           key={m.matchId}
@@ -164,8 +168,8 @@ function KnockoutColumn({
   return (
     <div
       className={cn(
-        "flex flex-col justify-around gap-4 py-4",
-        tall ? "min-h-[640px]" : "min-h-[320px]"
+        "flex flex-col justify-around gap-2 py-2 sm:gap-4 sm:py-4",
+        tall ? "min-h-[480px] sm:min-h-[560px] lg:min-h-[640px]" : "min-h-[240px] sm:min-h-[280px] lg:min-h-[320px]"
       )}
     >
       {matches.map((m) => (
@@ -220,6 +224,14 @@ function GroupStrip({ letters, groups }: { letters: GroupLetter[]; groups: Recor
   );
 }
 
+function BracketScrollHint() {
+  return (
+    <p className="lg:hidden text-center text-[11px] text-muted-foreground pb-2">
+      Desliza para recorrer el cuadro · 16avos → final
+    </p>
+  );
+}
+
 function BracketHalf({
   side,
   r32,
@@ -242,7 +254,7 @@ function BracketHalf({
   return (
     <div
       className={cn(
-        "flex items-stretch gap-3",
+        "flex items-stretch gap-1.5 sm:gap-2 lg:gap-3",
         side === "right" && "flex-row-reverse"
       )}
     >
@@ -296,8 +308,8 @@ export function KnockoutBracketSection() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold">Cuadro eliminatorio</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-lg md:text-xl font-semibold">Cuadro eliminatorio</h2>
+        <p className="text-xs md:text-sm text-muted-foreground mt-1">
           Proyección según tabla actual · Los 2 primeros de cada grupo + 8 mejores terceros.
           Los 16avos muestran probabilidades Monte Carlo por slot (1.000 simulaciones).
           {bracket.isProvisional && (
@@ -309,12 +321,15 @@ export function KnockoutBracketSection() {
         </p>
       </div>
 
-      <GroupStrip letters={topGroups} groups={bracket.groupStrips} />
+      <div className="hidden lg:block">
+        <GroupStrip letters={topGroups} groups={bracket.groupStrips} />
+      </div>
 
       <Card className="overflow-hidden">
-        <CardContent className="p-4">
-          <div className="overflow-x-auto pb-2">
-            <div className="flex items-center gap-4 min-w-[1200px]">
+        <CardContent className="p-2 sm:p-4">
+          <BracketScrollHint />
+          <div className="overflow-x-auto overflow-y-auto pb-2 overscroll-x-contain [-webkit-overflow-scrolling:touch] scroll-smooth max-lg:max-h-[72dvh] lg:max-h-none">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-[980px] sm:min-w-[1100px] lg:min-w-[1200px] px-1 max-lg:origin-top-left max-lg:[zoom:0.56]">
               <BracketHalf
                 side="left"
                 r32={leftR32}
@@ -376,7 +391,9 @@ export function KnockoutBracketSection() {
         </CardContent>
       </Card>
 
-      <GroupStrip letters={bottomGroups} groups={bracket.groupStrips} />
+      <div className="hidden lg:block">
+        <GroupStrip letters={bottomGroups} groups={bracket.groupStrips} />
+      </div>
     </section>
   );
 }

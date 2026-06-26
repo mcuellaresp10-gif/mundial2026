@@ -81,8 +81,17 @@ export function ColombiaFocus() {
                   showBreakdown={false}
                 />
               </div>
-              <MiniStat label="Puntos" value={standing?.points ?? 0} />
-              <MiniStat label="Dif. goles" value={standing?.goalsDiff ?? 0} />
+              <MiniStat label="Puntos" value={standing != null ? standing.points : "N/D"} />
+              <MiniStat
+                label="Dif. goles"
+                value={
+                  standing != null
+                    ? standing.goalsDiff > 0
+                      ? `+${standing.goalsDiff}`
+                      : standing.goalsDiff
+                    : "N/D"
+                }
+              />
             </div>
 
             {outcomes && !loadingProb && (

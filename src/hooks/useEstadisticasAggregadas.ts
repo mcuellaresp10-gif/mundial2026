@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useFixtures, useStandings } from "./usePartidos";
+import { useGroupStandings } from "./useGroupStandings";
 import { aggregateFixtureGoals, getBiggestWin } from "@/utils/calculations";
 import { aggregateGoalsByRound as aggregateGoalsByRoundChart } from "@/utils/tournamentAnalytics";
 import { extractGroupStageLeaders } from "@/utils/groupClassification";
@@ -70,7 +71,7 @@ export function useEstadisticasAggregadas() {
 
 export function useColombiaData(colombiaTeamId?: number | null) {
   const { data: fixtures = [] } = useFixtures({ team: colombiaTeamId ?? undefined });
-  const { data: standings = [] } = useStandings();
+  const { standings } = useGroupStandings();
 
   return useMemo(() => {
     if (!colombiaTeamId) return null;

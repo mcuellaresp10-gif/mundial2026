@@ -3,9 +3,10 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTeams, useFixtures } from "@/hooks/usePartidos";
-import { useAllPlayers } from "@/hooks/useJugadores";
-import { getWorldCupPlayerStatsPool } from "@/services/apiFootball";
-import { mergeWorldCupPoolIntoSquads } from "@/utils/onceIdealRatings";
+import {
+  getWorldCupGoalkeepersForTeams,
+  getWorldCupPlayerStatsPool,
+} from "@/services/apiFootball";
 import {
   buildScoutingProfiles,
   computePoolAverages,
@@ -14,11 +15,36 @@ import {
 } from "@/utils/worldCupScoutingMetrics";
 import type { ScoutingPosition } from "@/config/positionMetricProfiles";
 import type { Player } from "@/types";
-import { CACHE_TTL_MS } from "@/lib/utils";
+import { CACHE_TTL_MS, DEFAULT_SEASON } from "@/lib/utils";
 import { isFixtureStarted, getPlayerStatsRefreshMs } from "@/lib/liveRefresh";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 
-export function useWorldCupScoutingPool(enabled = true) {
+function mergePlayerRows(primary: Player[], extra: Player[]): Player[] {
+  if (!extra.length) return primary;
+  const byId = new Map(primary.map((p) => [p.player.id, p]));
+  for (const p of extra) {
+    const existing = byId.get(p.player.id);
+    if (!existing) {
+      byId.set(p.player.id, p);
+      continue;
+    }
+    if ((p.statistics?.length ?? 0) >= (existing.statistics?.length ?? 0)) {
+      byId.set(p.player.id, p);
+    }
+  }
+  return [...byId.values()];
+}
+
+export interface WorldCupScoutingPoolOptions {
+  /** Porteros no salen bien en topscorers; cargar solo si hace falta (p. ej. pestaña G). */
+  loadGoalkeepers?: boolean;
+}
+
+export function useWorldCupScoutingPool(
+  enabled = true,
+  options: WorldCupScoutingPoolOptions = {}
+) {
+  const loadGoalkeepers = options.loadGoalkeepers ?? false;
   const { data: teams } = useTeams();
   const { data: fixtures = [] } = useFixtures();
   const teamIds = useMemo(() => teams?.map((t) => t.id) ?? [], [teams]);
@@ -30,25 +56,26 @@ export function useWorldCupScoutingPool(enabled = true) {
   const liveRefreshMs = getPlayerStatsRefreshMs(fixtures) || undefined;
   const staleTime = liveRefreshMs ?? CACHE_TTL_MS;
 
-  const { data: squads = [], isLoading: squadsLoading } = useAllPlayers(
-    teamIds,
-    false,
-    enabled && teamIds.length > 0,
-    liveRefreshMs
-  );
-
   const { data: wcPool = [], isLoading: poolLoading } = useQuery({
-    queryKey: ["worldCupPlayerStatsPool", "scouting", tournamentStarted ? "live" : "pre"],
+    queryKey: ["worldCupPlayerStatsPool", "scouting", DEFAULT_SEASON, tournamentStarted ? "live" : "pre"],
     queryFn: () => getWorldCupPlayerStatsPool(),
-    enabled: enabled && teamIds.length > 0,
+    enabled,
     staleTime,
     refetchInterval: liveRefreshMs ?? false,
   });
 
-  const mergedPlayers: Player[] = useMemo(() => {
-    if (!squads.length) return wcPool;
-    return mergeWorldCupPoolIntoSquads(squads, wcPool);
-  }, [squads, wcPool]);
+  const { data: gkPool = [], isFetching: gkFetching } = useQuery({
+    queryKey: ["worldCupGoalkeeperPool", "scouting", DEFAULT_SEASON, teamIds.join(",")],
+    queryFn: () => getWorldCupGoalkeepersForTeams(teamIds),
+    enabled: enabled && loadGoalkeepers && teamIds.length > 0,
+    staleTime,
+    refetchInterval: liveRefreshMs ?? false,
+  });
+
+  const mergedPlayers: Player[] = useMemo(
+    () => mergePlayerRows(wcPool, gkPool),
+    [wcPool, gkPool]
+  );
 
   const profiles: ScoutingProfile[] = useMemo(
     () => buildScoutingProfiles(mergedPlayers),
@@ -74,7 +101,8 @@ export function useWorldCupScoutingPool(enabled = true) {
     profiles,
     profilesById,
     averagesByPosition,
-    isLoading: squadsLoading || poolLoading,
+    isLoading: poolLoading && profiles.length === 0,
+    isEnriching: gkFetching && wcPool.length > 0,
     isReady: profiles.length > 0,
   };
 }

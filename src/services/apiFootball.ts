@@ -51,6 +51,7 @@ const client = axios.create({ baseURL: "/api/football" });
 const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
 const PLAYER_STATS_LOCAL_CACHE_MS = 3 * 60 * 1000;
 const WORLD_CUP_PLAYER_POOL_MAX_PAGES = 15;
+const WORLD_CUP_PLAYER_POOL_PAGE_CONCURRENCY = 4;
 
 function isTournamentStatsRefreshActive(): boolean {
   return isLiveSessionActive() || getClientTournamentPhase() === "live";
@@ -855,10 +856,21 @@ export async function getWorldCupPlayerStatsPool(
     );
     mergePlayerPoolRows(byId, topscorerPayload.response ?? []);
 
-    for (let page = 1; page <= WORLD_CUP_PLAYER_POOL_MAX_PAGES; page++) {
-      const { players, paging } = await getPlayers({ season, page });
-      mergePlayerPoolRows(byId, players);
-      if (page >= paging.total || players.length === 0) break;
+    const firstPage = await getPlayers({ season, page: 1 });
+    mergePlayerPoolRows(byId, firstPage.players);
+    const totalPages = Math.min(firstPage.paging.total, WORLD_CUP_PLAYER_POOL_MAX_PAGES);
+
+    if (totalPages > 1) {
+      const extraPages = Array.from({ length: totalPages - 1 }, (_, index) => index + 2);
+      const pageResults = await mapAsyncWithConcurrency(
+        extraPages,
+        WORLD_CUP_PLAYER_POOL_PAGE_CONCURRENCY,
+        async (page) => getPlayers({ season, page }),
+        0
+      );
+      for (const { players } of pageResults) {
+        mergePlayerPoolRows(byId, players);
+      }
     }
 
     const pool = [...byId.values()].map(enrichWorldCupPoolPlayer);

@@ -24,7 +24,9 @@ import {
 } from "@/components/Jugadores/Scouting";
 
 export function ScoutingExplorer() {
-  const { profiles, isLoading, isReady } = useWorldCupScoutingPool(true);
+  const { profiles, isLoading, isReady, isEnriching } = useWorldCupScoutingPool(true, {
+    loadGoalkeepers: position === "G",
+  });
   const [position, setPosition] = useState<ScoutingPosition>("M");
   const [metricView, setMetricView] = useState<ScoutingMetricViewId>("default");
   const [search, setSearch] = useState("");
@@ -103,6 +105,7 @@ export function ScoutingExplorer() {
         <p className="text-sm text-muted-foreground pb-2">
           {filtered.length} de {positionProfiles.length} {positionLabel.toLowerCase()}
           {!isReady && isLoading && " · cargando pool…"}
+          {isReady && isEnriching && " · actualizando porteros…"}
         </p>
       </div>
 

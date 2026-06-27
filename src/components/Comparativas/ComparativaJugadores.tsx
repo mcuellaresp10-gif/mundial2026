@@ -26,7 +26,9 @@ export function ComparativaJugadores() {
   const [playerBId, setPlayerBId] = useState<number>(0);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  const { profiles, isLoading, isReady } = useWorldCupScoutingPool(true);
+  const { profiles, isLoading, isReady } = useWorldCupScoutingPool(true, {
+    loadGoalkeepers: posFilter === "G",
+  });
 
   const filtered = useMemo(() => {
     const list = profilesForPosition(profiles, posFilter);

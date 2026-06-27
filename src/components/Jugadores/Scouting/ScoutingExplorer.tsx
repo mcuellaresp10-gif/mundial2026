@@ -24,14 +24,15 @@ import {
 } from "@/components/Jugadores/Scouting";
 
 export function ScoutingExplorer() {
-  const { profiles, isLoading, isReady, isEnriching } = useWorldCupScoutingPool(true, {
-    loadGoalkeepers: position === "G",
-  });
   const [position, setPosition] = useState<ScoutingPosition>("M");
   const [metricView, setMetricView] = useState<ScoutingMetricViewId>("default");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
+
+  const { profiles, isLoading, isReady, isEnriching } = useWorldCupScoutingPool(true, {
+    loadGoalkeepers: position === "G",
+  });
 
   const positionProfiles = useMemo(
     () => profilesForPosition(profiles, position),

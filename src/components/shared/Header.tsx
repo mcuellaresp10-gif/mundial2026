@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Menu, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchGlobal } from "./SearchGlobal";
+import { TwitterLink } from "./TwitterLink";
 import { useUIStore } from "@/stores/useUIStore";
 import { useRefreshAll } from "@/hooks/usePartidos";
 import { isLiveSessionActive } from "@/services/liveSession";
@@ -90,6 +91,7 @@ export function Header() {
               Actualizado hace {secondsAgo}s
             </span>
           )}
+          <TwitterLink variant="header" />
           <Button
             variant="ghost"
             size="icon"

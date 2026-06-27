@@ -2,12 +2,15 @@
 
 import { MessageCircleWarning } from "lucide-react";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { TwitterLink } from "./TwitterLink";
 import { APP_VERSION } from "@/lib/appVersion";
 
 export function Footer() {
   return (
     <footer className="h-10 flex items-center justify-center gap-3 text-xs text-muted-foreground border-t mt-auto px-4">
       <span>Mundial 2026 — Análisis Táctico & Estadísticas · {APP_VERSION}</span>
+      <span className="text-border">·</span>
+      <TwitterLink variant="footer" />
       <span className="text-border">·</span>
       <FeedbackDialog
         trigger={

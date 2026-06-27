@@ -30,6 +30,30 @@ function writeSessionFlag(active: boolean): void {
   }
 }
 
+/** Limpia caché local de stats agregadas de jugadores (pool scouting, topscorers, etc.). */
+export function clearPlayerStatsLocalCache(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(LS_PREFIX)) continue;
+      const suffix = key.slice(LS_PREFIX.length);
+      if (
+        suffix.startsWith("players") ||
+        suffix.startsWith("worldCupAssistLeaders") ||
+        suffix.startsWith("worldCupPlayerStatsPool") ||
+        suffix.startsWith("worldCupGoalkeeperPool")
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    for (const key of keysToRemove) localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Limpia caché local de fixtures/live una sola vez al activar sesión en vivo. */
 export function clearLiveFixtureLocalCache(): void {
   if (typeof window === "undefined") return;
@@ -54,6 +78,7 @@ export function clearLiveFixtureLocalCache(): void {
       }
     }
     for (const key of keysToRemove) localStorage.removeItem(key);
+    clearPlayerStatsLocalCache();
     sessionStorage.setItem(CACHE_CLEARED_KEY, "true");
   } catch {
     /* ignore */

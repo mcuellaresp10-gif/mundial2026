@@ -8,6 +8,7 @@ import { StyleGuard } from "@/components/shared/StyleGuard";
 import { ChunkLoadRecovery } from "@/components/shared/ChunkLoadRecovery";
 import { TournamentPhaseSync } from "@/components/shared/TournamentPhaseSync";
 import { LiveScoreSync } from "@/components/shared/LiveScoreSync";
+import { PlayerStatsSync } from "@/components/shared/PlayerStatsSync";
 import { AppShell } from "@/components/shared/AppShell";
 import { GoogleAnalytics } from "@/components/shared/GoogleAnalytics";
 import { NavigationEvents } from "@/components/shared/NavigationEvents";
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ChunkLoadRecovery />
           <TournamentPhaseSync />
           <LiveScoreSync />
+          <PlayerStatsSync />
           <StyleGuard />
           <SplashScreen />
           <AppShell>{children}</AppShell>

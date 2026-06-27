@@ -26,6 +26,7 @@ import {
   getFixturesForScorerEvents,
   isFixtureLiveForScorerEvents,
   LIVE_REFRESH_MS,
+  getPlayerStatsRefreshMs,
 } from "@/lib/liveRefresh";
 import {
   aggregateCleanSheetsFromLineups,
@@ -171,9 +172,7 @@ function useWorldCupScorerFixtureEvents(fixtures: Fixture[]) {
 
   const liveRefreshMs: number | false = hasLiveFixtures
     ? LIVE_REFRESH_MS.topScorersLive
-    : tournamentStarted
-      ? LIVE_REFRESH_MS.topScorers
-      : false;
+    : getPlayerStatsRefreshMs(fixtures) || false;
 
   return {
     eventsByFixture,
@@ -466,7 +465,7 @@ export function useTeamWorldCupKeyPlayers(teamId?: number, limit = 5) {
     getClientTournamentPhase() === "live" ||
     fixtures.some((f) => isFixtureStarted(f.fixture.status.short));
 
-  const liveRefreshMs = tournamentStarted ? LIVE_REFRESH_MS.topScorers : undefined;
+  const liveRefreshMs = getPlayerStatsRefreshMs(fixtures) || undefined;
   const staleTime = liveRefreshMs ?? CACHE_TTL_MS;
 
   const { data: wcPool = [], isLoading: poolLoading } = useQuery({

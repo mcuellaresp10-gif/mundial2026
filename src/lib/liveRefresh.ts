@@ -238,7 +238,24 @@ export const LIVE_REFRESH_MS = {
   topScorers: 5 * 60 * 1000,
   /** Goleadores/asistidores con partido en curso. */
   topScorersLive: 60 * 1000,
+  /** Stats agregadas de jugadores (pool scouting) entre jornadas. */
+  playerStats: 3 * 60 * 1000,
+  /** Stats de jugadores con partido en curso o ventana de kickoff. */
+  playerStatsLive: 60 * 1000,
 } as const;
+
+/** Intervalo de refresco del pool de stats según estado del calendario. */
+export function getPlayerStatsRefreshMs(
+  fixtures: Fixture[] | undefined
+): number | false {
+  if (!fixtures?.length) return false;
+  const started = fixtures.some((f) => isFixtureStarted(f.fixture.status.short));
+  if (!started) return false;
+  if (hasAnyLiveFixture(fixtures) || shouldPollFixtures(fixtures)) {
+    return LIVE_REFRESH_MS.playerStatsLive;
+  }
+  return LIVE_REFRESH_MS.playerStats;
+}
 
 export function getLivePollInterval(aggressive: boolean): number {
   return aggressive ? LIVE_REFRESH_MS.livePoll : LIVE_REFRESH_MS.livePollIdle;

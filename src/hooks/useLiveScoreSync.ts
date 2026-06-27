@@ -7,7 +7,7 @@ import {
   getLiveWorldCupFixtures,
   mergeLiveIntoFixtures,
 } from "@/services/apiFootball";
-import { isLiveSessionActive, syncLiveSession } from "@/services/liveSession";
+import { isLiveSessionActive, syncLiveSession, clearPlayerStatsLocalCache } from "@/services/liveSession";
 import {
   getLivePollInterval,
   isPlausibleLiveFixture,
@@ -140,6 +140,10 @@ export function useLiveScoreSync() {
             prevLiveIdsRef.current = liveIds;
 
             if (droppedFromLive.length > 0) {
+              clearPlayerStatsLocalCache();
+              qc.invalidateQueries({ queryKey: ["worldCupPlayerStatsPool"] });
+              qc.invalidateQueries({ queryKey: ["worldCupTopScorers"] });
+              qc.invalidateQueries({ queryKey: ["worldCupTopAssists"] });
               const full = await getFixtures({});
               if (!cancelled && full.length > 0) {
                 setAllFixtureQueries(qc, full);

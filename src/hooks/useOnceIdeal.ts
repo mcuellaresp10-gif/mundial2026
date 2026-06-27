@@ -6,7 +6,7 @@ import { buildOnceIdealFromCandidates } from "@/utils/calculations";
 import type { FormationType, OnceIdealPlayer } from "@/types";
 import { useTeams, useFixtures } from "./usePartidos";
 import { useAllPlayers } from "./useJugadores";
-import { isFixtureStarted, LIVE_REFRESH_MS } from "@/lib/liveRefresh";
+import { isFixtureStarted, getPlayerStatsRefreshMs } from "@/lib/liveRefresh";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 import { getWorldCupPlayerStatsPool } from "@/services/apiFootball";
 import { CACHE_TTL_MS } from "@/lib/utils";
@@ -25,7 +25,7 @@ export function useOnceIdeal(formation: FormationType = "4-3-3") {
     getClientTournamentPhase() === "live" ||
     fixtures.some((f) => isFixtureStarted(f.fixture.status.short));
 
-  const liveRefreshMs = tournamentStarted ? LIVE_REFRESH_MS.topScorers : undefined;
+  const liveRefreshMs = getPlayerStatsRefreshMs(fixtures) || undefined;
   const staleTime = liveRefreshMs ?? CACHE_TTL_MS;
 
   const { data: players, isLoading: squadsLoading } = useAllPlayers(

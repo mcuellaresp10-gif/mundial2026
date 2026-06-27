@@ -15,7 +15,7 @@ import {
 import type { ScoutingPosition } from "@/config/positionMetricProfiles";
 import type { Player } from "@/types";
 import { CACHE_TTL_MS } from "@/lib/utils";
-import { isFixtureStarted, LIVE_REFRESH_MS } from "@/lib/liveRefresh";
+import { isFixtureStarted, getPlayerStatsRefreshMs } from "@/lib/liveRefresh";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 
 export function useWorldCupScoutingPool(enabled = true) {
@@ -27,7 +27,7 @@ export function useWorldCupScoutingPool(enabled = true) {
     getClientTournamentPhase() === "live" ||
     fixtures.some((f) => isFixtureStarted(f.fixture.status.short));
 
-  const liveRefreshMs = tournamentStarted ? LIVE_REFRESH_MS.topScorers : undefined;
+  const liveRefreshMs = getPlayerStatsRefreshMs(fixtures) || undefined;
   const staleTime = liveRefreshMs ?? CACHE_TTL_MS;
 
   const { data: squads = [], isLoading: squadsLoading } = useAllPlayers(

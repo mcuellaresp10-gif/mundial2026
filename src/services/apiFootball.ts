@@ -16,6 +16,7 @@ import type {
 } from "@/types";
 import { cacheKey, getLocalCache, getStaleLocalCache, removeLocalCache, setLocalCache } from "./cache";
 import { isLiveSessionActive } from "./liveSession";
+import { getClientTournamentPhase } from "./clientTournamentPhase";
 import {
   resolveFixturesFromSnapshotOr,
   resolvePlayerFromSnapshotOr,
@@ -24,7 +25,7 @@ import {
   resolveStandingsFromSnapshotOr,
   resolveTeamsFromSnapshotOr,
 } from "./catalogResolver";
-import { DEFAULT_SEASON, LEAGUE_ID, PLAYER_STAT_SEASONS } from "@/lib/utils";
+import { DEFAULT_SEASON, LEAGUE_ID, PLAYER_STAT_SEASONS, CACHE_TTL_MS } from "@/lib/utils";
 import {
   isFixtureLive,
   isPlausibleLiveFixture,
@@ -48,11 +49,23 @@ import {
 
 const client = axios.create({ baseURL: "/api/football" });
 const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
+const PLAYER_STATS_LOCAL_CACHE_MS = 3 * 60 * 1000;
+const WORLD_CUP_PLAYER_POOL_MAX_PAGES = 15;
+
+function isTournamentStatsRefreshActive(): boolean {
+  return isLiveSessionActive() || getClientTournamentPhase() === "live";
+}
 
 function liveRequestConfig() {
-  return isLiveSessionActive()
+  return isTournamentStatsRefreshActive()
     ? { headers: { "X-Mundial-Live": "1" } as Record<string, string> }
     : {};
+}
+
+function playerStatsLocalCacheTtl(): number {
+  if (isLiveSessionActive()) return LIVE_TOP_SCORERS_CACHE_MS;
+  if (getClientTournamentPhase() === "live") return PLAYER_STATS_LOCAL_CACHE_MS;
+  return CACHE_TTL_MS;
 }
 
 function isFixtureRelatedCacheKey(path: string): boolean {
@@ -751,9 +764,10 @@ export async function getPlayers(params: {
       search: params.search,
       id: params.id,
     },
+    ...liveRequestConfig(),
   });
   const key = cacheKey("players", params as Record<string, unknown>);
-  setLocalCache(key, response.data.response);
+  setLocalCache(key, response.data.response, playerStatsLocalCacheTtl());
   return {
     players: response.data.response,
     paging: response.data.paging ?? { current: 1, total: 1 },
@@ -792,7 +806,7 @@ export async function getWorldCupTopScorers(
     });
     const list = mapPlayersToTopScorers(data.response ?? []);
     if (!shouldBypassPlayerStatsCache()) {
-      setLocalCache(key, list, LIVE_TOP_SCORERS_CACHE_MS);
+      setLocalCache(key, list, playerStatsLocalCacheTtl());
     }
     return list;
   } catch {
@@ -801,7 +815,6 @@ export async function getWorldCupTopScorers(
 }
 
 const WORLD_CUP_ASSIST_PLAYER_PAGES = 8;
-const WORLD_CUP_PLAYER_POOL_PAGES = 6;
 const WORLD_CUP_GK_TEAM_CONCURRENCY = 6;
 
 function mergePlayerPoolRows(into: Map<number, Player>, rows: Player[]): void {
@@ -842,7 +855,7 @@ export async function getWorldCupPlayerStatsPool(
     );
     mergePlayerPoolRows(byId, topscorerPayload.response ?? []);
 
-    for (let page = 1; page <= WORLD_CUP_PLAYER_POOL_PAGES; page++) {
+    for (let page = 1; page <= WORLD_CUP_PLAYER_POOL_MAX_PAGES; page++) {
       const { players, paging } = await getPlayers({ season, page });
       mergePlayerPoolRows(byId, players);
       if (page >= paging.total || players.length === 0) break;
@@ -850,7 +863,7 @@ export async function getWorldCupPlayerStatsPool(
 
     const pool = [...byId.values()].map(enrichWorldCupPoolPlayer);
     if (!shouldBypassPlayerStatsCache()) {
-      setLocalCache(key, pool, LIVE_TOP_SCORERS_CACHE_MS);
+      setLocalCache(key, pool, playerStatsLocalCacheTtl());
     }
     return pool;
   } catch {
@@ -915,7 +928,7 @@ export async function getWorldCupGoalkeepersForTeams(
 
     const pool = [...byId.values()];
     if (!shouldBypassPlayerStatsCache()) {
-      setLocalCache(key, pool, LIVE_TOP_SCORERS_CACHE_MS);
+      setLocalCache(key, pool, playerStatsLocalCacheTtl());
     }
     return pool;
   } catch {
@@ -950,7 +963,7 @@ export async function getWorldCupAssistLeaders(
 
     const merged = mergeTopAssistLists(...lists);
     if (!shouldBypassPlayerStatsCache()) {
-      setLocalCache(key, merged, LIVE_TOP_SCORERS_CACHE_MS);
+      setLocalCache(key, merged, playerStatsLocalCacheTtl());
     }
     return merged;
   } catch {

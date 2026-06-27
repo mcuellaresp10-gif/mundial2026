@@ -6,6 +6,8 @@ const LIVE_CACHE_TTL = 60 * 1000;
 const LIVE_DETAIL_CACHE_TTL = 25 * 1000;
 const LIVE_STANDINGS_CACHE_TTL = 2 * 60 * 1000;
 const EMPTY_LIVE_CACHE_TTL = 90 * 1000;
+/** Stats agregadas por jugador/liga — no deben quedar 4 h en caché tras un partido. */
+const PLAYER_STATS_CACHE_TTL = 3 * 60 * 1000;
 
 const LIVE_SESSION_LIVE_TTL = 40 * 1000;
 const LIVE_SESSION_EMPTY_LIVE_TTL = 90 * 1000;
@@ -17,11 +19,8 @@ function isLiveSessionRequest(request: NextRequest): boolean {
   return request.headers.get("X-Mundial-Live") === "1";
 }
 
-function isPlayerStatsPath(path: string, search: string): boolean {
-  return (
-    path.includes("players/topscorers") ||
-    (path === "players" && search.includes("league="))
-  );
+function isPlayerStatsPath(path: string): boolean {
+  return path.includes("players/topscorers") || path === "players";
 }
 
 function getCacheTtl(path: string, search: string, liveSession: boolean): number {
@@ -29,7 +28,7 @@ function getCacheTtl(path: string, search: string, liveSession: boolean): number
     if (path.includes("fixtures/events") || path.includes("fixtures/statistics")) {
       return LIVE_SESSION_DETAIL_TTL;
     }
-    if (isPlayerStatsPath(path, search)) {
+    if (isPlayerStatsPath(path)) {
       return LIVE_SESSION_DETAIL_TTL;
     }
     if (search.includes("live=all")) return LIVE_SESSION_LIVE_TTL;
@@ -41,8 +40,8 @@ function getCacheTtl(path: string, search: string, liveSession: boolean): number
   if (path.includes("fixtures/events") || path.includes("fixtures/statistics")) {
     return LIVE_DETAIL_CACHE_TTL;
   }
-  if (path.includes("players/topscorers")) {
-    return LIVE_CACHE_TTL;
+  if (isPlayerStatsPath(path)) {
+    return PLAYER_STATS_CACHE_TTL;
   }
   if (search.includes("live=all")) {
     return 30 * 1000;
@@ -157,7 +156,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     (liveSession &&
       (path === "fixtures" ||
         path.startsWith("fixtures/") ||
-        isPlayerStatsPath(path, search)));
+        isPlayerStatsPath(path)));
 
   try {
     trackRequest();

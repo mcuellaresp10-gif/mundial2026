@@ -14,8 +14,15 @@ import {
   buildCandidatesFromPlayers,
   mergeWorldCupPoolIntoSquads,
 } from "@/utils/onceIdealRatings";
+import {
+  filterCandidatesByConfederation,
+  type ConfederationFilter,
+} from "@/utils/onceIdealConfederation";
 
-export function useOnceIdeal(formation: FormationType = "4-3-3") {
+export function useOnceIdeal(
+  formation: FormationType = "4-3-3",
+  confederation: ConfederationFilter = "all"
+) {
   const { data: teams } = useTeams();
   const { data: fixtures = [] } = useFixtures();
 
@@ -46,9 +53,12 @@ export function useOnceIdeal(formation: FormationType = "4-3-3") {
   const onceIdeal: OnceIdealPlayer[] = useMemo(() => {
     if (!players?.length) return [];
     const merged = mergeWorldCupPoolIntoSquads(players, wcPool);
-    const candidates = buildCandidatesFromPlayers(merged);
+    const candidates = filterCandidatesByConfederation(
+      buildCandidatesFromPlayers(merged),
+      confederation
+    );
     return buildOnceIdealFromCandidates(candidates, formation);
-  }, [players, wcPool, formation]);
+  }, [players, wcPool, formation, confederation]);
 
   const averageRating = useMemo(() => {
     if (onceIdeal.length === 0) return 0;

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { FixturePlayersTeam } from "@/types";
+import { filterCandidatesByConfederation } from "./onceIdealConfederation";
 import {
   aggregateCandidatesFromFixturePlayerTeams,
   mergeWorldCupPoolIntoSquads,
@@ -152,6 +153,40 @@ describe("onceIdealRatings", () => {
     assert.ok(candidate);
     assert.equal(candidate!.goals, 5);
     assert.equal(candidate!.position, "F");
+  });
+
+  it("filterCandidatesByConfederation deja solo la confederación elegida", () => {
+    const candidates = [
+      {
+        id: 1,
+        name: "A",
+        photo: "",
+        team: "Colombia",
+        teamLogo: "",
+        position: "F",
+        rating: 7.5,
+        goals: 1,
+        assists: 0,
+        minutes: 90,
+      },
+      {
+        id: 2,
+        name: "B",
+        photo: "",
+        team: "France",
+        teamLogo: "",
+        position: "M",
+        rating: 7.8,
+        goals: 0,
+        assists: 1,
+        minutes: 90,
+      },
+    ];
+
+    const conmebol = filterCandidatesByConfederation(candidates, "CONMEBOL");
+    assert.equal(conmebol.length, 1);
+    assert.equal(conmebol[0]!.team, "Colombia");
+    assert.equal(filterCandidatesByConfederation(candidates, "all").length, 2);
   });
 
   it("aggregateStatistics pondera rating por minutos", () => {

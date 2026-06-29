@@ -5,17 +5,17 @@ import { useQueries } from "@tanstack/react-query";
 import { getFixturePlayers } from "@/services/apiFootball";
 import { useFixtures } from "./usePartidos";
 import { buildOnceIdealFromCandidates } from "@/utils/calculations";
-import {
-  flattenFixturePlayersTeams,
-  listJornadasFromFixtures,
-  pickLatestPlayedJornada,
-} from "@/utils/onceIdealMatchday";
+import { flattenFixturePlayersTeams, listJornadasFromFixtures, pickLatestPlayedJornada } from "@/utils/onceIdealMatchday";
+import { filterCandidatesByConfederation, type ConfederationFilter } from "@/utils/onceIdealConfederation";
 import type { FormationType, OnceIdealPlayer } from "@/types";
 import { CACHE_TTL_MS } from "@/lib/utils";
 import { isFixtureStarted, LIVE_REFRESH_MS } from "@/lib/liveRefresh";
 import { getClientTournamentPhase } from "@/services/clientTournamentPhase";
 
-export function useOnceIdealJornada(formation: FormationType = "4-3-3") {
+export function useOnceIdealJornada(
+  formation: FormationType = "4-3-3",
+  confederation: ConfederationFilter = "all"
+) {
   const { data: fixtures = [], isLoading: fixturesLoading } = useFixtures();
   const [selectedRound, setSelectedRound] = useState<string | null>(null);
 
@@ -61,9 +61,12 @@ export function useOnceIdealJornada(formation: FormationType = "4-3-3") {
       .map((q) => q.data ?? [])
       .filter((group) => group.length > 0);
     if (groups.length === 0) return [];
-    const candidates = flattenFixturePlayersTeams(groups);
+    const candidates = filterCandidatesByConfederation(
+      flattenFixturePlayersTeams(groups),
+      confederation
+    );
     return buildOnceIdealFromCandidates(candidates, formation);
-  }, [playerQueries, formation]);
+  }, [playerQueries, formation, confederation]);
 
   const averageRating = useMemo(() => {
     if (onceIdeal.length === 0) return 0;

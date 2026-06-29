@@ -5,6 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { OnceIdealExperience } from "./OnceIdealExperience";
+import {
+  ConfederationFilterSelect,
+  confederationFilterLabel,
+  type ConfederationFilterValue,
+} from "./ConfederationFilterSelect";
 import { useOnceIdeal } from "@/hooks/useOnceIdeal";
 import { useOnceIdealJornada } from "@/hooks/useOnceIdealJornada";
 import { useMiXIStore } from "@/stores/useMiXIStore";
@@ -14,7 +19,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function OnceIdealDisplay() {
   const [formation, setFormation] = useState<FormationType>("4-3-3");
-  const { onceIdeal, averageRating, isLoading } = useOnceIdeal(formation);
+  const [confederation, setConfederation] = useState<ConfederationFilterValue>("all");
+  const { onceIdeal, averageRating, isLoading } = useOnceIdeal(formation, confederation);
+  const confederationLabel = confederationFilterLabel(confederation);
 
   if (isLoading) return <Skeleton className="h-[520px] w-full max-w-5xl mx-auto rounded-xl" />;
 
@@ -22,15 +29,28 @@ export function OnceIdealDisplay() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Once Ideal del Torneo</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            Promedio ponderado por minutos en el Mundial 2026 (mín. 45 min)
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>
+                Once Ideal del Torneo
+                {confederationLabel ? ` · ${confederationLabel}` : ""}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Promedio ponderado por minutos en el Mundial 2026 (mín. 45 min)
+              </p>
+            </div>
+            <ConfederationFilterSelect
+              value={confederation}
+              onChange={setConfederation}
+              className="w-full sm:w-64"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground py-8 text-center">
-            Aún no hay valoraciones del Mundial 2026. El once se formará cuando haya jugadores con
-            minutos en el torneo.
+            {confederationLabel
+              ? `No hay jugadores elegibles de ${confederationLabel} con ratings suficientes para armar el once.`
+              : "Aún no hay valoraciones del Mundial 2026. El once se formará cuando haya jugadores con minutos en el torneo."}
           </p>
         </CardContent>
       </Card>
@@ -40,10 +60,22 @@ export function OnceIdealDisplay() {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b bg-gradient-to-r from-mundial-blue/5 via-transparent to-mundial-gold/5">
-        <CardTitle>Once Ideal del Torneo</CardTitle>
-        <p className="text-sm text-muted-foreground mt-1">
-          Mejores por posición · rating del torneo ponderado por minutos · mín. 45 min jugados
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>
+              Once Ideal del Torneo
+              {confederationLabel ? ` · ${confederationLabel}` : ""}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Mejores por posición · rating del torneo ponderado por minutos · mín. 45 min jugados
+            </p>
+          </div>
+          <ConfederationFilterSelect
+            value={confederation}
+            onChange={setConfederation}
+            className="w-full sm:w-64"
+          />
+        </div>
       </CardHeader>
       <CardContent className="pt-6">
         <OnceIdealExperience
@@ -61,6 +93,7 @@ export function OnceIdealDisplay() {
 
 export function OnceIdealJornadaDisplay() {
   const [formation, setFormation] = useState<FormationType>("4-3-3");
+  const [confederation, setConfederation] = useState<ConfederationFilterValue>("all");
   const {
     jornadas,
     selectedRound,
@@ -69,7 +102,8 @@ export function OnceIdealJornadaDisplay() {
     onceIdeal,
     averageRating,
     isLoading,
-  } = useOnceIdealJornada(formation);
+  } = useOnceIdealJornada(formation, confederation);
+  const confederationLabel = confederationFilterLabel(confederation);
 
   if (isLoading) return <Skeleton className="h-[520px] w-full max-w-5xl mx-auto rounded-xl" />;
 
@@ -96,25 +130,35 @@ export function OnceIdealJornadaDisplay() {
       <CardHeader className="border-b bg-gradient-to-r from-mundial-blue/5 via-transparent to-mundial-gold/5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>Once Ideal por Jornada</CardTitle>
+            <CardTitle>
+              Once Ideal por Jornada
+              {confederationLabel ? ` · ${confederationLabel}` : ""}
+            </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               Mejores por posición · rating del partido ponderado por minutos en la jornada
             </p>
           </div>
-          <Select
-            value={selectedRound ?? ""}
-            onChange={(e) => setSelectedRound(e.target.value)}
-            className="w-full sm:w-64"
-          >
-            {jornadas.map((j) => (
-              <option key={j.round} value={j.round}>
-                {j.label}
-                {j.playedFixtureIds.length > 0
-                  ? ` (${j.playedFixtureIds.length}/${j.fixtures.length})`
-                  : ""}
-              </option>
-            ))}
-          </Select>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[16rem]">
+            <Select
+              value={selectedRound ?? ""}
+              onChange={(e) => setSelectedRound(e.target.value)}
+              className="w-full"
+            >
+              {jornadas.map((j) => (
+                <option key={j.round} value={j.round}>
+                  {j.label}
+                  {j.playedFixtureIds.length > 0
+                    ? ` (${j.playedFixtureIds.length}/${j.fixtures.length})`
+                    : ""}
+                </option>
+              ))}
+            </Select>
+            <ConfederationFilterSelect
+              value={confederation}
+              onChange={setConfederation}
+              className="w-full"
+            />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-6">
@@ -125,8 +169,9 @@ export function OnceIdealJornadaDisplay() {
           </p>
         ) : onceIdeal.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">
-            No hay ratings disponibles para {activeJornada?.label ?? "esta jornada"} (
-            {playedCount}/{totalCount} partidos con datos).
+            {confederationLabel
+              ? `No hay jugadores de ${confederationLabel} con ratings en ${activeJornada?.label ?? "esta jornada"}.`
+              : `No hay ratings disponibles para ${activeJornada?.label ?? "esta jornada"} (${playedCount}/${totalCount} partidos con datos).`}
           </p>
         ) : (
           <OnceIdealExperience

@@ -42,6 +42,7 @@ export default function PerfilSeleccionPage({
 
   const {
     nextFixture,
+    displayFixture,
     rivalId,
     rivalName,
     isKnockout: nextIsKnockout,
@@ -49,16 +50,26 @@ export default function PerfilSeleccionPage({
     advanceProbability: nextAdvanceProb,
     winProbability: nextWinProb,
     isLoading: loadingNextMatchProb,
+    showNextMatchProb,
+    showGroupClassification,
   } = useTeamNextMatchProb(teamId);
 
   const { data: h2h = [] } = useH2H(teamId, rivalId ?? undefined);
   const { probability: classProb, outcomes, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
     useClasificacionProb(teamId);
 
-  const showNextMatchProb = nextFixture != null && nextAdvanceProb != null;
-  const displayProb = showNextMatchProb ? nextAdvanceProb : classProb;
-  const displayProbLoading = showNextMatchProb ? loadingNextMatchProb : loadingProb;
-  const showGroupBreakdown = !showNextMatchProb;
+  const displayProb = showNextMatchProb
+    ? nextAdvanceProb
+    : showGroupClassification
+      ? classProb
+      : null;
+  const displayProbLoading = showNextMatchProb
+    ? loadingNextMatchProb
+    : showGroupClassification
+      ? loadingProb
+      : loadingNextMatchProb || loadingProb;
+  const showGroupBreakdown = showGroupClassification;
+  const displayNextFixture = displayFixture ?? nextFixture;
 
   if (!team) return <GridSkeleton count={4} />;
 
@@ -152,7 +163,7 @@ export default function PerfilSeleccionPage({
       <PlantillaJugadores players={players} isLoading={isLoading} />
       <AnalisisTactico players={players} standing={standing} />
 
-      {nextFixture && rivalId && (
+      {displayNextFixture && rivalId && (
         <Card>
           <CardHeader>
             <CardTitle>Comparativa vs Próximo Rival</CardTitle>
@@ -163,14 +174,14 @@ export default function PerfilSeleccionPage({
               <TeamLink
                 id={rivalId}
                 name={
-                  nextFixture.teams.home.id === teamId
-                    ? nextFixture.teams.away.name
-                    : nextFixture.teams.home.name
+                  displayNextFixture.teams.home.id === teamId
+                    ? displayNextFixture.teams.away.name
+                    : displayNextFixture.teams.home.name
                 }
                 logo={
-                  nextFixture.teams.home.id === teamId
-                    ? nextFixture.teams.away.logo
-                    : nextFixture.teams.home.logo
+                  displayNextFixture.teams.home.id === teamId
+                    ? displayNextFixture.teams.away.logo
+                    : displayNextFixture.teams.home.logo
                 }
                 variant="name"
                 className="font-semibold"

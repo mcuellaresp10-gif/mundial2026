@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { useFixtures, useStandings } from "./usePartidos";
+import { useFixtures, useStandings, useTeams } from "./usePartidos";
 import { useGroupStandings } from "./useGroupStandings";
+import { useKnockoutBracket } from "./useKnockoutBracket";
 import { aggregateFixtureGoals, getBiggestWin } from "@/utils/calculations";
 import { aggregateGoalsByRound as aggregateGoalsByRoundChart } from "@/utils/tournamentAnalytics";
 import { extractGroupStageLeaders } from "@/utils/groupClassification";
+import {
+  buildProjectedKnockoutFixture,
+  findTeamNextKnockoutMatch,
+} from "@/utils/knockoutBracket";
+import { isGroupStageFixtureRound, shouldHideGroupClassification } from "@/utils/matchPhase";
 import { translateTeamName } from "@/utils/teamNames";
 import {
   isFixtureFinished,
@@ -71,7 +77,9 @@ export function useEstadisticasAggregadas() {
 
 export function useColombiaData(colombiaTeamId?: number | null) {
   const { data: fixtures = [] } = useFixtures({ team: colombiaTeamId ?? undefined });
+  const { data: teams = [] } = useTeams();
   const { standings } = useGroupStandings();
+  const { bracket } = useKnockoutBracket();
 
   return useMemo(() => {
     if (!colombiaTeamId) return null;
@@ -90,12 +98,37 @@ export function useColombiaData(colombiaTeamId?: number | null) {
     const sorted = [...colFixtures].sort(
       (a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime()
     );
-    const nextMatch = sorted.find((f) => f.fixture.status.short === "NS") ?? null;
+    const pendingGroupMatches = sorted.filter(
+      (f) =>
+        f.fixture.status.short === "NS" &&
+        isGroupStageFixtureRound(f.league.round)
+    ).length;
+
+    let nextMatch = sorted.find((f) => f.fixture.status.short === "NS") ?? null;
+
+    if (
+      !nextMatch &&
+      colStanding &&
+      bracket &&
+      shouldHideGroupClassification(colStanding, pendingGroupMatches, {
+        bestThirdTeamIds: bracket.rankedBestThirds
+          .filter((t) => t.qualifies)
+          .map((t) => t.row.team.id),
+      })
+    ) {
+      const bracketMatch = findTeamNextKnockoutMatch(colombiaTeamId, bracket);
+      if (bracketMatch) {
+        nextMatch =
+          bracketMatch.fixture ??
+          buildProjectedKnockoutFixture(colombiaTeamId, bracketMatch, teams);
+      }
+    }
+
     const lastResults = sorted
       .filter((f) => f.fixture.status.short === "FT")
       .slice(-3)
       .reverse();
 
     return { standing: colStanding, nextMatch, lastResults, fixtures: colFixtures };
-  }, [colombiaTeamId, fixtures, standings]);
+  }, [colombiaTeamId, fixtures, standings, bracket, teams]);
 }

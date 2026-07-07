@@ -31,19 +31,30 @@ export function ColombiaFocus() {
     useClasificacionProb(colombiaTeam?.id);
 
   const {
-    nextFixture: nextMatchFixture,
+    displayFixture,
     rivalName,
     isKnockout: nextIsKnockout,
     label: probLabel,
     advanceProbability: nextAdvanceProb,
     winProbability: nextWinProb,
     isLoading: loadingNextMatchProb,
+    showNextMatchProb,
+    showGroupClassification,
   } = useTeamNextMatchProb(colombiaTeam?.id);
 
-  const showNextMatchProb = nextMatchFixture != null && nextAdvanceProb != null;
-  const displayProb = showNextMatchProb ? nextAdvanceProb : classProb;
-  const displayProbLoading = showNextMatchProb ? loadingNextMatchProb : loadingProb;
-  const showGroupBreakdown = !showNextMatchProb && outcomes && !loadingProb;
+  const displayProb = showNextMatchProb
+    ? nextAdvanceProb
+    : showGroupClassification
+      ? classProb
+      : null;
+  const displayProbLoading = showNextMatchProb
+    ? loadingNextMatchProb
+    : showGroupClassification
+      ? loadingProb
+      : loadingNextMatchProb || loadingProb;
+  const showGroupBreakdown =
+    showGroupClassification && outcomes && !loadingProb;
+  const displayNextMatch = displayFixture ?? colombiaData?.nextMatch ?? null;
 
   if (!colombiaTeam) {
     return (
@@ -133,18 +144,18 @@ export function ColombiaFocus() {
               </div>
             )}
 
-            {colombiaData.nextMatch && (
+            {displayNextMatch && (
               <div className="rounded-xl border border-colombia-yellow/20 bg-white/50 dark:bg-white/5 p-4">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
                   Próximo partido
                 </p>
                 <div className="flex min-w-0 flex-col gap-2 @md/colombia:flex-row @md/colombia:items-center @md/colombia:justify-between">
                   <MatchTeamPair
-                    home={colombiaData.nextMatch.teams.home}
-                    away={colombiaData.nextMatch.teams.away}
+                    home={displayNextMatch.teams.home}
+                    away={displayNextMatch.teams.away}
                   />
                   <span className="text-sm text-muted-foreground shrink-0">
-                    {formatFixtureDate(colombiaData.nextMatch.fixture.date)}
+                    {formatFixtureDate(displayNextMatch.fixture.date)}
                   </span>
                 </div>
               </div>

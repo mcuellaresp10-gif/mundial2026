@@ -1,4 +1,4 @@
-import type { Fixture, StandingsGroup, StandingTeam } from "@/types";
+import type { Fixture, FixtureTeams, StandingsGroup, StandingTeam, Team } from "@/types";
 import { isFixtureFinished } from "@/lib/liveRefresh";
 import annexCData from "@/data/annexCThirdPlace.json";
 import {
@@ -11,6 +11,8 @@ import {
   type GroupLetter,
   type RoundOf32Definition,
 } from "@/data/worldCup2026Bracket";
+import { getKnockoutMatchCity, getKnockoutMatchDate } from "@/data/worldCup2026KnockoutSchedule";
+import { bracketRoundToFixtureRound } from "@/utils/matchPhase";
 import type { TeamGroupState } from "@/utils/groupClassification";
 import {
   BEST_THIRD_QUALIFIERS,
@@ -637,4 +639,140 @@ export function getKnockoutByRound(
   return matches
     .filter((m) => m.round === round && (side == null || m.side === side))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+export interface TeamNextKnockoutMatch {
+  matchId: number;
+  round: BracketRound | "round_of_32";
+  rivalId: number | null;
+  rivalName: string | null;
+  rivalLabel: string;
+  rivalProvisional: boolean;
+  fixture: Fixture | null;
+  isProjected: boolean;
+  isHome: boolean;
+}
+
+function teamInBracketSlot(slot: BracketSlotTeam, teamId: number): boolean {
+  return slot.team?.teamId === teamId;
+}
+
+/** Próximo cruce eliminatorio pendiente para una selección según el cuadro resuelto. */
+export function findTeamNextKnockoutMatch(
+  teamId: number,
+  bracket: KnockoutBracketResult
+): TeamNextKnockoutMatch | null {
+  const allMatches: Array<{
+    matchId: number;
+    round: BracketRound | "round_of_32";
+    home: BracketSlotTeam;
+    away: BracketSlotTeam;
+  }> = [
+    ...bracket.roundOf32.map((m) => ({ ...m, round: "round_of_32" as const })),
+    ...bracket.knockoutMatches,
+  ].sort((a, b) => a.matchId - b.matchId);
+
+  for (const match of allMatches) {
+    const inHome = teamInBracketSlot(match.home, teamId);
+    const inAway = teamInBracketSlot(match.away, teamId);
+    if (!inHome && !inAway) continue;
+
+    const fixture = bracket.fixtureByMatchId.get(match.matchId);
+    if (fixture && isFixtureFinished(fixture.fixture.status.short)) {
+      const winner = getKnockoutWinnerFromFixture(fixture);
+      if (winner?.teamId !== teamId) return null;
+      continue;
+    }
+
+    const rivalSlot = inHome ? match.away : match.home;
+    return {
+      matchId: match.matchId,
+      round: match.round,
+      rivalId: rivalSlot.team?.teamId ?? null,
+      rivalName: rivalSlot.team?.name ?? null,
+      rivalLabel: rivalSlot.label,
+      rivalProvisional: rivalSlot.provisional || rivalSlot.team == null,
+      fixture: fixture ?? null,
+      isProjected: fixture == null || rivalSlot.provisional,
+      isHome: inHome,
+    };
+  }
+
+  return null;
+}
+
+const EMPTY_SCORE = {
+  halftime: { home: null, away: null },
+  fulltime: { home: null, away: null },
+  extratime: { home: null, away: null },
+  penalty: { home: null, away: null },
+};
+
+/** Fixture mínimo para mostrar un cruce proyectado del cuadro en la UI. */
+export function buildProjectedKnockoutFixture(
+  teamId: number,
+  match: TeamNextKnockoutMatch,
+  teams: Team[]
+): Fixture | null {
+  const self = teams.find((t) => t.id === teamId);
+  if (!self) return null;
+
+  const rival =
+    match.rivalId != null ? teams.find((t) => t.id === match.rivalId) : null;
+  if (!rival && match.rivalProvisional) {
+    const placeholderName = match.rivalLabel;
+    const placeholder = {
+      id: 0,
+      name: placeholderName,
+      logo: "",
+      winner: null as boolean | null,
+    };
+    const home = match.isHome ? toFixtureSide(self) : placeholder;
+    const away = match.isHome ? placeholder : toFixtureSide(self);
+    return makeSyntheticKnockoutFixture(match, home, away);
+  }
+  if (!rival) return null;
+
+  const home = match.isHome ? toFixtureSide(self) : toFixtureSide(rival);
+  const away = match.isHome ? toFixtureSide(rival) : toFixtureSide(self);
+  return makeSyntheticKnockoutFixture(match, home, away);
+}
+
+function toFixtureSide(team: Team): FixtureTeams["home"] {
+  return { id: team.id, name: team.name, logo: team.logo, winner: null };
+}
+
+function makeSyntheticKnockoutFixture(
+  match: TeamNextKnockoutMatch,
+  home: FixtureTeams["home"],
+  away: FixtureTeams["away"]
+): Fixture {
+  const date = getKnockoutMatchDate(match.matchId);
+  const city = getKnockoutMatchCity(match.matchId);
+  const round = bracketRoundToFixtureRound(match.round);
+
+  return {
+    fixture: {
+      id: -match.matchId,
+      referee: null,
+      timezone: "UTC",
+      date,
+      timestamp: Math.floor(new Date(date).getTime() / 1000),
+      periods: { first: null, second: null },
+      venue: { id: 0, name: city, city },
+      status: { long: "Not Started", short: "NS", elapsed: null },
+    },
+    league: {
+      id: 1,
+      name: "World Cup",
+      country: "World",
+      logo: "",
+      flag: null,
+      season: 2026,
+      round,
+    },
+    teams: { home, away },
+    goals: { home: null, away: null },
+    score: EMPTY_SCORE,
+  };
 }

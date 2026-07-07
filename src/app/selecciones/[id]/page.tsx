@@ -5,9 +5,10 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlantillaJugadores } from "@/components/Selecciones/PlantillaJugadores";
 import { AnalisisTactico } from "@/components/Selecciones/AnalisisTactico";
-import { useTeams, useStandings, useFixtures, useH2H } from "@/hooks/usePartidos";
+import { useTeams, useStandings, useH2H } from "@/hooks/usePartidos";
 import { useTeamPlayers } from "@/hooks/useJugadores";
 import { useClasificacionProb } from "@/hooks/useClasificacionProb";
+import { useTeamNextMatchProb } from "@/hooks/useTeamNextMatchProb";
 import { ClassificationProbDisplay } from "@/components/shared/ClassificationProbDisplay";
 import { H2HRow, TeamLink } from "@/components/shared/TeamLink";
 import { getTeamColors } from "@/utils/colors";
@@ -25,7 +26,6 @@ export default function PerfilSeleccionPage({
 
   const { data: teams = [] } = useTeams();
   const { data: standings = [] } = useStandings();
-  const { data: fixtures = [] } = useFixtures({ team: teamId });
   const { data: players = [], isLoading } = useTeamPlayers(teamId);
 
   const team = teams.find((t) => t.id === teamId);
@@ -40,21 +40,25 @@ export default function PerfilSeleccionPage({
     return null;
   }, [standings, teamId]);
 
-  const nextFixture = useMemo(() => {
-    return fixtures
-      .filter((f) => f.fixture.status.short === "NS")
-      .sort((a, b) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime())[0];
-  }, [fixtures]);
+  const {
+    nextFixture,
+    rivalId,
+    rivalName,
+    isKnockout: nextIsKnockout,
+    label: probLabel,
+    advanceProbability: nextAdvanceProb,
+    winProbability: nextWinProb,
+    isLoading: loadingNextMatchProb,
+  } = useTeamNextMatchProb(teamId);
 
-  const rivalId = nextFixture
-    ? nextFixture.teams.home.id === teamId
-      ? nextFixture.teams.away.id
-      : nextFixture.teams.home.id
-    : undefined;
-
-  const { data: h2h = [] } = useH2H(teamId, rivalId);
+  const { data: h2h = [] } = useH2H(teamId, rivalId ?? undefined);
   const { probability: classProb, outcomes, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
     useClasificacionProb(teamId);
+
+  const showNextMatchProb = nextFixture != null && nextAdvanceProb != null;
+  const displayProb = showNextMatchProb ? nextAdvanceProb : classProb;
+  const displayProbLoading = showNextMatchProb ? loadingNextMatchProb : loadingProb;
+  const showGroupBreakdown = !showNextMatchProb;
 
   if (!team) return <GridSkeleton count={4} />;
 
@@ -76,12 +80,17 @@ export default function PerfilSeleccionPage({
         <InfoCard label="Ranking grupo" value={standing ? `#${standing.rank}` : "N/D"} />
         <InfoCard label="Puntos" value={standing?.points ?? 0} />
         <ProbInfoCard
-          probability={classProb}
-          outcomes={outcomes}
-          isLoading={loadingProb}
+          label={probLabel}
+          probability={displayProb}
+          outcomes={showGroupBreakdown ? outcomes : null}
+          isLoading={displayProbLoading}
           pendingMatchesPerTeam={pendingMatchesPerTeam}
           isPreTournament={isPreTournament}
           hasCalendar={hasCalendar}
+          rivalName={showNextMatchProb ? rivalName : null}
+          nextIsKnockout={nextIsKnockout}
+          nextWinProb={nextWinProb}
+          showGroupBreakdown={showGroupBreakdown}
         />
         <InfoCard label="Dif. goles" value={standing?.goalsDiff ?? 0} />
       </div>
@@ -190,32 +199,49 @@ export default function PerfilSeleccionPage({
 }
 
 function ProbInfoCard({
+  label,
   probability,
   outcomes,
   isLoading,
   pendingMatchesPerTeam,
   isPreTournament,
   hasCalendar,
+  rivalName,
+  nextIsKnockout,
+  nextWinProb,
+  showGroupBreakdown,
 }: {
+  label: string;
   probability: number | null;
   outcomes: { probFirst: number; probSecond: number; probBestThird: number } | null;
   isLoading: boolean;
   pendingMatchesPerTeam: number;
   isPreTournament: boolean;
   hasCalendar: boolean;
+  rivalName?: string | null;
+  nextIsKnockout?: boolean;
+  nextWinProb?: number | null;
+  showGroupBreakdown?: boolean;
 }) {
   return (
     <Card>
       <CardContent className="p-4 text-center">
-        <p className="text-xs text-muted-foreground">Prob. clasificar</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
         <ClassificationProbDisplay
           probability={probability}
-          outcomes={outcomes}
+          outcomes={showGroupBreakdown ? outcomes : null}
           isLoading={isLoading}
           pendingMatchesPerTeam={pendingMatchesPerTeam}
           isPreTournament={isPreTournament}
           hasCalendar={hasCalendar}
+          showBreakdown={showGroupBreakdown}
         />
+        {rivalName && (
+          <p className="text-[10px] text-muted-foreground mt-1 truncate">
+            vs {rivalName}
+            {nextIsKnockout && nextWinProb != null ? ` · ${nextWinProb}% victoria` : ""}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

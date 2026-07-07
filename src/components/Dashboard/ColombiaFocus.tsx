@@ -9,6 +9,7 @@ import { useTeams } from "@/hooks/usePartidos";
 import { useColombiaData } from "@/hooks/useEstadisticasAggregadas";
 import { useTeamWorldCupKeyPlayers } from "@/hooks/useJugadores";
 import { useClasificacionProb } from "@/hooks/useClasificacionProb";
+import { useTeamNextMatchProb } from "@/hooks/useTeamNextMatchProb";
 import { ClassificationProbDisplay } from "@/components/shared/ClassificationProbDisplay";
 import { MatchTeamPair } from "@/components/shared/TeamLink";
 import { formatFixtureDate, getFixtureScore, ratingClass } from "@/utils/formatters";
@@ -28,6 +29,21 @@ export function ColombiaFocus() {
 
   const { probability: classProb, outcomes, isLoading: loadingProb, pendingMatchesPerTeam, isPreTournament, hasCalendar } =
     useClasificacionProb(colombiaTeam?.id);
+
+  const {
+    nextFixture: nextMatchFixture,
+    rivalName,
+    isKnockout: nextIsKnockout,
+    label: probLabel,
+    advanceProbability: nextAdvanceProb,
+    winProbability: nextWinProb,
+    isLoading: loadingNextMatchProb,
+  } = useTeamNextMatchProb(colombiaTeam?.id);
+
+  const showNextMatchProb = nextMatchFixture != null && nextAdvanceProb != null;
+  const displayProb = showNextMatchProb ? nextAdvanceProb : classProb;
+  const displayProbLoading = showNextMatchProb ? loadingNextMatchProb : loadingProb;
+  const showGroupBreakdown = !showNextMatchProb && outcomes && !loadingProb;
 
   if (!colombiaTeam) {
     return (
@@ -69,17 +85,23 @@ export function ColombiaFocus() {
             <div className="grid grid-cols-2 gap-3 @md/colombia:grid-cols-4 @md/colombia:gap-4">
               <MiniStat label="Posición en grupo" value={standing ? `#${standing.rank}` : "N/D"} />
               <div className="flex flex-col items-center justify-center text-center min-w-0">
-                <p className="text-xs text-muted-foreground mb-1">Prob. clasificar</p>
+                <p className="text-xs text-muted-foreground mb-1">{probLabel}</p>
                 <ClassificationProbDisplay
-                  probability={classProb}
-                  outcomes={outcomes}
-                  isLoading={loadingProb}
+                  probability={displayProb}
+                  outcomes={showGroupBreakdown ? outcomes : null}
+                  isLoading={displayProbLoading}
                   pendingMatchesPerTeam={pendingMatchesPerTeam}
                   isPreTournament={isPreTournament}
                   hasCalendar={hasCalendar}
                   compact
                   showBreakdown={false}
                 />
+                {showNextMatchProb && rivalName && (
+                  <p className="text-[10px] text-muted-foreground mt-1 truncate max-w-full px-1">
+                    vs {rivalName}
+                    {nextIsKnockout && nextWinProb != null ? ` · ${nextWinProb}% victoria` : ""}
+                  </p>
+                )}
               </div>
               <MiniStat label="Puntos" value={standing != null ? standing.points : "N/D"} />
               <MiniStat
@@ -94,7 +116,7 @@ export function ColombiaFocus() {
               />
             </div>
 
-            {outcomes && !loadingProb && (
+            {showGroupBreakdown && (
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="rounded-lg bg-muted/40 px-2 py-2">
                   <p className="text-muted-foreground">1º grupo</p>

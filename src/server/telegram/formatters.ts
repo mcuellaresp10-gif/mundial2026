@@ -271,7 +271,7 @@ export function greeting(name?: string): string {
 export const WELCOME_MESSAGE = (name?: string) =>
   `${greeting(name)}
 
-🏆 *Soy tu compañero del Mundial 2026*
+🏆 *Soy tu compañero del fútbol Américas*
 
 Puedes usar los *botones de abajo* o hablarme normal:
 • _"partidos de hoy"_

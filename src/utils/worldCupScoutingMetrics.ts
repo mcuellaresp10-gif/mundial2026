@@ -1,12 +1,16 @@
 import type { Player, PlayerStatistics } from "@/types";
 import type { MetricKey, ScoutingPosition } from "@/config/positionMetricProfiles";
 import { getPositionProfile } from "@/config/positionMetricProfiles";
-import { getWorldCupTournamentStat } from "@/utils/playerStats";
+import { getLeagueSeasonStat, getWorldCupTournamentStat } from "@/utils/playerStats";
+import { DEFAULT_SEASON, LEAGUE_ID } from "@/lib/utils";
 import { positionToCode } from "@/utils/squad";
 import { parseRating } from "@/utils/formatters";
 import { translateTeamName } from "@/utils/teamNames";
 
+/** Mínimo de minutos en la competición para entrar al pool de scouting. */
 export const SCOUTING_MIN_WC_MINUTES = 90;
+export const SCOUTING_MIN_LEAGUE_MINUTES = 45;
+
 
 export interface WorldCupPer90Metrics {
   goals90: number;
@@ -267,28 +271,48 @@ function buildRadarValues(
   return { player, peer };
 }
 
-export function playerHasScoutingEligibleWc(player: Player): boolean {
-  const wc = getWorldCupTournamentStat(player);
-  if (!wc) return false;
-  return (wc.games.minutes ?? 0) >= SCOUTING_MIN_WC_MINUTES;
+export function playerHasScoutingEligibleWc(
+  player: Player,
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON
+): boolean {
+  const minMinutes =
+    leagueId === LEAGUE_ID ? SCOUTING_MIN_WC_MINUTES : SCOUTING_MIN_LEAGUE_MINUTES;
+  const stat = getLeagueSeasonStat(player, leagueId, season);
+  if (!stat) return false;
+  return (stat.games.minutes ?? 0) >= minMinutes;
 }
 
-export function getScoutingPosition(player: Player): ScoutingPosition {
-  const wc = getWorldCupTournamentStat(player);
-  const pos = wc?.games.position ?? player.statistics[0]?.games.position ?? "M";
+export function getScoutingPosition(
+  player: Player,
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON
+): ScoutingPosition {
+  const stat =
+    getLeagueSeasonStat(player, leagueId, season) ?? getWorldCupTournamentStat(player);
+  const pos = stat?.games.position ?? player.statistics[0]?.games.position ?? "M";
   const code = positionToCode(pos);
   if (code === "G" || code === "D" || code === "M" || code === "F") return code;
   return "M";
 }
 
-export function buildScoutingProfiles(players: Player[]): ScoutingProfile[] {
-  const eligible = players.filter(playerHasScoutingEligibleWc);
-  const byPosition = new Map<ScoutingPosition, { player: Player; base: WorldCupPer90Metrics }[]>();
+export function buildScoutingProfiles(
+  players: Player[],
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON
+): ScoutingProfile[] {
+  const eligible = players.filter((p) =>
+    playerHasScoutingEligibleWc(p, leagueId, season)
+  );
+  const byPosition = new Map<
+    ScoutingPosition,
+    { player: Player; base: WorldCupPer90Metrics }[]
+  >();
 
   for (const player of eligible) {
-    const wc = getWorldCupTournamentStat(player)!;
-    const position = getScoutingPosition(player);
-    const base = extractWorldCupPer90(wc);
+    const row = getLeagueSeasonStat(player, leagueId, season)!;
+    const position = getScoutingPosition(player, leagueId, season);
+    const base = extractWorldCupPer90(row);
     const list = byPosition.get(position) ?? [];
     list.push({ player, base });
     byPosition.set(position, list);
@@ -307,7 +331,7 @@ export function buildScoutingProfiles(players: Player[]): ScoutingProfile[] {
     for (let i = 0; i < entries.length; i += 1) {
       const { player } = entries[i];
       const metrics = withComposites[i];
-      const wc = getWorldCupTournamentStat(player)!;
+      const row = getLeagueSeasonStat(player, leagueId, season)!;
       const percentiles: Partial<Record<MetricKey, number>> = {};
 
       for (const axis of profileConfig.radarAxes) {
@@ -315,7 +339,11 @@ export function buildScoutingProfiles(players: Player[]): ScoutingProfile[] {
         percentiles[axis.key] = percentileRank(values, metricValue(metrics, axis.key));
       }
 
-      for (const axis of [profileConfig.scatter.x, profileConfig.scatter.y, profileConfig.scatter.color]) {
+      for (const axis of [
+        profileConfig.scatter.x,
+        profileConfig.scatter.y,
+        profileConfig.scatter.color,
+      ]) {
         const values = withComposites.map((m) => metricValue(m, axis.key));
         percentiles[axis.key] = percentileRank(values, metricValue(metrics, axis.key));
       }
@@ -326,14 +354,14 @@ export function buildScoutingProfiles(players: Player[]): ScoutingProfile[] {
         playerId: player.player.id,
         name: player.player.name,
         photo: player.player.photo,
-        team: translateTeamName(wc.team.name),
-        teamLogo: wc.team.logo,
+        team: translateTeamName(row.team.name),
+        teamLogo: row.team.logo,
         position,
-        positionRaw: wc.games.position ?? position,
+        positionRaw: row.games.position ?? position,
         minutes: metrics.minutes,
         rating: metrics.rating,
-        goals: wc.goals.total ?? 0,
-        assists: wc.goals.assists ?? 0,
+        goals: row.goals.total ?? 0,
+        assists: row.goals.assists ?? 0,
         metrics,
         percentiles,
         radarValues: radar.player,
@@ -347,9 +375,11 @@ export function buildScoutingProfiles(players: Player[]): ScoutingProfile[] {
 
 export function buildScoutingProfileForPlayer(
   player: Player,
-  allPlayers: Player[]
+  allPlayers: Player[],
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON
 ): ScoutingProfile | null {
-  const profiles = buildScoutingProfiles(allPlayers);
+  const profiles = buildScoutingProfiles(allPlayers, leagueId, season);
   return profiles.find((p) => p.playerId === player.player.id) ?? null;
 }
 

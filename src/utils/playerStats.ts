@@ -232,24 +232,69 @@ export function getWorldCupTournamentStat(player: {
   statistics: PlayerStatistics[];
   nationalTeam?: Team;
 }): PlayerStatistics | null {
-  let wc: PlayerStatistics | null = null;
+  return getLeagueSeasonStat(player, WORLD_CUP_LEAGUE_ID, DEFAULT_SEASON);
+}
 
-  if (player.statBundle) {
-    wc = player.statBundle.worldCup;
-  } else if (player.nationalTeam) {
-    wc = pickWorldCupStat(player.statistics, player.nationalTeam);
-  } else {
-    const wcRows = player.statistics.filter((s) => isWorldCupStatRow(s));
-    wc = wcRows.length === 1 ? wcRows[0] : wcRows.length > 1 ? wcRows[0] : null;
+/** Fila de stats de una liga/temporada concreta (hub Américas o Mundial). */
+export function isLeagueSeasonStatRow(
+  stat: PlayerStatistics,
+  leagueId: number,
+  season: number
+): boolean {
+  return stat.league.id === leagueId && stat.league.season === season;
+}
+
+/**
+ * Stats de la liga/temporada pedida.
+ * Si el pool ya viene filtrado a una sola fila, la usa como fallback.
+ */
+export function getLeagueSeasonStat(
+  player: {
+    statBundle?: PlayerStatBundle;
+    statistics: PlayerStatistics[];
+    nationalTeam?: Team;
+  },
+  leagueId: number,
+  season: number
+): PlayerStatistics | null {
+  const fromList = player.statistics.filter((s) =>
+    isLeagueSeasonStatRow(s, leagueId, season)
+  );
+  let stat: PlayerStatistics | null =
+    fromList.length === 1
+      ? fromList[0]
+      : fromList.length > 1
+        ? fromList[0]
+        : null;
+
+  if (!stat && player.statBundle) {
+    for (const candidate of [
+      player.statBundle.club,
+      player.statBundle.national,
+      player.statBundle.worldCup,
+    ]) {
+      if (candidate && isLeagueSeasonStatRow(candidate, leagueId, season)) {
+        stat = candidate;
+        break;
+      }
+    }
   }
 
-  if (!wc) return null;
+  if (!stat && player.statistics.length === 1) {
+    const only = player.statistics[0];
+    // Pool ya filtrado a una fila: exigir misma liga (no aceptar solo por season).
+    if (only.league.id === leagueId) {
+      stat = only;
+    }
+  }
 
-  const appearances = wc.games.appearences ?? 0;
-  const minutes = wc.games.minutes ?? 0;
+  if (!stat) return null;
+
+  const appearances = stat.games.appearences ?? 0;
+  const minutes = stat.games.minutes ?? 0;
   if (appearances <= 0 && minutes <= 0) return null;
 
-  return wc;
+  return stat;
 }
 
 export function statSummary(stat: PlayerStatistics | null | undefined) {

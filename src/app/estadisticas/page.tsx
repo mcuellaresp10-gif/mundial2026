@@ -4,9 +4,12 @@ import { useMemo, useState } from "react";
 import { TopScorers, TopAssists } from "@/components/Estadisticas/TopScorers";
 import { TopGoalkeepers } from "@/components/Estadisticas/TopGoalkeepers";
 import { EstadisticasDashboard } from "@/components/Estadisticas/EstadisticasDashboard";
+import { LeagueSelector } from "@/components/shared/LeagueSelector";
 import { useTeams } from "@/hooks/usePartidos";
+import { useActiveLeague } from "@/hooks/useActiveLeague";
 import {
   useAllPlayers,
+  useLeagueLeaders,
   useWorldCupTopScorers,
   useWorldCupTopAssists,
   useWorldCupTopGoalkeepers,
@@ -16,6 +19,7 @@ import {
 } from "@/hooks/useJugadores";
 import { PLAYER_STAT_SEASON_LABEL } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import type { AmericasLeague } from "@/data/americasLeagues";
 import type { TopGoalkeeperEntry, TopScorerEntry } from "@/types";
 
 function TournamentLeaderTabs({
@@ -27,18 +31,21 @@ function TournamentLeaderTabs({
   assistsTitle,
   goalkeepersTitle,
   emptyMessage,
+  showGoalkeepers = true,
 }: {
   scorers: TopScorerEntry[];
   assists: TopScorerEntry[];
-  goalkeepers: TopGoalkeeperEntry[];
+  goalkeepers?: TopGoalkeeperEntry[];
   loading: boolean;
   scorersTitle: string;
   assistsTitle: string;
-  goalkeepersTitle: string;
+  goalkeepersTitle?: string;
   emptyMessage: string;
+  showGoalkeepers?: boolean;
 }) {
+  const gk = goalkeepers ?? [];
   const hasData =
-    scorers.length > 0 || assists.length > 0 || goalkeepers.length > 0;
+    scorers.length > 0 || assists.length > 0 || (showGoalkeepers && gk.length > 0);
 
   if (loading && !hasData) {
     return <p className="text-sm text-muted-foreground py-4">Cargando estadísticas…</p>;
@@ -53,7 +60,9 @@ function TournamentLeaderTabs({
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="scorers">Top Goleadores</TabsTrigger>
         <TabsTrigger value="assists">Top Asistentes</TabsTrigger>
-        <TabsTrigger value="goalkeepers">Top Porteros</TabsTrigger>
+        {showGoalkeepers && (
+          <TabsTrigger value="goalkeepers">Top Porteros</TabsTrigger>
+        )}
       </TabsList>
       <TabsContent value="scorers">
         {scorers.length === 0 ? (
@@ -69,21 +78,101 @@ function TournamentLeaderTabs({
           <TopAssists assists={assists} title={assistsTitle} />
         )}
       </TabsContent>
-      <TabsContent value="goalkeepers">
-        {goalkeepers.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">Sin datos de porteros aún.</p>
-        ) : (
-          <TopGoalkeepers goalkeepers={goalkeepers} title={goalkeepersTitle} />
-        )}
-      </TabsContent>
+      {showGoalkeepers && (
+        <TabsContent value="goalkeepers">
+          {gk.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Sin datos de porteros aún.</p>
+          ) : (
+            <TopGoalkeepers
+              goalkeepers={gk}
+              title={goalkeepersTitle ?? "Top Porteros"}
+            />
+          )}
+        </TabsContent>
+      )}
     </Tabs>
   );
 }
 
-export default function EstadisticasPage() {
+function LeagueLeadersPanel({ league }: { league: AmericasLeague }) {
+  const { scorers, assists, isLoading } = useLeagueLeaders(
+    league.id,
+    league.defaultSeason,
+    40
+  );
+
+  return (
+    <TournamentLeaderTabs
+      scorers={scorers}
+      assists={assists}
+      loading={isLoading}
+      scorersTitle={`Top Goleadores — ${league.shortName}`}
+      assistsTitle={`Top Asistentes — ${league.shortName}`}
+      emptyMessage={`Aún no hay rankings publicados para ${league.shortName} ${league.defaultSeason}.`}
+      showGoalkeepers={false}
+    />
+  );
+}
+
+function EstadisticasAmericasPage() {
+  const { leagues, isMulti } = useActiveLeague();
+  const defaultTab = leagues[0]?.slug ?? "league";
+  const [tab, setTab] = useState(defaultTab);
+
+  const activeTab = leagues.some((l) => l.slug === tab) ? tab : defaultTab;
+  const label = isMulti
+    ? leagues.map((l) => l.shortName).join(" · ")
+    : leagues[0]
+      ? `${leagues[0].shortName} · ${leagues[0].defaultSeason}`
+      : "Américas";
+
+  return (
+    <div className="space-y-8 animate-in fade-in">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Estadísticas</h1>
+          <p className="text-muted-foreground mt-1">
+            {label} · ritmo, local/visitante y rankings por competición
+          </p>
+        </div>
+        <LeagueSelector variant="page" />
+      </div>
+
+      <EstadisticasDashboard />
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Rankings por liga</h2>
+        {leagues.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Selecciona al menos una liga.</p>
+        ) : leagues.length === 1 ? (
+          <LeagueLeadersPanel league={leagues[0]} />
+        ) : (
+          <Tabs value={activeTab} onValueChange={setTab}>
+            <TabsList className="flex-wrap h-auto">
+              {leagues.map((l) => (
+                <TabsTrigger key={l.slug} value={l.slug}>
+                  {l.shortName}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {leagues.map((l) => (
+              <TabsContent key={l.slug} value={l.slug}>
+                <LeagueLeadersPanel league={l} />
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function EstadisticasMundialArchivePage() {
   const { data: teams = [] } = useTeams();
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams]);
-  const [activeTab, setActiveTab] = useState<"worldcup" | "national" | "club">("worldcup");
+  const [activeTab, setActiveTab] = useState<"worldcup" | "national" | "club">(
+    "worldcup"
+  );
   const needsClubStats = activeTab === "club";
   const needsSquadStats = activeTab === "national" || activeTab === "club";
   const { data: players = [], isFetching } = useAllPlayers(
@@ -99,7 +188,10 @@ export default function EstadisticasPage() {
   const natScorers = useMemo(() => extractTopScorers(players, "national"), [players]);
   const clubScorers = useMemo(() => extractTopScorers(players, "club"), [players]);
   const natAssists = useMemo(() => extractTopAssists(players, "national"), [players]);
-  const natGoalkeepers = useMemo(() => extractTopGoalkeepers(players, "national"), [players]);
+  const natGoalkeepers = useMemo(
+    () => extractTopGoalkeepers(players, "national"),
+    [players]
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in">
@@ -112,10 +204,15 @@ export default function EstadisticasPage() {
 
       <EstadisticasDashboard />
 
-      <Tabs defaultValue="worldcup" onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+      <Tabs
+        defaultValue="worldcup"
+        onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+      >
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="worldcup">Mundial 2026</TabsTrigger>
-          <TabsTrigger value="national">Selección · Temp. {PLAYER_STAT_SEASON_LABEL}</TabsTrigger>
+          <TabsTrigger value="national">
+            Selección · Temp. {PLAYER_STAT_SEASON_LABEL}
+          </TabsTrigger>
           <TabsTrigger value="club">Club · Temp. {PLAYER_STAT_SEASON_LABEL}</TabsTrigger>
         </TabsList>
 
@@ -147,14 +244,24 @@ export default function EstadisticasPage() {
 
         <TabsContent value="club">
           {isFetching && needsClubStats ? (
-            <p className="text-sm text-muted-foreground py-4">Cargando estadísticas de club (puede tardar un minuto)…</p>
+            <p className="text-sm text-muted-foreground py-4">
+              Cargando estadísticas de club (puede tardar un minuto)…
+            </p>
           ) : clubScorers.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">Sin goles de club registrados.</p>
           ) : (
-            <TopScorers scorers={clubScorers} title={`Top Goleadores — Club (Temporada ${PLAYER_STAT_SEASON_LABEL})`} />
+            <TopScorers
+              scorers={clubScorers}
+              title={`Top Goleadores — Club (Temporada ${PLAYER_STAT_SEASON_LABEL})`}
+            />
           )}
         </TabsContent>
       </Tabs>
     </div>
   );
+}
+
+export default function EstadisticasPage() {
+  const { isScoped } = useActiveLeague();
+  return isScoped ? <EstadisticasMundialArchivePage /> : <EstadisticasAmericasPage />;
 }

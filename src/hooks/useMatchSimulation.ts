@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useTeams, useStandings, useH2H } from "@/hooks/usePartidos";
+import { useTeams, useStandings, useH2H, useFixtures } from "@/hooks/usePartidos";
 import { useTeamPlayers } from "@/hooks/useJugadores";
 import { useEstadisticasAggregadas } from "@/hooks/useEstadisticasAggregadas";
 import { runScoreSimulation, type ScoreProbabilityMatrix } from "@/utils/matchSimulation";
@@ -26,12 +26,14 @@ export interface UseMatchSimulationResult {
   sameTeam: boolean;
 }
 
+/** Equipo A = local, Equipo B = visitante. */
 export function useMatchSimulation(
   teamAId: number,
   teamBId: number
 ): UseMatchSimulationResult {
   const { data: teams = [], isLoading: loadingTeams } = useTeams();
   const { data: standingsRaw = [], isLoading: loadingStandings } = useStandings();
+  const { data: fixtures = [], isFetching: fetchingFixtures } = useFixtures();
   const { data: h2h = [], isFetching: fetchingH2H } = useH2H(teamAId, teamBId);
   const { data: playersA = [], isFetching: fetchingPlayersA } = useTeamPlayers(teamAId);
   const { data: playersB = [], isFetching: fetchingPlayersB } = useTeamPlayers(teamBId);
@@ -62,6 +64,8 @@ export function useMatchSimulation(
       playersB,
       avgGoalsPerMatch,
       isPreTournament,
+      clubCalibration: true,
+      leagueFixtures: fixtures,
     });
   }, [
     sameTeam,
@@ -76,6 +80,7 @@ export function useMatchSimulation(
     playersB,
     avgGoalsPerMatch,
     isPreTournament,
+    fixtures,
   ]);
 
   return {
@@ -83,7 +88,8 @@ export function useMatchSimulation(
     teamA,
     teamB,
     isLoading: loadingTeams || loadingStandings,
-    isFetching: fetchingH2H || fetchingPlayersA || fetchingPlayersB,
+    isFetching:
+      fetchingH2H || fetchingPlayersA || fetchingPlayersB || fetchingFixtures,
     sameTeam,
   };
 }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { Fixture } from "@/types";
 import {
   buildCalendarEntries,
+  buildStaticKnockoutBracket,
   filterCalendarEntriesByPhase,
 } from "./calendarKnockout";
 import {
@@ -170,8 +171,15 @@ describe("calendarKnockout", () => {
     assert.ok(knockoutEntries.every((entry) => entry.date.length > 0));
   });
 
-  it("genera cuadro estático con los 32 partidos de eliminatorias", () => {
+  it("sin bracket no inventa proyecciones de eliminatorias", () => {
     const entries = buildCalendarEntries([], null);
+    const knockoutEntries = entries.filter((entry) => entry.matchId != null);
+    assert.equal(knockoutEntries.length, 0);
+  });
+
+  it("genera cuadro estático con los 32 partidos de eliminatorias", () => {
+    const staticBracket = buildStaticKnockoutBracket([]);
+    const entries = buildCalendarEntries([], staticBracket);
     const knockoutEntries = entries.filter((entry) => entry.matchId != null);
     assert.equal(knockoutEntries.length, 32);
     assert.ok(knockoutEntries.some((entry) => entry.roundLabel === "Final"));

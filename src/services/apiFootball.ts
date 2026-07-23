@@ -26,12 +26,14 @@ import {
   resolveTeamsFromSnapshotOr,
 } from "./catalogResolver";
 import { DEFAULT_SEASON, LEAGUE_ID, PLAYER_STAT_SEASONS, CACHE_TTL_MS } from "@/lib/utils";
+import { AMERICAS_LEAGUES } from "@/data/americasLeagues";
 import {
   isFixtureLive,
   isPlausibleLiveFixture,
   isWithinKickoffWindow,
   pickFeaturedFixture,
 } from "@/lib/liveRefresh";
+import { isCupKnockoutRound } from "@/utils/cupBracket";
 import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
 import { isWorldCupStatRow, pickClubStat } from "@/utils/playerStats";
 import { mapPlayersToTopScorers, mapPlayersToTopAssists, mergeTopAssistLists } from "@/utils/tournamentScorers";
@@ -132,11 +134,18 @@ function fixtureNeedsFreshScore(fixture: Fixture): boolean {
   );
 }
 
-/** Partidos en curso del Mundial — siempre API (el snapshot puede tener status NS obsoleto). */
-async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
+/** Partidos en curso (live=all) — siempre API. */
+async function fetchLiveFixtures(leagueIds?: number[]): Promise<Fixture[]> {
   const params = { live: "all" };
-  const key = cacheKey("fixtures", { ...params, scope: "worldcup-live" });
+  const scope =
+    leagueIds == null
+      ? "live-all"
+      : leagueIds.length === 1 && leagueIds[0] === LEAGUE_ID
+        ? "worldcup-live"
+        : `live-${[...leagueIds].sort((a, b) => a - b).join("-")}`;
+  const key = cacheKey("fixtures", { ...params, scope });
   const sessionActive = isLiveSessionActive();
+  const allowed = leagueIds ? new Set(leagueIds) : null;
 
   const cached = getLocalCache<Fixture[]>(key);
   if (cached) {
@@ -150,9 +159,10 @@ async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
       params,
       ...liveRequestConfig(),
     });
-    const list = (data.response ?? [])
-      .filter((f) => f.league.id === LEAGUE_ID)
-      .filter((f) => isPlausibleLiveFixture(f));
+    let list = (data.response ?? []).filter((f) => isPlausibleLiveFixture(f));
+    if (allowed) {
+      list = list.filter((f) => allowed.has(f.league.id));
+    }
     setLocalCache(key, list, list.length > 0 ? LIVE_FIXTURE_CACHE_MS : EMPTY_LIVE_CACHE_MS);
     return list;
   } catch {
@@ -161,7 +171,16 @@ async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
   }
 }
 
-/** Poll dedicado live=all — exportado para useLiveScoreSync. */
+async function fetchLiveWorldCupFixtures(): Promise<Fixture[]> {
+  return fetchLiveFixtures([LEAGUE_ID]);
+}
+
+/** Poll live=all de todas las ligas — exportado para useLiveScoreSync. */
+export async function getLiveFixtures(leagueIds?: number[]): Promise<Fixture[]> {
+  return fetchLiveFixtures(leagueIds);
+}
+
+/** Poll dedicado live=all del Mundial. */
 export async function getLiveWorldCupFixtures(): Promise<Fixture[]> {
   return fetchLiveWorldCupFixtures();
 }
@@ -222,7 +241,8 @@ export async function getFixtureById(id: number): Promise<Fixture | null> {
 
 async function fetchFixturesPaginated(
   season: number = DEFAULT_SEASON,
-  extraParams: Record<string, string | number> = {}
+  extraParams: Record<string, string | number> = {},
+  leagueId: number = LEAGUE_ID
 ): Promise<Fixture[]> {
   let page = 1;
   let totalPages = 1;
@@ -230,7 +250,7 @@ async function fetchFixturesPaginated(
 
   while (page <= totalPages) {
     const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
-      params: { league: LEAGUE_ID, season, page, ...extraParams },
+      params: { league: leagueId, season, page, ...extraParams },
       ...liveRequestConfig(),
     });
 
@@ -409,24 +429,93 @@ async function loadWorldCupFixtures(season = DEFAULT_SEASON): Promise<Fixture[]>
   return loadWorldCupFixturesInFlight;
 }
 
-export async function getTeams(season: number = DEFAULT_SEASON): Promise<Team[]> {
-  return resolveTeamsFromSnapshotOr(async () => {
-    const data = await fetchApi<{ team: Team }[]>("teams", { league: LEAGUE_ID, season });
-    return data.map((t) => t.team);
+const leagueFixturesInFlight = new Map<string, Promise<Fixture[]>>();
+/** Temporadas de club cambian de fase (grupos → playoffs); no cachear 4 h. */
+const LEAGUE_FIXTURES_CACHE_MS = 20 * 60 * 1000;
+
+async function loadLeagueFixturesFromApi(
+  leagueId: number,
+  season: number,
+  options?: { force?: boolean }
+): Promise<Fixture[]> {
+  const key = cacheKey("fixtures-league-all", { league: leagueId, season });
+  const bypassCache = options?.force || isLiveSessionActive();
+  if (!bypassCache) {
+    const cached = getLocalCache<Fixture[]>(key);
+    if (cached?.length) return cached;
+  } else {
+    removeLocalCache(key);
+  }
+
+  try {
+    const list = await fetchFixturesPaginated(season, {}, leagueId);
+    if (list.length > 0) {
+      setLocalCache(key, list, LEAGUE_FIXTURES_CACHE_MS);
+    }
+    return list;
+  } catch {
+    return getStaleLocalCache<Fixture[]>(key) ?? [];
+  }
+}
+
+export async function loadLeagueFixtures(
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON,
+  options?: { force?: boolean }
+): Promise<Fixture[]> {
+  if (leagueId === LEAGUE_ID) {
+    return loadWorldCupFixtures(season);
+  }
+
+  const flightKey = `${leagueId}:${season}:${options?.force ? "force" : "cache"}`;
+  const existing = leagueFixturesInFlight.get(flightKey);
+  if (existing) return existing;
+
+  const promise = loadLeagueFixturesFromApi(leagueId, season, options).finally(() => {
+    leagueFixturesInFlight.delete(flightKey);
   });
+  leagueFixturesInFlight.set(flightKey, promise);
+  return promise;
+}
+
+export async function getTeams(
+  season: number = DEFAULT_SEASON,
+  leagueId: number = LEAGUE_ID
+): Promise<Team[]> {
+  if (leagueId === LEAGUE_ID) {
+    return resolveTeamsFromSnapshotOr(async () => {
+      const data = await fetchApi<{ team: Team }[]>("teams", {
+        league: leagueId,
+        season,
+      });
+      return data.map((t) => t.team);
+    });
+  }
+
+  const data = await fetchApi<{ team: Team }[]>("teams", {
+    league: leagueId,
+    season,
+  });
+  return data.map((t) => t.team);
 }
 
 export async function getFixtures(params: {
   season?: number;
+  league?: number;
   status?: string;
   team?: number;
   round?: string;
   id?: number;
+  /** Ignora caché local de temporada completa (útil para brackets). */
+  force?: boolean;
 } = {}): Promise<Fixture[]> {
   if (params.id) {
     const fixture = await getFixtureById(params.id);
     return fixture ? [fixture] : [];
   }
+
+  const leagueId = params.league ?? LEAGUE_ID;
+  const season = params.season ?? DEFAULT_SEASON;
 
   const applyFilters = (list: Fixture[]) => {
     let out = list;
@@ -447,26 +536,120 @@ export async function getFixtures(params: {
     return out;
   };
 
-  return loadWorldCupFixtures(params.season ?? DEFAULT_SEASON).then((list) =>
+  return loadLeagueFixtures(leagueId, season, { force: params.force }).then((list) =>
     applyFilters(list)
   );
 }
 
-export async function getNextFixture(): Promise<Fixture | null> {
-  const all = await getFixtures({});
+/**
+ * Fixtures para cuadro de Tablas: temporada con refresco forzado.
+ * Si aún no hay KO (caché/API incompleta), complementa con fixtures del mes.
+ */
+export async function getFixturesForBracket(
+  leagueId: number,
+  season: number
+): Promise<Fixture[]> {
+  const seasonList = await getFixtures({ league: leagueId, season, force: true });
+  if (seasonList.some((f) => isCupKnockoutRound(f.league.round))) {
+    return seasonList;
+  }
+
+  const now = new Date();
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const [monthNow, monthPrev] = await Promise.all([
+    getAmericasFixturesForMonth(now.getFullYear(), now.getMonth()),
+    getAmericasFixturesForMonth(prev.getFullYear(), prev.getMonth()),
+  ]);
+
+  const fromMonths = [...monthPrev, ...monthNow].filter(
+    (f) => f.league.id === leagueId
+  );
+  return mergeFixtureLists(seasonList, fromMonths);
+}
+
+/** Partidos de un día civil (API date=YYYY-MM-DD), filtrados a ligas Américas. */
+export async function getAmericasFixturesByDate(date: string): Promise<Fixture[]> {
+  const key = cacheKey("fixtures-americas-day", { date });
+  const cached = getLocalCache<Fixture[]>(key);
+  if (cached) return cached;
+
+  try {
+    const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
+      params: { date },
+      ...liveRequestConfig(),
+    });
+    const allowed = new Set(AMERICAS_LEAGUES.map((l) => l.id));
+    const list = (data.response ?? []).filter((f) => allowed.has(f.league.id));
+    setLocalCache(key, list, list.length > 0 ? LIVE_FIXTURE_CACHE_MS : EMPTY_LIVE_CACHE_MS);
+    return list;
+  } catch {
+    return getStaleLocalCache<Fixture[]>(key) ?? [];
+  }
+}
+
+/** Calendario mensual: agrega por día (evita N temporadas completas / rate limit). */
+export async function getAmericasFixturesForMonth(
+  year: number,
+  monthIndex0: number
+): Promise<Fixture[]> {
+  const month = monthIndex0 + 1;
+  const key = cacheKey("fixtures-americas-month", { year, month });
+  const cached = getLocalCache<Fixture[]>(key);
+  if (cached?.length) return cached;
+
+  const lastDay = new Date(year, monthIndex0 + 1, 0).getDate();
+  const dates: string[] = [];
+  for (let day = 1; day <= lastDay; day++) {
+    dates.push(
+      `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    );
+  }
+
+  const merged: Fixture[] = [];
+  const seen = new Set<number>();
+  const BATCH = 4;
+
+  for (let i = 0; i < dates.length; i += BATCH) {
+    const chunk = dates.slice(i, i + BATCH);
+    const lists = await Promise.all(chunk.map((d) => getAmericasFixturesByDate(d)));
+    for (const list of lists) {
+      for (const f of list) {
+        if (seen.has(f.fixture.id)) continue;
+        seen.add(f.fixture.id);
+        merged.push(f);
+      }
+    }
+  }
+
+  if (merged.length > 0) setLocalCache(key, merged);
+  return merged;
+}
+
+export async function getNextFixture(
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON
+): Promise<Fixture | null> {
+  const all = await getFixtures({ league: leagueId, season });
   return pickFeaturedFixture(all);
 }
 
-export async function getStandings(season: number = DEFAULT_SEASON): Promise<StandingsGroup[]> {
-  if (isLiveSessionActive()) {
-    const live = await fetchStandingsFromApi(season);
-    if (live.length > 0) return live;
-    await loadSnapshot();
-    return (await getSnapshotStandings()) ?? [];
+export async function getStandings(
+  season: number = DEFAULT_SEASON,
+  leagueId: number = LEAGUE_ID
+): Promise<StandingsGroup[]> {
+  if (leagueId === LEAGUE_ID) {
+    if (isLiveSessionActive()) {
+      const live = await fetchStandingsFromApi(season);
+      if (live.length > 0) return live;
+      await loadSnapshot();
+      return (await getSnapshotStandings()) ?? [];
+    }
+    return resolveStandingsFromSnapshotOr(async () =>
+      fetchApi<StandingsGroup[]>("standings", { league: leagueId, season })
+    );
   }
-  return resolveStandingsFromSnapshotOr(async () =>
-    fetchApi<StandingsGroup[]>("standings", { league: LEAGUE_ID, season })
-  );
+
+  return fetchApi<StandingsGroup[]>("standings", { league: leagueId, season });
 }
 
 export async function getTeamSquad(teamId: number): Promise<TeamSquad | null> {
@@ -752,14 +935,17 @@ export async function getRadarBenchmarkPool(teamIds: number[]): Promise<Player[]
 export async function getPlayers(params: {
   team?: number;
   season?: number;
+  league?: number;
   page?: number;
   search?: string;
   id?: number;
 }): Promise<{ players: Player[]; paging: { current: number; total: number } }> {
+  const league = params.league ?? LEAGUE_ID;
+  const season = params.season ?? DEFAULT_SEASON;
   const response = await client.get<ApiResponse<Player[]>>("players", {
     params: {
-      league: LEAGUE_ID,
-      season: params.season ?? DEFAULT_SEASON,
+      league,
+      season,
       team: params.team,
       page: params.page ?? 1,
       search: params.search,
@@ -767,7 +953,7 @@ export async function getPlayers(params: {
     },
     ...liveRequestConfig(),
   });
-  const key = cacheKey("players", params as Record<string, unknown>);
+  const key = cacheKey("players", { ...params, league, season } as Record<string, unknown>);
   setLocalCache(key, response.data.response, playerStatsLocalCacheTtl());
   return {
     players: response.data.response,
@@ -790,10 +976,11 @@ function shouldBypassPlayerStatsCache(): boolean {
   return isLiveSessionActive();
 }
 
-export async function getWorldCupTopScorers(
+export async function getLeagueTopScorers(
+  leagueId: number = LEAGUE_ID,
   season: number = DEFAULT_SEASON
 ): Promise<TopScorerEntry[]> {
-  const params = { league: LEAGUE_ID, season };
+  const params = { league: leagueId, season };
   const key = cacheKey("players/topscorers", params);
   if (!shouldBypassPlayerStatsCache()) {
     const cached = getLocalCache<TopScorerEntry[]>(key);
@@ -813,6 +1000,42 @@ export async function getWorldCupTopScorers(
   } catch {
     return getStaleLocalCache<TopScorerEntry[]>(key) ?? [];
   }
+}
+
+export async function getLeagueTopAssists(
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON
+): Promise<TopScorerEntry[]> {
+  const params = { league: leagueId, season };
+  const key = cacheKey("players/topassists", params);
+  if (!shouldBypassPlayerStatsCache()) {
+    const cached = getLocalCache<TopScorerEntry[]>(key);
+    if (cached) return cached;
+  }
+
+  try {
+    const { data } = await client.get<ApiResponse<Player[]>>("players/topassists", {
+      params,
+      ...liveRequestConfig(),
+    });
+    const list = mapPlayersToTopAssists(data.response ?? []);
+    if (!shouldBypassPlayerStatsCache()) {
+      setLocalCache(key, list, playerStatsLocalCacheTtl());
+    }
+    return list;
+  } catch {
+    // Fallback: ranking por asistencias dentro de topscorers
+    const scorers = await getLeagueTopScorers(leagueId, season);
+    return [...scorers]
+      .filter((s) => s.assists > 0)
+      .sort((a, b) => b.assists - a.assists || b.goals - a.goals);
+  }
+}
+
+export async function getWorldCupTopScorers(
+  season: number = DEFAULT_SEASON
+): Promise<TopScorerEntry[]> {
+  return getLeagueTopScorers(LEAGUE_ID, season);
 }
 
 const WORLD_CUP_ASSIST_PLAYER_PAGES = 8;
@@ -837,11 +1060,36 @@ function enrichWorldCupPoolPlayer(player: Player): Player {
   return enrichPlayerWithStatBundle({ ...player, nationalTeam: wcTeam }, wcTeam);
 }
 
-/** Pool de jugadores con stats del Mundial para enriquecer filas derivadas de eventos. */
-export async function getWorldCupPlayerStatsPool(
+function enrichLeaguePoolPlayer(
+  player: Player,
+  leagueId: number,
+  season: number
+): Player {
+  const row =
+    player.statistics.find(
+      (s) => s.league.id === leagueId && s.league.season === season
+    ) ??
+    player.statistics.find((s) => s.league.id === leagueId) ??
+    player.statistics[0];
+  if (!row) return player;
+  return {
+    ...player,
+    nationalTeam: row.team,
+    statistics: [row],
+    statBundle: {
+      club: leagueId === LEAGUE_ID ? null : row,
+      national: null,
+      worldCup: leagueId === LEAGUE_ID ? row : null,
+    },
+  };
+}
+
+/** Pool de jugadores con stats de una liga/temporada (scouting Américas o Mundial). */
+export async function getLeaguePlayerStatsPool(
+  leagueId: number,
   season: number = DEFAULT_SEASON
 ): Promise<Player[]> {
-  const key = cacheKey("worldCupPlayerStatsPool", { season });
+  const key = cacheKey("leaguePlayerStatsPool", { league: leagueId, season });
   if (!shouldBypassPlayerStatsCache()) {
     const cached = getLocalCache<Player[]>(key);
     if (cached) return cached;
@@ -852,11 +1100,11 @@ export async function getWorldCupPlayerStatsPool(
 
     const { data: topscorerPayload } = await client.get<ApiResponse<Player[]>>(
       "players/topscorers",
-      { params: { league: LEAGUE_ID, season }, ...liveRequestConfig() }
+      { params: { league: leagueId, season }, ...liveRequestConfig() }
     );
     mergePlayerPoolRows(byId, topscorerPayload.response ?? []);
 
-    const firstPage = await getPlayers({ season, page: 1 });
+    const firstPage = await getPlayers({ league: leagueId, season, page: 1 });
     mergePlayerPoolRows(byId, firstPage.players);
     const totalPages = Math.min(firstPage.paging.total, WORLD_CUP_PLAYER_POOL_MAX_PAGES);
 
@@ -865,7 +1113,7 @@ export async function getWorldCupPlayerStatsPool(
       const pageResults = await mapAsyncWithConcurrency(
         extraPages,
         WORLD_CUP_PLAYER_POOL_PAGE_CONCURRENCY,
-        async (page) => getPlayers({ season, page }),
+        async (page) => getPlayers({ league: leagueId, season, page }),
         0
       );
       for (const { players } of pageResults) {
@@ -873,7 +1121,88 @@ export async function getWorldCupPlayerStatsPool(
       }
     }
 
-    const pool = [...byId.values()].map(enrichWorldCupPoolPlayer);
+    const pool = [...byId.values()].map((p) =>
+      leagueId === LEAGUE_ID
+        ? enrichWorldCupPoolPlayer(p)
+        : enrichLeaguePoolPlayer(p, leagueId, season)
+    );
+    if (!shouldBypassPlayerStatsCache()) {
+      setLocalCache(key, pool, playerStatsLocalCacheTtl());
+    }
+    return pool;
+  } catch {
+    return getStaleLocalCache<Player[]>(key) ?? [];
+  }
+}
+
+/** Pool de jugadores con stats del Mundial para enriquecer filas derivadas de eventos. */
+export async function getWorldCupPlayerStatsPool(
+  season: number = DEFAULT_SEASON
+): Promise<Player[]> {
+  return getLeaguePlayerStatsPool(LEAGUE_ID, season);
+}
+
+/** Porteros de una liga — una consulta por equipo (los GK no salen bien en topscorers). */
+export async function getLeagueGoalkeepersForTeams(
+  teamIds: number[],
+  leagueId: number,
+  season: number = DEFAULT_SEASON
+): Promise<Player[]> {
+  const uniqueIds = [...new Set(teamIds)].filter((id) => id > 0).sort((a, b) => a - b);
+  if (uniqueIds.length === 0) return [];
+
+  const key = cacheKey("leagueGoalkeeperPool", {
+    league: leagueId,
+    season,
+    teams: uniqueIds.join(","),
+  });
+  if (!shouldBypassPlayerStatsCache()) {
+    const cached = getLocalCache<Player[]>(key);
+    if (cached) return cached;
+  }
+
+  try {
+    const byId = new Map<number, Player>();
+
+    async function fetchTeamGoalkeepers(teamId: number) {
+      let page = 1;
+      let total = 1;
+      while (page <= total) {
+        const { players, paging } = await getPlayers({
+          season,
+          team: teamId,
+          league: leagueId,
+          page,
+        });
+        for (const p of players) {
+          const leagueStat =
+            p.statistics.find(
+              (s) => s.league.id === leagueId && s.team.id === teamId
+            ) ?? p.statistics.find((s) => s.league.id === leagueId);
+          if (!leagueStat || !isGoalkeeperStat(leagueStat)) continue;
+          if ((leagueStat.games.minutes ?? 0) < 1) continue;
+          mergePlayerPoolRows(byId, [
+            enrichLeaguePoolPlayer(
+              { ...p, statistics: [leagueStat] },
+              leagueId,
+              season
+            ),
+          ]);
+        }
+        total = paging.total;
+        page++;
+        if (players.length === 0) break;
+      }
+    }
+
+    await mapAsyncWithConcurrency(
+      uniqueIds,
+      WORLD_CUP_GK_TEAM_CONCURRENCY,
+      fetchTeamGoalkeepers,
+      0
+    );
+
+    const pool = [...byId.values()];
     if (!shouldBypassPlayerStatsCache()) {
       setLocalCache(key, pool, playerStatsLocalCacheTtl());
     }
@@ -888,64 +1217,7 @@ export async function getWorldCupGoalkeepersForTeams(
   teamIds: number[],
   season: number = DEFAULT_SEASON
 ): Promise<Player[]> {
-  const uniqueIds = [...new Set(teamIds)].filter((id) => id > 0).sort((a, b) => a - b);
-  if (uniqueIds.length === 0) return [];
-
-  const key = cacheKey("worldCupGoalkeeperPool", {
-    season,
-    teams: uniqueIds.join(","),
-  });
-  if (!shouldBypassPlayerStatsCache()) {
-    const cached = getLocalCache<Player[]>(key);
-    if (cached) return cached;
-  }
-
-  try {
-    const byId = new Map<number, Player>();
-    let index = 0;
-
-    async function fetchTeamGoalkeepers(teamId: number) {
-      let page = 1;
-      let total = 1;
-      while (page <= total) {
-        const { players, paging } = await getPlayers({ season, team: teamId, page });
-        for (const p of players) {
-          const wcStat =
-            p.statistics.find(
-              (s) => s.league.id === LEAGUE_ID && s.team.id === teamId
-            ) ?? p.statistics.find((s) => s.league.id === LEAGUE_ID);
-          if (!wcStat || !isGoalkeeperStat(wcStat)) continue;
-          if ((wcStat.games.minutes ?? 0) < 1) continue;
-          mergePlayerPoolRows(byId, [{ ...p, statistics: [wcStat] }]);
-        }
-        total = paging.total;
-        page++;
-        if (players.length === 0) break;
-      }
-    }
-
-    async function worker() {
-      while (index < uniqueIds.length) {
-        const teamId = uniqueIds[index++];
-        await fetchTeamGoalkeepers(teamId);
-      }
-    }
-
-    await Promise.all(
-      Array.from(
-        { length: Math.min(WORLD_CUP_GK_TEAM_CONCURRENCY, uniqueIds.length) },
-        () => worker()
-      )
-    );
-
-    const pool = [...byId.values()];
-    if (!shouldBypassPlayerStatsCache()) {
-      setLocalCache(key, pool, playerStatsLocalCacheTtl());
-    }
-    return pool;
-  } catch {
-    return getStaleLocalCache<Player[]>(key) ?? [];
-  }
+  return getLeagueGoalkeepersForTeams(teamIds, LEAGUE_ID, season);
 }
 
 /** Asistidores del Mundial — incluye jugadores sin goles vía paginación de players. */

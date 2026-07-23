@@ -9,7 +9,7 @@ import type { ScoutingPosition } from "@/config/positionMetricProfiles";
 import { getPositionProfile, scoutingPositionOptions } from "@/config/positionMetricProfiles";
 import type { ScoutingMetricViewId } from "@/config/scoutingMetricViews";
 import { getMetricView, getMetricViewsForPosition } from "@/config/scoutingMetricViews";
-import { profilesForPosition, SCOUTING_MIN_WC_MINUTES } from "@/utils/worldCupScoutingMetrics";
+import { profilesForPosition } from "@/utils/worldCupScoutingMetrics";
 import { useWorldCupScoutingPool } from "@/hooks/useWorldCupScoutingPool";
 import {
   ChartExportButton,
@@ -26,7 +26,14 @@ export function ComparativaJugadores() {
   const [playerBId, setPlayerBId] = useState<number>(0);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  const { profiles, isLoading, isReady } = useWorldCupScoutingPool(true, {
+  const {
+    profiles,
+    isLoading,
+    isReady,
+    selectionLabel,
+    minMinutes,
+    leagueIds,
+  } = useWorldCupScoutingPool(true, {
     loadGoalkeepers: posFilter === "G",
   });
 
@@ -43,11 +50,13 @@ export function ComparativaJugadores() {
     if (filtered[1] && !playerBId) setPlayerBId(filtered[1].playerId);
   }, [filtered, playerAId, playerBId]);
 
+  const leagueKey = leagueIds.join(",");
+
   useEffect(() => {
     setPlayerAId(0);
     setPlayerBId(0);
     setMetricView("default");
-  }, [posFilter]);
+  }, [posFilter, leagueKey]);
 
   useEffect(() => {
     const available = getMetricViewsForPosition(posFilter);
@@ -65,9 +74,9 @@ export function ComparativaJugadores() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Comparativa Mundial 2026</CardTitle>
+        <CardTitle>Comparativa · {selectionLabel}</CardTitle>
         <p className="text-sm text-muted-foreground font-normal">
-          Stats del torneo · ≥{SCOUTING_MIN_WC_MINUTES} min · radar y scatter por posición
+          Stats seleccionadas · ≥{minMinutes} min · radar y scatter por posición
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -109,7 +118,7 @@ export function ComparativaJugadores() {
           <Skeleton className="h-[320px] w-full" />
         ) : filtered.length < 2 ? (
           <p className="text-sm text-muted-foreground">
-            Se necesitan al menos 2 jugadores con ≥{SCOUTING_MIN_WC_MINUTES} min en esta posición.
+            Se necesitan al menos 2 jugadores con ≥{minMinutes} min en esta posición.
           </p>
         ) : profileA && profileB ? (
           <>

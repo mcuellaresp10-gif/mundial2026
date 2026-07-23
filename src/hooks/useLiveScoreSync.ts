@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getFixtures,
-  getLiveWorldCupFixtures,
+  getLiveFixtures,
   mergeLiveIntoFixtures,
 } from "@/services/apiFootball";
 import { isLiveSessionActive, syncLiveSession, clearPlayerStatsLocalCache } from "@/services/liveSession";
@@ -16,54 +16,116 @@ import {
 } from "@/lib/liveRefresh";
 import { isFixtureListIncomplete, mergeFixtureLists } from "@/utils/fixtureMerge";
 import { useUIStore } from "@/stores/useUIStore";
+import { WORLD_CUP_LEAGUE_ID } from "@/lib/utils";
+import { ALLOWED_LEAGUE_IDS } from "@/data/americasLeagues";
 import type { Fixture } from "@/types";
 
 const FULL_LIST_REFRESH_MS = 5 * 60 * 1000;
 const LIVE_SESSION_FULL_LIST_REFRESH_MS = 90 * 1000;
 const LIST_INCOMPLETE_POLL_MS = 5 * 60 * 1000;
 
-function getBaseFixturesFromCache(qc: ReturnType<typeof useQueryClient>): Fixture[] {
-  return (
-    qc.getQueryData<Fixture[]>(["fixtures", undefined]) ??
-    qc.getQueryData<Fixture[]>(["fixtures", {}]) ??
-    []
-  );
+type FixtureQueryParams = {
+  league?: number;
+  season?: number;
+  id?: number;
+  team?: number;
+  status?: string;
+};
+
+function getFixtureQueryParams(key: readonly unknown[]): FixtureQueryParams | null {
+  if (key[0] !== "fixtures") return null;
+  const p = key[1];
+  if (p == null) return {};
+  if (typeof p !== "object") return null;
+  return p as FixtureQueryParams;
 }
 
-function setAllFixtureQueries(qc: ReturnType<typeof useQueryClient>, fixtures: Fixture[]): void {
+function isFixtureListQuery(params: FixtureQueryParams): boolean {
+  return params.id == null && params.team == null && params.status == null;
+}
+
+/** Agrega partidos de todas las queries de lista en caché (para decidir si hay live). */
+function collectCachedListFixtures(qc: ReturnType<typeof useQueryClient>): Fixture[] {
+  const byId = new Map<number, Fixture>();
   for (const [key, data] of qc.getQueriesData<Fixture[]>({ queryKey: ["fixtures"] })) {
-    if (!Array.isArray(data)) continue;
-    const isBaseQuery =
-      key.length === 2 &&
-      (key[1] === undefined ||
-        (typeof key[1] === "object" &&
-          key[1] !== null &&
-          !(key[1] as { id?: number; team?: number; status?: string }).id &&
-          !(key[1] as { team?: number }).team &&
-          !(key[1] as { status?: string }).status));
-    if (isBaseQuery || data.length === 0) {
-      qc.setQueryData(key, data.length > 0 ? mergeFixtureLists(data, fixtures) : fixtures);
-    } else if (data.length > 0) {
-      qc.setQueryData(key, mergeFixtureLists(fixtures, data));
+    const params = getFixtureQueryParams(key as readonly unknown[]);
+    if (!params || !isFixtureListQuery(params) || !Array.isArray(data)) continue;
+    for (const f of data) byId.set(f.fixture.id, f);
+  }
+  return [...byId.values()];
+}
+
+function collectLeaguesFromCache(
+  qc: ReturnType<typeof useQueryClient>
+): Map<number, number> {
+  const leagues = new Map<number, number>();
+  for (const [key, data] of qc.getQueriesData<Fixture[]>({ queryKey: ["fixtures"] })) {
+    const params = getFixtureQueryParams(key as readonly unknown[]);
+    if (!params || !isFixtureListQuery(params)) continue;
+    const leagueId = params.league ?? data?.[0]?.league?.id;
+    const season = params.season ?? data?.[0]?.league?.season;
+    if (leagueId != null && season != null) {
+      leagues.set(leagueId, season);
     }
+  }
+  return leagues;
+}
+
+/** Actualiza solo queries de la misma liga (nunca cuela Mundial en Américas). */
+function setLeagueFixtureQueries(
+  qc: ReturnType<typeof useQueryClient>,
+  leagueId: number,
+  season: number,
+  fixtures: Fixture[]
+): void {
+  for (const [key, data] of qc.getQueriesData<Fixture[]>({ queryKey: ["fixtures"] })) {
+    const params = getFixtureQueryParams(key as readonly unknown[]);
+    if (!params || !isFixtureListQuery(params)) continue;
+
+    if (params.league != null && params.league !== leagueId) continue;
+    if (params.season != null && params.season !== season) continue;
+
+    if (params.league == null) {
+      // Queries legacy sin league: solo Mundial.
+      if (leagueId !== WORLD_CUP_LEAGUE_ID) continue;
+    }
+
+    if (!Array.isArray(data) || data.length === 0) {
+      if (params.league === leagueId) {
+        qc.setQueryData(key, fixtures);
+      }
+      continue;
+    }
+
+    const dataLeague = data[0]?.league?.id;
+    if (dataLeague != null && dataLeague !== leagueId) continue;
+
+    qc.setQueryData(key, mergeFixtureLists(data, fixtures));
   }
 }
 
 function mergeLiveIntoFixtureQueries(
   qc: ReturnType<typeof useQueryClient>,
-  live: Fixture[],
-  baseFixtures: Fixture[]
+  live: Fixture[]
 ): void {
   if (live.length === 0) return;
 
   const liveById = new Map(live.map((f) => [f.fixture.id, f]));
-  const mergedBase = baseFixtures.length > 0 ? mergeLiveIntoFixtures(baseFixtures, live) : live;
 
   for (const [key, data] of qc.getQueriesData<Fixture[]>({ queryKey: ["fixtures"] })) {
+    const params = getFixtureQueryParams(key as readonly unknown[]);
+    if (!params || !isFixtureListQuery(params)) continue;
     if (!Array.isArray(data)) continue;
-    const next =
-      data.length > 0 ? mergeLiveIntoFixtures(data, live) : mergedBase;
-    qc.setQueryData(key, next);
+
+    if (data.length === 0) {
+      // No rellenar queries vacías con live de otra liga.
+      if (params.league == null) continue;
+      const leagueLive = live.filter((f) => f.league.id === params.league);
+      if (leagueLive.length > 0) qc.setQueryData(key, leagueLive);
+      continue;
+    }
+
+    qc.setQueryData(key, mergeLiveIntoFixtures(data, live));
   }
 
   for (const lf of live) {
@@ -77,13 +139,27 @@ function mergeLiveIntoFixtureQueries(
   }
 }
 
+async function refreshCachedLeagueLists(
+  qc: ReturnType<typeof useQueryClient>,
+  onlyLeagueIds?: Set<number>
+): Promise<void> {
+  const leagues = collectLeaguesFromCache(qc);
+  for (const [leagueId, season] of leagues) {
+    if (onlyLeagueIds && !onlyLeagueIds.has(leagueId)) continue;
+    const full = await getFixtures({ league: leagueId, season });
+    if (full.length > 0) {
+      setLeagueFixtureQueries(qc, leagueId, season, full);
+    }
+  }
+}
+
 function getNextPollDelay(fixtures: Fixture[], listIncomplete: boolean, aggressive: boolean): number {
   if (listIncomplete && !aggressive) return LIST_INCOMPLETE_POLL_MS;
   if (aggressive) return getLivePollInterval(true);
   return LIVE_REFRESH_MS.livePollIdle;
 }
 
-/** Poll live=all y fusiona marcadores en la caché de React Query. */
+/** Poll live=all y fusiona marcadores en la caché de React Query (por liga). */
 export function useLiveScoreSync() {
   const qc = useQueryClient();
   const setLastRefresh = useUIStore((s) => s.setLastRefresh);
@@ -100,8 +176,9 @@ export function useLiveScoreSync() {
     };
 
     const tick = async () => {
-      const fixtures = getBaseFixturesFromCache(qc);
-      const listIncomplete = isFixtureListIncomplete(fixtures);
+      const fixtures = collectCachedListFixtures(qc);
+      const wcFixtures = fixtures.filter((f) => f.league.id === WORLD_CUP_LEAGUE_ID);
+      const listIncomplete = isFixtureListIncomplete(wcFixtures);
       const aggressive = shouldPollFixtures(fixtures.length ? fixtures : undefined);
 
       syncLiveSession({
@@ -124,15 +201,17 @@ export function useLiveScoreSync() {
             listIncomplete || (aggressive && now - lastFullRefreshRef.current >= fullListInterval);
 
           if (needsFullRefresh) {
-            const full = await getFixtures({});
-            if (!cancelled && full.length > 0) {
-              setAllFixtureQueries(qc, full);
-              lastFullRefreshRef.current = now;
-            }
+            await refreshCachedLeagueLists(
+              qc,
+              listIncomplete && !aggressive
+                ? new Set([WORLD_CUP_LEAGUE_ID])
+                : undefined
+            );
+            if (!cancelled) lastFullRefreshRef.current = now;
           }
 
           if (aggressive) {
-            const live = await getLiveWorldCupFixtures();
+            const live = await getLiveFixtures([...ALLOWED_LEAGUE_IDS]);
             if (cancelled) return;
 
             const liveIds = new Set(live.map((f) => f.fixture.id));
@@ -144,21 +223,29 @@ export function useLiveScoreSync() {
               qc.invalidateQueries({ queryKey: ["worldCupPlayerStatsPool"] });
               qc.invalidateQueries({ queryKey: ["worldCupTopScorers"] });
               qc.invalidateQueries({ queryKey: ["worldCupTopAssists"] });
-              const full = await getFixtures({});
-              if (!cancelled && full.length > 0) {
-                setAllFixtureQueries(qc, full);
-                lastFullRefreshRef.current = Date.now();
+
+              const droppedLeagues = new Set<number>();
+              for (const id of droppedFromLive) {
+                const cached = qc.getQueryData<Fixture[]>(["fixtures", { id }]);
+                const leagueId = cached?.[0]?.league?.id;
+                if (leagueId != null) droppedLeagues.add(leagueId);
               }
+              // Si no sabemos la liga, refrescar todas las listas en caché.
+              await refreshCachedLeagueLists(
+                qc,
+                droppedLeagues.size > 0 ? droppedLeagues : undefined
+              );
+              if (!cancelled) lastFullRefreshRef.current = Date.now();
             }
 
-            const currentBase = getBaseFixturesFromCache(qc);
+            const currentBase = collectCachedListFixtures(qc);
 
             syncLiveSession({
               fixtures: currentBase,
-              liveWorldCupCount: live.length,
+              liveWorldCupCount: live.filter((f) => f.league.id === WORLD_CUP_LEAGUE_ID).length,
             });
 
-            mergeLiveIntoFixtureQueries(qc, live, currentBase);
+            mergeLiveIntoFixtureQueries(qc, live);
             setLastRefresh(Date.now());
           }
         } catch {
@@ -166,8 +253,9 @@ export function useLiveScoreSync() {
         }
       }
 
-      const latestFixtures = getBaseFixturesFromCache(qc);
-      const latestIncomplete = isFixtureListIncomplete(latestFixtures);
+      const latestFixtures = collectCachedListFixtures(qc);
+      const latestWc = latestFixtures.filter((f) => f.league.id === WORLD_CUP_LEAGUE_ID);
+      const latestIncomplete = isFixtureListIncomplete(latestWc);
       const latestAggressive = shouldPollFixtures(
         latestFixtures.length ? latestFixtures : undefined
       );

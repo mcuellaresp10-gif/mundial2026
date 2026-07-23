@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlayerAvatar } from "@/components/shared/PlayerAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEstadisticasAggregadas } from "@/hooks/useEstadisticasAggregadas";
-import { useWorldCupTopScorers } from "@/hooks/useJugadores";
+import { useLeagueTopScorers, useWorldCupTopScorers } from "@/hooks/useJugadores";
+import { useActiveLeague } from "@/hooks/useActiveLeague";
 import { olympicRank } from "@/utils/formatters";
 import { GoalsByDayChart } from "@/components/Estadisticas/charts/GoalsByDayChart";
 import { aggregateGoalsByDayLastN } from "@/utils/tournamentAnalytics";
@@ -15,14 +16,79 @@ import { formatRoundLabel } from "@/utils/formatters";
 import { translateTeamName } from "@/utils/teamNames";
 
 export function EstadisticasGlobales() {
+  const { isScoped } = useActiveLeague();
+  return isScoped ? <EstadisticasMundialArchive /> : <EstadisticasAmericas />;
+}
+
+function EstadisticasAmericas() {
   const stats = useEstadisticasAggregadas();
-  const { scorers: topScorers, isLoading: loadingScorers, isLiveRefreshing } =
-    useWorldCupTopScorers(10);
+  const { league, leagues, isMulti } = useActiveLeague();
+  const leagueScorers = useLeagueTopScorers(10);
+  const topScorers = leagueScorers.data;
+  const loadingScorers = leagueScorers.isLoading;
+  const scopeLabel = isMulti
+    ? leagues.map((l) => l.shortName).join(" · ")
+    : league.shortName;
+  const scorersTitle = `Top 10 Goleadores · ${scopeLabel}`;
   const goalsByDay = useMemo(
     () => aggregateGoalsByDayLastN(stats.fixtures ?? [], 7),
     [stats.fixtures]
   );
 
+  return (
+    <EstadisticasGlobalesView
+      stats={stats}
+      topScorers={topScorers}
+      loadingScorers={loadingScorers}
+      isLiveRefreshing={false}
+      scorersTitle={scorersTitle}
+      goalsByDay={goalsByDay}
+      subtitle={`Resumen de ${scopeLabel} en tiempo real`}
+    />
+  );
+}
+
+function EstadisticasMundialArchive() {
+  const stats = useEstadisticasAggregadas();
+  const wcScorers = useWorldCupTopScorers(10);
+  const topScorers = wcScorers.scorers;
+  const loadingScorers = wcScorers.isLoading;
+  const isLiveRefreshing = wcScorers.isLiveRefreshing;
+  const goalsByDay = useMemo(
+    () => aggregateGoalsByDayLastN(stats.fixtures ?? [], 7),
+    [stats.fixtures]
+  );
+
+  return (
+    <EstadisticasGlobalesView
+      stats={stats}
+      topScorers={topScorers}
+      loadingScorers={loadingScorers}
+      isLiveRefreshing={isLiveRefreshing}
+      scorersTitle="Top 10 Goleadores del Mundial 2026"
+      goalsByDay={goalsByDay}
+      subtitle="Resumen de Mundial 2026 en tiempo real"
+    />
+  );
+}
+
+function EstadisticasGlobalesView({
+  stats,
+  topScorers,
+  loadingScorers,
+  isLiveRefreshing,
+  scorersTitle,
+  goalsByDay,
+  subtitle,
+}: {
+  stats: ReturnType<typeof useEstadisticasAggregadas>;
+  topScorers: ReturnType<typeof useLeagueTopScorers>["data"];
+  loadingScorers: boolean;
+  isLiveRefreshing: boolean;
+  scorersTitle: string;
+  goalsByDay: ReturnType<typeof aggregateGoalsByDayLastN>;
+  subtitle: string;
+}) {
   if (loadingScorers && topScorers.length === 0) {
     return (
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-4">
@@ -37,7 +103,7 @@ export function EstadisticasGlobales() {
     <div className="@container/stats space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-1">Estadísticas globales</h2>
-        <p className="text-sm text-muted-foreground">Resumen del torneo en tiempo real</p>
+        <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
       {/* Auto-fit stat grid */}
@@ -61,7 +127,7 @@ export function EstadisticasGlobales() {
         <Card className="rounded-2xl break-inside-avoid min-w-0">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-lg">Top 10 Goleadores del Mundial 2026</CardTitle>
+              <CardTitle className="text-lg">{scorersTitle}</CardTitle>
               {isLiveRefreshing && (
                 <span className="text-[10px] font-medium uppercase tracking-wide text-mundial-red shrink-0">
                   En vivo
@@ -120,7 +186,7 @@ export function EstadisticasGlobales() {
               stats.groupLeaders.map((s) => (
                 <Link
                   key={s.team.id}
-                  href={`/selecciones/${s.team.id}`}
+                  href={`/equipos/${s.team.id}`}
                   className="flex min-w-0 items-center gap-3 py-2.5 first:pt-0 last:pb-0 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
                 >
                   <div className="relative aspect-square w-7 shrink-0">

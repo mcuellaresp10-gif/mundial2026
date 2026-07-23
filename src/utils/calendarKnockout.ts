@@ -86,7 +86,7 @@ function fixtureToCalendarEntry(fixture: Fixture): CalendarMatchEntry {
   return {
     fixtureId: fixture.fixture.id,
     date: fixture.fixture.date,
-    roundLabel: formatRoundLabel(fixture.league.round),
+    roundLabel: formatRoundLabel(fixture.league.round ?? ""),
     home: apiTeamToSlot(fixture.teams.home),
     away: apiTeamToSlot(fixture.teams.away),
     goals: { home: fixture.goals.home, away: fixture.goals.away },
@@ -259,12 +259,26 @@ export function buildCalendarEntries(
   const groupFixtures = fixtures.filter((fixture) => !isKnockoutApiRound(fixture.league.round));
 
   const entries: CalendarMatchEntry[] = groupFixtures.map(fixtureToCalendarEntry);
-  const effectiveBracket = bracket ?? buildStaticKnockoutBracket(fixtures);
-  entries.push(...buildKnockoutCalendarEntries(fixtures, effectiveBracket));
+
+  if (bracket) {
+    entries.push(...buildKnockoutCalendarEntries(fixtures, bracket));
+  } else {
+    // Sin bracket: solo KO reales de la API (no proyecciones del cuadro Mundial).
+    for (const fixture of fixtures.filter((f) => isKnockoutApiRound(f.league.round))) {
+      entries.push(fixtureToCalendarEntry(fixture));
+    }
+  }
 
   return entries.sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
+}
+
+/** Calendario Américas: fixtures reales sin cuadro eliminatorio del Mundial. */
+export function fixturesToCalendarEntries(fixtures: Fixture[]): CalendarMatchEntry[] {
+  return fixtures
+    .map(fixtureToCalendarEntry)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 export function filterCalendarEntriesByPhase(

@@ -15,6 +15,35 @@ describe("footballAllowlist", () => {
     assert.equal(result.ok, true);
   });
 
+  it("permite ligas Américas (ej. Liga BetPlay)", () => {
+    const result = validateFootballProxyRequest(
+      ["fixtures"],
+      params({ league: "239", season: "2026" })
+    );
+    assert.equal(result.ok, true);
+  });
+
+  it("permite fixtures por date", () => {
+    const result = validateFootballProxyRequest(
+      ["fixtures"],
+      params({ date: "2026-07-21" })
+    );
+    assert.equal(result.ok, true);
+  });
+
+  it("permite from/to con league+season", () => {
+    const result = validateFootballProxyRequest(
+      ["fixtures"],
+      params({
+        league: "71",
+        season: "2026",
+        from: "2026-07-01",
+        to: "2026-07-31",
+      })
+    );
+    assert.equal(result.ok, true);
+  });
+
   it("permite live=all solo", () => {
     const result = validateFootballProxyRequest(["fixtures"], params({ live: "all" }));
     assert.equal(result.ok, true);
@@ -26,7 +55,7 @@ describe("footballAllowlist", () => {
     if (!result.ok) assert.equal(result.status, 403);
   });
 
-  it("rechaza otras ligas", () => {
+  it("rechaza ligas fuera del registro Américas", () => {
     const result = validateFootballProxyRequest(
       ["fixtures"],
       params({ league: "39", season: "2026" })

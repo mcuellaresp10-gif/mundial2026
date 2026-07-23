@@ -13,9 +13,17 @@ import { translateTeamName, teamNameMatchesQuery } from "@/utils/teamNames";
 interface GridSeleccionesProps {
   teams: Team[];
   isLoading: boolean;
+  /** Ruta base del detalle (default archivo selecciones). */
+  baseHref?: string;
+  searchPlaceholder?: string;
 }
 
-export function GridSelecciones({ teams, isLoading }: GridSeleccionesProps) {
+export function GridSelecciones({
+  teams,
+  isLoading,
+  baseHref = "/selecciones",
+  searchPlaceholder = "Buscar equipo...",
+}: GridSeleccionesProps) {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -33,7 +41,7 @@ export function GridSelecciones({ teams, isLoading }: GridSeleccionesProps) {
   return (
     <div className="space-y-6">
       <Input
-        placeholder="Buscar selección por país..."
+        placeholder={searchPlaceholder}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="max-w-md"
@@ -45,7 +53,7 @@ export function GridSelecciones({ teams, isLoading }: GridSeleccionesProps) {
           const colors = getTeamColors(team.name);
           const isColombia = team.name.toLowerCase().includes("colombia");
           return (
-            <Link key={team.id} href={`/selecciones/${team.id}`}>
+            <Link key={team.id} href={`${baseHref}/${team.id}`}>
               <Card
                 className={`hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer ${
                   isColombia ? "border-colombia-yellow/50 bg-colombia-yellow/5" : ""

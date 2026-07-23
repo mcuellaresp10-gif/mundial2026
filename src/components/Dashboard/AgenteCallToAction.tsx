@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const EXAMPLE_QUESTIONS = [
-  "¿Cómo va Colombia en el grupo?",
-  "Campeones desde 1930",
-  "Probabilidad de clasificar",
+  "¿Quién lidera la tabla?",
+  "Mejores goleadores de la liga",
+  "Próximos partidos de Copa Argentina",
 ];
 
 export function AgenteCallToAction() {
@@ -40,14 +40,14 @@ export function AgenteCallToAction() {
             </div>
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.18em] text-mundial-gold/90 font-semibold mb-1">
-                Nuevo · Asistente IA
+                Asistente IA
               </p>
               <h2 id="agente-cta-title" className="text-lg @md:text-xl font-bold text-white leading-snug">
-                Pregúntale al agente del Mundial
+                Pregúntale al agente Américas
               </h2>
               <p className="text-sm text-white/70 mt-1 max-w-prose">
-                Historia completa 1930–2022 y datos en vivo del torneo 2026: tablas, probabilidades,
-                goleadores y curiosidades.
+                Ligas CONMEBOL, Liga MX, MLS, copas continentales y domésticas: tablas, goleadores y
+                análisis. El Mundial 2026 sigue disponible en el archivo.
               </p>
               <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/55">
                 <li className="flex items-center gap-1.5">

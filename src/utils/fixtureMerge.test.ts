@@ -88,6 +88,22 @@ describe("fixtureMerge", () => {
     assert.equal(merged[1].fixture.id, 2);
   });
 
+  it("mergeLiveIntoFixtures no cuela partidos de otra liga", () => {
+    const base = [makeFixture(1, "FT", 1, 0)];
+    base[0].league.id = 128;
+    const live = [makeFixture(99, "2H", 1, 0)];
+    live[0].league.id = 1;
+    const merged = mergeLiveIntoFixtures(base, live);
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].fixture.id, 1);
+  });
+
+  it("ligas de club no se marcan incompletas por umbral Mundial", () => {
+    const club = [makeFixture(1, "FT", 1, 0)];
+    club[0].league.id = 128;
+    assert.equal(isFixtureListIncomplete(club), false);
+  });
+
   it("ensambla catálogo snapshot + FT + live sin perder J1", () => {
     const catalog = Array.from({ length: 72 }, (_, i) =>
       makeFixture(i + 1, "NS", null, null, i < 24 ? "Group Stage - 1" : "Group Stage - 2")

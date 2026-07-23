@@ -1,5 +1,5 @@
-import { GruposPageContent } from "@/components/Grupos/GruposPageContent";
+import { redirect } from "next/navigation";
 
-export default function GruposPage() {
-  return <GruposPageContent />;
+export default function GruposRedirectPage() {
+  redirect("/mundial/grupos");
 }

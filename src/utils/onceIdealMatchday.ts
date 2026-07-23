@@ -69,6 +69,9 @@ export function pickLatestFinishedJornada(jornadas: JornadaGroup[]): JornadaGrou
 }
 
 /** Convierte stats por partido en candidatos para el once ideal de jornada. */
-export function flattenFixturePlayersTeams(teamsGroups: FixturePlayersTeam[][]) {
-  return aggregateCandidatesFromFixturePlayerTeams(teamsGroups, 1);
+export function flattenFixturePlayersTeams(
+  teamsGroups: FixturePlayersTeam[][],
+  leagueId?: number
+) {
+  return aggregateCandidatesFromFixturePlayerTeams(teamsGroups, 1, leagueId);
 }

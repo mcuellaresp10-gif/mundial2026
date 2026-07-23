@@ -23,14 +23,17 @@ interface CalendarioMensualProps {
   fixtureById: Map<number, Fixture>;
   isLoading: boolean;
   phase: PhaseFilter;
+  visibleMonth: Date;
+  onVisibleMonthChange: (month: Date) => void;
 }
 
 export function CalendarioMensual({
   entries,
   fixtureById,
   isLoading,
+  visibleMonth,
+  onVisibleMonthChange,
 }: CalendarioMensualProps) {
-  const [visibleMonth, setVisibleMonth] = useState(() => new Date());
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
 
   const grid = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
@@ -59,7 +62,7 @@ export function CalendarioMensual({
             type="button"
             variant="outline"
             size="icon"
-            onClick={() => setVisibleMonth((month) => addMonths(month, -1))}
+            onClick={() => onVisibleMonthChange(addMonths(visibleMonth, -1))}
             aria-label="Mes anterior"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -71,7 +74,7 @@ export function CalendarioMensual({
             type="button"
             variant="outline"
             size="icon"
-            onClick={() => setVisibleMonth((month) => addMonths(month, 1))}
+            onClick={() => onVisibleMonthChange(addMonths(visibleMonth, 1))}
             aria-label="Mes siguiente"
           >
             <ChevronRight className="h-4 w-4" />
@@ -87,7 +90,7 @@ export function CalendarioMensual({
             size="sm"
             onClick={() => {
               const today = new Date();
-              setVisibleMonth(today);
+              onVisibleMonthChange(today);
               setSelectedDayKey(getLocalDayKey(today));
             }}
           >

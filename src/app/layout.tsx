@@ -24,8 +24,9 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mundial 2026 — Análisis Táctico & Estadísticas",
-  description: "Plataforma integral de análisis táctico y estadísticas del FIFA World Cup 2026",
+  title: "Mundial Américas — Análisis Táctico & Estadísticas",
+  description:
+    "Hub de análisis táctico y estadísticas de fútbol sudamericano, Liga MX, MLS, copas continentales y domésticas",
   themeColor: "#0F172A",
 };
 

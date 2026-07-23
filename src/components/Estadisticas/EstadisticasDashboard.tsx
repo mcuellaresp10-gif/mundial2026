@@ -11,6 +11,11 @@ import {
   PointsByConfederationChart,
   ConfederationPointsEfficiencyChart,
 } from "./charts/GoalsByConfederationChart";
+import {
+  GoalsByLeagueChart,
+  LeagueEfficiencyChart,
+  MatchesByLeagueChart,
+} from "./charts/GoalsByLeagueChart";
 import { HomeAwayChart, GoalsByPhaseChart } from "./charts/HomeAwayChart";
 import {
   GoalsByPositionChart,
@@ -19,12 +24,24 @@ import {
 } from "./charts/GoalsByPositionChart";
 import { InsightsPanel } from "./InsightsPanel";
 
-function MiniCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+function MiniCard({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+}) {
   return (
     <Card>
       <CardContent className="p-4 text-center">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-2xl font-bold font-mono ${highlight ? "text-mundial-gold" : ""}`}>{value}</p>
+        <p
+          className={`text-2xl font-bold font-mono ${highlight ? "text-mundial-gold" : ""}`}
+        >
+          {value}
+        </p>
       </CardContent>
     </Card>
   );
@@ -32,10 +49,10 @@ function MiniCard({ label, value, highlight }: { label: string; value: number; h
 
 export function EstadisticasDashboard() {
   const stats = useTournamentAnalytics(true);
+  const isWc = stats.isWorldCupScope;
 
   return (
     <div className="space-y-8">
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MiniCard
           label={stats.liveCount > 0 ? "En vivo ahora" : "Partidos jugados"}
@@ -46,7 +63,6 @@ export function EstadisticasDashboard() {
         <MiniCard label="Pendientes" value={stats.pendingCount} />
       </div>
 
-      {/* Sección A — Ritmo del torneo */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Ritmo del torneo</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -59,27 +75,40 @@ export function EstadisticasDashboard() {
         </div>
       </section>
 
-      {/* Sección B — Geografía */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Geografía y confederaciones</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <GoalsByConfederationChart data={stats.goalsByConfederation} />
-          <ConfederacionEfficiencyChart data={stats.confederationEfficiency} />
-          <PointsByConfederationChart data={stats.pointsByConfederation} />
-          <ConfederationPointsEfficiencyChart data={stats.pointsEfficiencyByConfederation} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <HomeAwayChart data={stats.homeAwayGoals} />
-          <GoalsByPhaseChart data={stats.goalsByPhase} />
-        </div>
-      </section>
+      {isWc ? (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Geografía y confederaciones</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <GoalsByConfederationChart data={stats.goalsByConfederation} />
+            <ConfederacionEfficiencyChart data={stats.confederationEfficiency} />
+            <PointsByConfederationChart data={stats.pointsByConfederation} />
+            <ConfederationPointsEfficiencyChart
+              data={stats.pointsEfficiencyByConfederation}
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <HomeAwayChart data={stats.homeAwayGoals} />
+            <GoalsByPhaseChart data={stats.goalsByPhase} />
+          </div>
+        </section>
+      ) : (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Por liga / copa</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <GoalsByLeagueChart data={stats.goalsByLeague} />
+            <LeagueEfficiencyChart data={stats.leagueEfficiency} />
+            <MatchesByLeagueChart data={stats.matchesByLeague} />
+            <HomeAwayChart data={stats.homeAwayGoals} />
+          </div>
+        </section>
+      )}
 
-      {/* Sección C — Quién anota y cuándo */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Quién anota y cuándo</h2>
         {!stats.hasFinished && (
           <p className="text-sm text-muted-foreground">
-            Los análisis de minuto, posición y tipo de gol aparecerán cuando haya partidos finalizados.
+            Los análisis de minuto, posición y tipo de gol aparecerán cuando haya partidos
+            finalizados.
           </p>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -98,7 +127,6 @@ export function EstadisticasDashboard() {
         </div>
       </section>
 
-      {/* Sección D — Insights */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Análisis destacados</h2>
         <InsightsPanel
@@ -106,7 +134,12 @@ export function EstadisticasDashboard() {
           comebacks={stats.comebacks}
           topMatches={stats.topMatches}
           topCities={stats.topCities}
-          redCardsByConfederation={stats.redCardsByConfederation}
+          redCardsByConfederation={
+            isWc ? stats.redCardsByConfederation : stats.redCardsByLeague
+          }
+          redCardsTitle={
+            isWc ? "Tarjetas rojas por confederación" : "Tarjetas rojas por liga"
+          }
           earlyVsLateFirstGoal={stats.earlyVsLateFirstGoal}
           dynamicInsight={stats.dynamicInsight}
           loading={stats.eventsLoading && stats.hasFinished}

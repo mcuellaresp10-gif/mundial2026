@@ -96,6 +96,8 @@ export interface RatedPlayerCandidate {
   goals: number;
   assists: number;
   minutes: number;
+  /** Liga de la que salen las stats (hub Américas). */
+  leagueId?: number;
 }
 
 const SLOT_FILL_ORDER: Record<string, number> = { F: 0, M: 1, D: 2, G: 3 };

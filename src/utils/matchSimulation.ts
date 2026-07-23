@@ -6,6 +6,7 @@ import {
   resolveOutcomeProbsFromLambdas,
   standingToTeamGroupState,
   teamStrengthFromState,
+  type MatchLambdas,
   type MatchOutcomeProbs,
   type TeamGroupState,
   DEFAULT_TOTAL_GOALS,
@@ -29,6 +30,9 @@ export interface MatchSimulationInput {
   avgGoalsPerMatch: number;
   isPreTournament: boolean;
   simulations?: number;
+  /** Calibración club (local A / visitante B). */
+  clubCalibration?: boolean;
+  leagueFixtures?: Fixture[];
 }
 
 export interface ScoreProbabilityMatrix {
@@ -41,6 +45,7 @@ export interface ScoreProbabilityMatrix {
   lambdas: { home: number; away: number };
   target1X2: MatchOutcomeProbs;
   simulations: number;
+  calibration?: MatchLambdas["calibration"];
 }
 
 const DEFAULT_SIMULATIONS = 8000;
@@ -176,6 +181,7 @@ export function estimateLambdas(input: MatchSimulationInput): {
   home: number;
   away: number;
   target1X2: MatchOutcomeProbs;
+  calibration?: MatchLambdas["calibration"];
 } {
   const {
     teamAId,
@@ -189,6 +195,8 @@ export function estimateLambdas(input: MatchSimulationInput): {
     isPreTournament,
     teamAName,
     teamBName,
+    clubCalibration = false,
+    leagueFixtures = [],
   } = input;
 
   const baseTotal = Math.max(
@@ -227,19 +235,29 @@ export function estimateLambdas(input: MatchSimulationInput): {
     playersAway: playersB,
     standingHome: standingA,
     standingAway: standingB,
+    clubCalibration: clubCalibration
+      ? { enabled: true, leagueFixtures }
+      : undefined,
   });
 }
 
 export function runScoreSimulation(input: MatchSimulationInput): ScoreProbabilityMatrix {
   const simulations = input.simulations ?? DEFAULT_SIMULATIONS;
-  const { home, away, target1X2 } = estimateLambdas(input);
-  const fifaGap = getFifaStrengthGap(input.teamAName, input.teamBName);
-  const strengthA = input.standingA
-    ? teamStrengthFromState(buildTeamGroupState(input.standingA, input.isPreTournament))
-    : getTeamPriorStrength(input.teamAName, 0, 0, 0, 0, input.isPreTournament);
-  const strengthB = input.standingB
-    ? teamStrengthFromState(buildTeamGroupState(input.standingB, input.isPreTournament))
-    : getTeamPriorStrength(input.teamBName, 0, 0, 0, 0, input.isPreTournament);
+  const { home, away, target1X2, calibration } = estimateLambdas(input);
+  const useClub = input.clubCalibration === true;
+  const fifaGap = useClub
+    ? (calibration?.strengthHome ?? 50) - (calibration?.strengthAway ?? 50)
+    : getFifaStrengthGap(input.teamAName, input.teamBName);
+  const strengthA = useClub
+    ? calibration?.strengthHome ?? 50
+    : input.standingA
+      ? teamStrengthFromState(buildTeamGroupState(input.standingA, input.isPreTournament))
+      : getTeamPriorStrength(input.teamAName, 0, 0, 0, 0, input.isPreTournament);
+  const strengthB = useClub
+    ? calibration?.strengthAway ?? 50
+    : input.standingB
+      ? teamStrengthFromState(buildTeamGroupState(input.standingB, input.isPreTournament))
+      : getTeamPriorStrength(input.teamBName, 0, 0, 0, 0, input.isPreTournament);
   const strengthGap = strengthA - strengthB;
 
   const counts: number[][] = Array.from({ length: MAX_INTERNAL_GOALS + 1 }, () =>
@@ -277,6 +295,7 @@ export function runScoreSimulation(input: MatchSimulationInput): ScoreProbabilit
     lambdas: { home, away },
     target1X2,
     simulations,
+    calibration,
   };
 }
 

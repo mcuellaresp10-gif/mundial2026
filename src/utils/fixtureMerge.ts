@@ -3,6 +3,14 @@ import { MIN_WORLDCUP_FIXTURES } from "@/lib/utils";
 import { isFixtureFinished, isFixtureLive, isFixtureStarted, getLocalDayKey } from "@/lib/liveRefresh";
 
 export function isFixtureListIncomplete(list: Fixture[]): boolean {
+  if (list.length === 0) return true;
+
+  const leagueId = list[0]?.league?.id;
+  // Umbral del Mundial (48+); ligas de club no deben disparar refetch agresivo.
+  if (leagueId != null && leagueId !== 1) {
+    return false;
+  }
+
   if (list.length < MIN_WORLDCUP_FIXTURES) return true;
 
   const started = list.filter((f) => isFixtureStarted(f.fixture.status.short)).length;
@@ -82,17 +90,28 @@ export function mergeFixtureLists(base: Fixture[], overlay: Fixture[]): Fixture[
   return [...byId.values()];
 }
 
-/** Fusiona live=all sobre la lista base preservando orden y partidos históricos. */
+/** Fusiona live=all sobre la lista base preservando orden y partidos históricos.
+ * No inserta partidos de otra liga (evita colar Mundial en ligas Américas).
+ */
 export function mergeLiveIntoFixtures(fixtures: Fixture[], live: Fixture[]): Fixture[] {
   if (live.length === 0) return fixtures;
 
-  const merged = mergeFixtureLists(fixtures, live);
-  const byId = new Map(merged.map((f) => [f.fixture.id, f]));
+  const leagueIds = new Set(
+    fixtures.map((f) => f.league.id).filter((id): id is number => id != null)
+  );
   const baseIds = new Set(fixtures.map((f) => f.fixture.id));
 
+  const relevantLive = live.filter(
+    (lf) => baseIds.has(lf.fixture.id) || leagueIds.has(lf.league.id)
+  );
+  if (relevantLive.length === 0) return fixtures;
+
+  const merged = mergeFixtureLists(fixtures, relevantLive);
+  const byId = new Map(merged.map((f) => [f.fixture.id, f]));
+
   const result = fixtures.map((f) => byId.get(f.fixture.id) ?? f);
-  for (const lf of live) {
-    if (!baseIds.has(lf.fixture.id)) {
+  for (const lf of relevantLive) {
+    if (!baseIds.has(lf.fixture.id) && leagueIds.has(lf.league.id)) {
       result.push(byId.get(lf.fixture.id) ?? lf);
     }
   }

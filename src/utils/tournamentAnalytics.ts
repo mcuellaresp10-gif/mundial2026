@@ -5,6 +5,7 @@ import { isFixtureFinished, isFixtureStarted, getLocalDayKey } from "@/lib/liveR
 import { formatRoundLabel, formatShortDate } from "@/utils/formatters";
 import { positionToCode } from "@/utils/squad";
 import { translateTeamName } from "@/utils/teamNames";
+import { getLeagueById } from "@/data/americasLeagues";
 
 const GOAL_TYPES = new Set(["Goal"]);
 const EXCLUDED_DETAILS = new Set(["Missed Penalty"]);
@@ -154,6 +155,70 @@ export function aggregateGoalsByConfederation(
       value,
       confed,
     }));
+}
+
+function leagueLabel(leagueId: number, fallbackName?: string): string {
+  return getLeagueById(leagueId)?.shortName ?? fallbackName ?? `Liga ${leagueId}`;
+}
+
+/** Goles anotados agrupados por liga/copa (hub Américas). */
+export function aggregateGoalsByLeague(fixtures: Fixture[]): ChartDatum[] {
+  const counts = new Map<number, { label: string; value: number }>();
+  for (const f of startedFixtures(fixtures)) {
+    const goals = (f.goals.home ?? 0) + (f.goals.away ?? 0);
+    if (goals <= 0) continue;
+    const id = f.league.id;
+    const existing = counts.get(id);
+    if (existing) existing.value += goals;
+    else counts.set(id, { label: leagueLabel(id, f.league.name), value: goals });
+  }
+  return [...counts.values()].sort((a, b) => b.value - a.value);
+}
+
+/** Promedio de goles por partido iniciado, por liga. */
+export function aggregateLeagueEfficiency(fixtures: Fixture[]): ChartDatum[] {
+  const goals = new Map<number, number>();
+  const matches = new Map<number, number>();
+  const labels = new Map<number, string>();
+
+  for (const f of startedFixtures(fixtures)) {
+    const id = f.league.id;
+    labels.set(id, leagueLabel(id, f.league.name));
+    matches.set(id, (matches.get(id) ?? 0) + 1);
+    goals.set(id, (goals.get(id) ?? 0) + (f.goals.home ?? 0) + (f.goals.away ?? 0));
+  }
+
+  return [...matches.keys()]
+    .map((id) => {
+      const m = matches.get(id) ?? 1;
+      const g = goals.get(id) ?? 0;
+      return {
+        label: labels.get(id) ?? `Liga ${id}`,
+        value: Math.round((g / m) * 100) / 100,
+        leagueId: id,
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+}
+
+/** Partidos jugados / pendientes por liga. */
+export function aggregateMatchesByLeague(fixtures: Fixture[]): ChartDatum[] {
+  const played = new Map<number, number>();
+  const labels = new Map<number, string>();
+  for (const f of fixtures) {
+    const id = f.league.id;
+    labels.set(id, leagueLabel(id, f.league.name));
+    if (isFixtureStarted(f.fixture.status.short)) {
+      played.set(id, (played.get(id) ?? 0) + 1);
+    }
+  }
+  return [...played.entries()]
+    .map(([id, value]) => ({
+      label: labels.get(id) ?? `Liga ${id}`,
+      value,
+      leagueId: id,
+    }))
+    .sort((a, b) => b.value - a.value);
 }
 
 export function aggregateConfederationEfficiency(
@@ -443,6 +508,37 @@ export function aggregateRedCardsByConfederation(
       value,
       confed,
     }));
+}
+
+/** Rojas por liga: eventsByFixture alineado con finishedIds. */
+export function aggregateRedCardsByLeague(
+  finishedIds: number[],
+  eventsByFixture: FixtureEvent[][],
+  fixtures: Fixture[]
+): ChartDatum[] {
+  const byId = new Map(fixtures.map((f) => [f.fixture.id, f]));
+  const counts = new Map<number, { label: string; value: number }>();
+
+  for (let i = 0; i < finishedIds.length; i++) {
+    const fixture = byId.get(finishedIds[i]);
+    if (!fixture) continue;
+    const events = eventsByFixture[i] ?? [];
+    let reds = 0;
+    for (const e of events) {
+      if (e.type === "Card" && /Red/i.test(e.detail)) reds += 1;
+    }
+    if (reds === 0) continue;
+    const id = fixture.league.id;
+    const existing = counts.get(id);
+    if (existing) existing.value += reds;
+    else
+      counts.set(id, {
+        label: leagueLabel(id, fixture.league.name),
+        value: reds,
+      });
+  }
+
+  return [...counts.values()].sort((a, b) => b.value - a.value);
 }
 
 export function aggregateEarlyVsLateFirstGoal(eventsByFixture: FixtureEvent[][]): {

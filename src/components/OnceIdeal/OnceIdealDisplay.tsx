@@ -6,12 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { OnceIdealExperience } from "./OnceIdealExperience";
 import {
+  LeagueFilterSelect,
+  leagueFilterLabel,
+  type LeagueFilterValue,
+} from "./LeagueFilterSelect";
+import {
   ConfederationFilterSelect,
   confederationFilterLabel,
   type ConfederationFilterValue,
 } from "./ConfederationFilterSelect";
 import { useOnceIdeal } from "@/hooks/useOnceIdeal";
 import { useOnceIdealJornada } from "@/hooks/useOnceIdealJornada";
+import { useActiveLeague } from "@/hooks/useActiveLeague";
 import { useMiXIStore } from "@/stores/useMiXIStore";
 import { getFormationSlots } from "@/utils/calculations";
 import type { FormationType, OnceIdealPlayer } from "@/types";
@@ -19,9 +25,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function OnceIdealDisplay() {
   const [formation, setFormation] = useState<FormationType>("4-3-3");
-  const [confederation, setConfederation] = useState<ConfederationFilterValue>("all");
-  const { onceIdeal, averageRating, isLoading } = useOnceIdeal(formation, confederation);
-  const confederationLabel = confederationFilterLabel(confederation);
+  const [leagueFilter, setLeagueFilter] = useState<LeagueFilterValue>("all");
+  const [confederation, setConfederation] =
+    useState<ConfederationFilterValue>("all");
+  const { league, leagues, isScoped } = useActiveLeague();
+  const { onceIdeal, averageRating, isLoading, isWorldCup } = useOnceIdeal(
+    formation,
+    leagueFilter,
+    confederation
+  );
+
+  const filterLabel = isWorldCup
+    ? confederationFilterLabel(confederation)
+    : leagueFilterLabel(leagueFilter);
+  const scopeLabel = isWorldCup
+    ? "Mundial"
+    : leagues.length > 1
+      ? `${leagues.length} ligas`
+      : league.shortName;
 
   if (isLoading) return <Skeleton className="h-[520px] w-full max-w-5xl mx-auto rounded-xl" />;
 
@@ -32,25 +53,42 @@ export function OnceIdealDisplay() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>
-                Once Ideal del Torneo
-                {confederationLabel ? ` · ${confederationLabel}` : ""}
+                Once Ideal · {scopeLabel}
+                {filterLabel ? ` · ${filterLabel}` : ""}
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Promedio ponderado por minutos en el Mundial 2026 (mín. 45 min)
+                {isWorldCup
+                  ? "Promedio ponderado por minutos en el Mundial (mín. 45 min)"
+                  : `Rating de la liga ponderado por minutos · mín. 45 min · ${
+                      leagues.length > 1
+                        ? leagues.map((l) => l.shortName).join(" · ")
+                        : league.name
+                    }`}
               </p>
             </div>
-            <ConfederationFilterSelect
-              value={confederation}
-              onChange={setConfederation}
-              className="w-full sm:w-64"
-            />
+            {isWorldCup || isScoped ? (
+              <ConfederationFilterSelect
+                value={confederation}
+                onChange={setConfederation}
+                className="w-full sm:w-64"
+              />
+            ) : (
+              <LeagueFilterSelect
+                value={leagueFilter}
+                onChange={setLeagueFilter}
+                leagues={leagues}
+                className="w-full sm:w-64"
+              />
+            )}
           </div>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground py-8 text-center">
-            {confederationLabel
-              ? `No hay jugadores elegibles de ${confederationLabel} con ratings suficientes para armar el once.`
-              : "Aún no hay valoraciones del Mundial 2026. El once se formará cuando haya jugadores con minutos en el torneo."}
+            {filterLabel
+              ? `No hay jugadores elegibles de ${filterLabel} con ratings suficientes para armar el once.`
+              : league.type === "cup"
+                ? `Sin once ideal aún para ${scopeLabel}: faltan minutos/stats en esta copa.`
+                : `Aún no hay valoraciones suficientes. El once se formará cuando haya jugadores con minutos.`}
           </p>
         </CardContent>
       </Card>
@@ -63,18 +101,27 @@ export function OnceIdealDisplay() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle>
-              Once Ideal del Torneo
-              {confederationLabel ? ` · ${confederationLabel}` : ""}
+              Once Ideal · {scopeLabel}
+              {filterLabel ? ` · ${filterLabel}` : ""}
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Mejores por posición · rating del torneo ponderado por minutos · mín. 45 min jugados
+              Mejores por posición · rating ponderado por minutos · mín. 45 min jugados
             </p>
           </div>
-          <ConfederationFilterSelect
-            value={confederation}
-            onChange={setConfederation}
-            className="w-full sm:w-64"
-          />
+          {isWorldCup || isScoped ? (
+            <ConfederationFilterSelect
+              value={confederation}
+              onChange={setConfederation}
+              className="w-full sm:w-64"
+            />
+          ) : (
+            <LeagueFilterSelect
+              value={leagueFilter}
+              onChange={setLeagueFilter}
+              leagues={leagues}
+              className="w-full sm:w-64"
+            />
+          )}
         </div>
       </CardHeader>
       <CardContent className="pt-6">
@@ -93,7 +140,10 @@ export function OnceIdealDisplay() {
 
 export function OnceIdealJornadaDisplay() {
   const [formation, setFormation] = useState<FormationType>("4-3-3");
-  const [confederation, setConfederation] = useState<ConfederationFilterValue>("all");
+  const [leagueFilter, setLeagueFilter] = useState<LeagueFilterValue>("all");
+  const [confederation, setConfederation] =
+    useState<ConfederationFilterValue>("all");
+  const { league, leagues } = useActiveLeague();
   const {
     jornadas,
     selectedRound,
@@ -102,8 +152,14 @@ export function OnceIdealJornadaDisplay() {
     onceIdeal,
     averageRating,
     isLoading,
-  } = useOnceIdealJornada(formation, confederation);
-  const confederationLabel = confederationFilterLabel(confederation);
+    playedCount,
+    totalCount,
+    isWorldCup,
+  } = useOnceIdealJornada(formation, leagueFilter, confederation);
+
+  const filterLabel = isWorldCup
+    ? confederationFilterLabel(confederation)
+    : leagueFilterLabel(leagueFilter);
 
   if (isLoading) return <Skeleton className="h-[520px] w-full max-w-5xl mx-auto rounded-xl" />;
 
@@ -115,15 +171,14 @@ export function OnceIdealJornadaDisplay() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground py-8 text-center">
-            Aún no hay jornadas disponibles en el calendario del Mundial 2026.
+            {league.type === "cup"
+              ? "Sin fases/jornadas con datos suficientes en esta copa todavía."
+              : "Aún no hay jornadas disponibles en el calendario de las ligas seleccionadas."}
           </p>
         </CardContent>
       </Card>
     );
   }
-
-  const playedCount = activeJornada?.playedFixtureIds.length ?? 0;
-  const totalCount = activeJornada?.fixtures.length ?? 0;
 
   return (
     <Card className="overflow-hidden">
@@ -132,10 +187,13 @@ export function OnceIdealJornadaDisplay() {
           <div>
             <CardTitle>
               Once Ideal por Jornada
-              {confederationLabel ? ` · ${confederationLabel}` : ""}
+              {filterLabel ? ` · ${filterLabel}` : ""}
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               Mejores por posición · rating del partido ponderado por minutos en la jornada
+              {!isWorldCup && leagues.length > 1
+                ? ` · ${leagues.map((l) => l.shortName).join(" · ")}`
+                : ""}
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[16rem]">
@@ -153,11 +211,20 @@ export function OnceIdealJornadaDisplay() {
                 </option>
               ))}
             </Select>
-            <ConfederationFilterSelect
-              value={confederation}
-              onChange={setConfederation}
-              className="w-full"
-            />
+            {isWorldCup ? (
+              <ConfederationFilterSelect
+                value={confederation}
+                onChange={setConfederation}
+                className="w-full"
+              />
+            ) : (
+              <LeagueFilterSelect
+                value={leagueFilter}
+                onChange={setLeagueFilter}
+                leagues={leagues}
+                className="w-full"
+              />
+            )}
           </div>
         </div>
       </CardHeader>
@@ -169,8 +236,8 @@ export function OnceIdealJornadaDisplay() {
           </p>
         ) : onceIdeal.length === 0 ? (
           <p className="text-sm text-muted-foreground py-8 text-center">
-            {confederationLabel
-              ? `No hay jugadores de ${confederationLabel} con ratings en ${activeJornada?.label ?? "esta jornada"}.`
+            {filterLabel
+              ? `No hay jugadores de ${filterLabel} con ratings en ${activeJornada?.label ?? "esta jornada"}.`
               : `No hay ratings disponibles para ${activeJornada?.label ?? "esta jornada"} (${playedCount}/${totalCount} partidos con datos).`}
           </p>
         ) : (

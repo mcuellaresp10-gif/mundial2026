@@ -2,47 +2,59 @@
 
 import { PartidosDelDia } from "@/components/Dashboard/PartidosDelDia";
 import { EstadisticasGlobales } from "@/components/Dashboard/EstadisticasGlobales";
-import { ColombiaFocus } from "@/components/Dashboard/ColombiaFocus";
 import { DashboardHero } from "@/components/Dashboard/DashboardHero";
 import { AgenteCallToAction } from "@/components/Dashboard/AgenteCallToAction";
 import { DashboardSkeleton } from "@/components/shared/Loading";
 import { useTeams } from "@/hooks/usePartidos";
+import { useActiveLeague } from "@/hooks/useActiveLeague";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function DashboardPage() {
   const { isLoading } = useTeams();
+  const { league, leagues, isMulti } = useActiveLeague();
 
   if (isLoading) return <DashboardSkeleton />;
 
+  const selectionLabel = isMulti
+    ? leagues.map((l) => l.shortName).join(" · ")
+    : league.shortName;
+
   return (
-    <div className="@container/dashboard w-full animate-in fade-in">
+    <div className="@container/dashboard w-full animate-in fade-in space-y-6">
       <DashboardHero />
       <AgenteCallToAction />
 
-      {/* Magazine layout: contenido principal + sidebar sticky (Colombia) */}
-      <div
-        className="
-          grid min-w-0 gap-6 lg:gap-8
-          grid-cols-1
-          xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]
-          xl:grid-rows-[auto_1fr]
-        "
-      >
-        <section id="partido" className="scroll-mt-24 min-w-0 xl:col-start-1 xl:row-start-1">
+      <Card className="border-mundial-gold/20 bg-mundial-gold/5">
+        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">
+              {isMulti ? "Competiciones activas" : "Liga activa"}: {selectionLabel}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isMulti
+                ? `${leagues.length} seleccionadas · temporadas ${[...new Set(leagues.map((l) => l.defaultSeason))].join(", ")}`
+                : `${league.name} · temporada ${league.defaultSeason}${
+                    league.seasonMode === "apertura_clausura"
+                      ? " · soporta Apertura/Clausura"
+                      : ""
+                  }`}
+            </p>
+          </div>
+          <Link
+            href="/mundial"
+            className="text-xs font-medium text-mundial-gold hover:underline shrink-0"
+          >
+            Ver archivo Mundial 2026 →
+          </Link>
+        </CardContent>
+      </Card>
+
+      <div className="grid min-w-0 gap-6">
+        <section id="partido" className="scroll-mt-24 min-w-0">
           <PartidosDelDia />
         </section>
-
-        <aside
-          className="
-            min-w-0 order-first xl:order-none
-            xl:col-start-2 xl:row-start-1 xl:row-span-2
-            xl:sticky xl:top-24 xl:self-start
-            xl:max-h-[calc(100vh-6.5rem)] xl:overflow-y-auto xl:scrollbar-thin
-          "
-        >
-          <ColombiaFocus />
-        </aside>
-
-        <section id="estadisticas" className="scroll-mt-24 min-w-0 xl:col-start-1 xl:row-start-2">
+        <section id="estadisticas" className="scroll-mt-24 min-w-0">
           <EstadisticasGlobales />
         </section>
       </div>

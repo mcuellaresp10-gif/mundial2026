@@ -10,6 +10,15 @@ import {
   poissonOutcomeProbs,
   type MatchOutcomeProbs,
 } from "@/utils/matchStrengthModel";
+import {
+  computeDynamicHomeAdvantage,
+  computeVenueAwareH2H1X2,
+  computeVenueAwareH2HGoalRates,
+  getClubEffectiveStrength,
+  recentFormFromFixtures,
+  type HomeAdvantageAdjustments,
+  type RecentFormSummary,
+} from "@/utils/clubMatchCalibration";
 
 export type { MatchOutcomeProbs };
 
@@ -26,6 +35,14 @@ export interface MatchLambdas {
   home: number;
   away: number;
   target1X2: MatchOutcomeProbs;
+  calibration?: {
+    homeAdvantage: HomeAdvantageAdjustments;
+    recentHome: RecentFormSummary;
+    recentAway: RecentFormSummary;
+    strengthHome: number;
+    strengthAway: number;
+    mode: "club" | "fifa";
+  };
 }
 
 export interface MatchLambdaEstimateInput {
@@ -38,6 +55,14 @@ export interface MatchLambdaEstimateInput {
   playersAway?: Player[];
   standingHome?: StandingTeam;
   standingAway?: StandingTeam;
+  /**
+   * Modo club (página /simulacion Américas):
+   * fuerza tabla+plantilla+forma, localía dinámica, H2H con venue.
+   */
+  clubCalibration?: {
+    enabled: boolean;
+    leagueFixtures?: Fixture[];
+  };
 }
 
 export const DEFAULT_TOTAL_GOALS = 2.6;
@@ -86,19 +111,25 @@ function computeSquadAttackMod(players: Player[], isPreTournament: boolean): num
   const scores = [...players]
     .map((p) => {
       const bundle = getStatBundle(p);
+      const club = bundle.club;
       const wc = bundle.worldCup;
       const nat = bundle.national;
       let rating = 6.5;
       let goalsPer90 = 0;
 
-      if (wc && (wc.games.appearences ?? 0) > 0) {
-        rating = parseRating(wc.games.rating) || rating;
-        const minutes = Math.max(wc.games.minutes ?? 0, 90);
-        goalsPer90 = ((wc.goals.total ?? 0) / minutes) * 90;
-      } else if (nat && (nat.games.appearences ?? 0) > 0) {
-        rating = parseRating(nat.games.rating) || rating;
-        const minutes = Math.max(nat.games.minutes ?? 0, 90);
-        goalsPer90 = ((nat.goals.total ?? 0) / minutes) * 90;
+      const row =
+        club && (club.games.appearences ?? 0) > 0
+          ? club
+          : wc && (wc.games.appearences ?? 0) > 0
+            ? wc
+            : nat && (nat.games.appearences ?? 0) > 0
+              ? nat
+              : null;
+
+      if (row) {
+        rating = parseRating(row.games.rating) || rating;
+        const minutes = Math.max(row.games.minutes ?? 0, 90);
+        goalsPer90 = ((row.goals.total ?? 0) / minutes) * 90;
       }
 
       return rating * 0.65 + goalsPer90 * 4;
@@ -124,11 +155,13 @@ function computeSquadDefenseMod(
   }
 
   const defensive = players.filter((p) => {
+    const bundle = getStatBundle(p);
     const pos =
-      getStatBundle(p).worldCup?.games.position ??
-      getStatBundle(p).national?.games.position ??
+      bundle.club?.games.position ??
+      bundle.worldCup?.games.position ??
+      bundle.national?.games.position ??
       "";
-    return pos === "G" || pos === "D";
+    return pos === "G" || pos === "D" || pos === "Goalkeeper" || pos === "Defender";
   });
 
   if (defensive.length > 0) {
@@ -136,6 +169,7 @@ function computeSquadDefenseMod(
       defensive.reduce((sum, p) => {
         const bundle = getStatBundle(p);
         const rating =
+          parseRating(bundle.club?.games.rating) ||
           parseRating(bundle.worldCup?.games.rating) ||
           parseRating(bundle.national?.games.rating) ||
           6.5;
@@ -308,6 +342,7 @@ export function estimateMatchLambdas(input: MatchLambdaEstimateInput): MatchLamb
     playersAway = [],
     standingHome,
     standingAway,
+    clubCalibration,
   } = input;
 
   const baseTotal = Math.max(
@@ -315,14 +350,53 @@ export function estimateMatchLambdas(input: MatchLambdaEstimateInput): MatchLamb
     MIN_TOTAL_GOALS
   );
 
-  const strengthA = Math.max(0.1, teamStrengthFromState(homeState));
-  const strengthB = Math.max(0.1, teamStrengthFromState(awayState));
-  const fifaGap = getFifaStrengthGap(homeState.teamName, awayState.teamName);
-
   const attackModA = computeSquadAttackMod(playersHome, isPreTournament);
   const attackModB = computeSquadAttackMod(playersAway, isPreTournament);
   const defenseModA = computeSquadDefenseMod(playersHome, standingHome, isPreTournament);
   const defenseModB = computeSquadDefenseMod(playersAway, standingAway, isPreTournament);
+
+  const useClub = clubCalibration?.enabled === true;
+  const leagueFixtures = clubCalibration?.leagueFixtures ?? [];
+
+  const recentHome = useClub
+    ? recentFormFromFixtures(leagueFixtures, homeState.teamId)
+    : null;
+  const recentAway = useClub
+    ? recentFormFromFixtures(leagueFixtures, awayState.teamId)
+    : null;
+
+  let strengthA: number;
+  let strengthB: number;
+  let fifaGap: number;
+  let homeAdv: HomeAdvantageAdjustments | null = null;
+
+  if (useClub) {
+    strengthA = getClubEffectiveStrength({
+      standing: standingHome,
+      attackMod: attackModA,
+      defenseMod: defenseModA,
+      recent: recentHome,
+      venue: "home",
+    });
+    strengthB = getClubEffectiveStrength({
+      standing: standingAway,
+      attackMod: attackModB,
+      defenseMod: defenseModB,
+      recent: recentAway,
+      venue: "away",
+    });
+    homeAdv = computeDynamicHomeAdvantage(
+      standingHome,
+      standingAway,
+      baseTotal
+    );
+    strengthA += homeAdv.strengthBonusHome;
+    fifaGap = strengthA - strengthB;
+  } else {
+    strengthA = Math.max(0.1, teamStrengthFromState(homeState));
+    strengthB = Math.max(0.1, teamStrengthFromState(awayState));
+    fifaGap = getFifaStrengthGap(homeState.teamName, awayState.teamName);
+  }
 
   let { home: lambdaA, away: lambdaB } = expectedGoalsFromStrength({
     strengthA,
@@ -335,26 +409,72 @@ export function estimateMatchLambdas(input: MatchLambdaEstimateInput): MatchLamb
     fifaGap,
   });
 
-  const strengthGap = strengthA - strengthB;
-  const h2hRates = computeH2HGoalRates(h2h, homeState.teamId, awayState.teamId);
-  if (h2hRates) {
-    const w =
-      Math.abs(fifaGap) > 22
-        ? 0.15
-        : isPreTournament
-          ? H2H_WEIGHT_PRE
-          : H2H_WEIGHT_TOURNAMENT;
-    lambdaA = lambdaA * (1 - w) + h2hRates.rateA * w;
-    lambdaB = lambdaB * (1 - w) + h2hRates.rateB * w;
+  if (homeAdv) {
+    lambdaA *= homeAdv.homeLambdaMul;
+    lambdaB *= homeAdv.awayLambdaMul;
   }
 
-  const target1X2 = buildOutcomeProbsFromH2H(
-    h2h,
-    homeState.teamId,
-    awayState.teamId,
-    [homeState, awayState],
-    isPreTournament
-  );
+  const strengthGap = strengthA - strengthB;
+
+  if (useClub) {
+    const venueRates = computeVenueAwareH2HGoalRates(
+      h2h,
+      homeState.teamId,
+      awayState.teamId
+    );
+    if (venueRates && venueRates.weightSum >= 1) {
+      const w =
+        Math.abs(strengthGap) > 22
+          ? 0.18
+          : isPreTournament
+            ? H2H_WEIGHT_PRE
+            : H2H_WEIGHT_TOURNAMENT;
+      lambdaA = lambdaA * (1 - w) + venueRates.rateA * w;
+      lambdaB = lambdaB * (1 - w) + venueRates.rateB * w;
+    }
+  } else {
+    const h2hRates = computeH2HGoalRates(h2h, homeState.teamId, awayState.teamId);
+    if (h2hRates) {
+      const w =
+        Math.abs(fifaGap) > 22
+          ? 0.15
+          : isPreTournament
+            ? H2H_WEIGHT_PRE
+            : H2H_WEIGHT_TOURNAMENT;
+      lambdaA = lambdaA * (1 - w) + h2hRates.rateA * w;
+      lambdaB = lambdaB * (1 - w) + h2hRates.rateB * w;
+    }
+  }
+
+  let target1X2: MatchOutcomeProbs;
+  if (useClub) {
+    const fromStrength = outcomeProbsFromStrength(strengthA, strengthB);
+    const venueH2H = computeVenueAwareH2H1X2(h2h, homeState.teamId, awayState.teamId);
+    if (venueH2H && venueH2H.weightSum >= 1) {
+      const h2hWeight = isPreTournament
+        ? H2H_WEIGHT_PRE_TOURNAMENT
+        : 1 - STRENGTH_WEIGHT_WITH_H2H;
+      target1X2 = blendProbs(
+        {
+          homeWin: venueH2H.homeWin,
+          draw: venueH2H.draw,
+          awayWin: venueH2H.awayWin,
+        },
+        fromStrength,
+        h2hWeight
+      );
+    } else {
+      target1X2 = fromStrength;
+    }
+  } else {
+    target1X2 = buildOutcomeProbsFromH2H(
+      h2h,
+      homeState.teamId,
+      awayState.teamId,
+      [homeState, awayState],
+      isPreTournament
+    );
+  }
 
   const calibrated = calibrateLambdasTo1X2(
     lambdaA,
@@ -364,7 +484,44 @@ export function estimateMatchLambdas(input: MatchLambdaEstimateInput): MatchLamb
     fifaGap
   );
 
-  return { ...calibrated, target1X2 };
+  return {
+    ...calibrated,
+    target1X2,
+    calibration: useClub
+      ? {
+          homeAdvantage: homeAdv!,
+          recentHome: recentHome!,
+          recentAway: recentAway!,
+          strengthHome: strengthA,
+          strengthAway: strengthB,
+          mode: "club",
+        }
+      : {
+          homeAdvantage: {
+            strengthBonusHome: 0,
+            homeLambdaMul: 1,
+            awayLambdaMul: 1,
+            homePower: 1,
+          },
+          recentHome: {
+            played: 0,
+            pointsPerGame: 0,
+            goalsForPerGame: 0,
+            goalsAgainstPerGame: 0,
+            strength: 50,
+          },
+          recentAway: {
+            played: 0,
+            pointsPerGame: 0,
+            goalsForPerGame: 0,
+            goalsAgainstPerGame: 0,
+            strength: 50,
+          },
+          strengthHome: strengthA,
+          strengthAway: strengthB,
+          mode: "fifa",
+        },
+  };
 }
 
 export function resolveOutcomeProbsFromLambdas(

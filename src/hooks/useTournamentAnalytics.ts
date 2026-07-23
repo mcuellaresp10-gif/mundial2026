@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useFixtures, useTeams, useStandings } from "./usePartidos";
 import { useTournamentEventData } from "./useTournamentEventData";
+import { useActiveLeague } from "./useActiveLeague";
 import { buildTeamConfederationMap } from "@/utils/confederations";
 import {
   aggregateGoalsByDay,
@@ -24,6 +25,10 @@ import {
   topScoringMatches,
   topScoringCities,
   aggregateRedCardsByConfederation,
+  aggregateRedCardsByLeague,
+  aggregateGoalsByLeague,
+  aggregateLeagueEfficiency,
+  aggregateMatchesByLeague,
   aggregateEarlyVsLateFirstGoal,
   generateDynamicInsight,
   buildPlayerPositionMap,
@@ -40,11 +45,17 @@ import {
 import { translateTeamName } from "@/utils/teamNames";
 
 export function useTournamentAnalytics(loadEvents = true) {
+  const { isScoped } = useActiveLeague();
   const { data: fixtures = [] } = useFixtures();
   const { data: teams = [] } = useTeams();
   const { data: standings = [] } = useStandings();
-  const { eventsByFixture, lineupsByFixture, isLoading: eventsLoading, hasFinished } =
-    useTournamentEventData(fixtures, loadEvents);
+  const {
+    finishedIds,
+    eventsByFixture,
+    lineupsByFixture,
+    isLoading: eventsLoading,
+    hasFinished,
+  } = useTournamentEventData(fixtures, loadEvents);
 
   return useMemo(() => {
     const teamConfed = buildTeamConfederationMap(teams);
@@ -73,9 +84,14 @@ export function useTournamentAnalytics(loadEvents = true) {
               `${translateTeamName(f.teams.home.name)} ${f.goals.home ?? 0}-${f.goals.away ?? 0} ${translateTeamName(f.teams.away.name)}`
           )
           .join(" · ")}`
-      : generateDynamicInsight(fixtures, teamConfed, allEvents);
+      : isScoped
+        ? generateDynamicInsight(fixtures, teamConfed, allEvents)
+        : biggestWin
+          ? `Mayor goleada: ${translateTeamName(biggestWin.fixture.teams.home.name)} ${biggestWin.fixture.goals.home}-${biggestWin.fixture.goals.away} ${translateTeamName(biggestWin.fixture.teams.away.name)}`
+          : "Sin partidos en vivo ahora";
 
     return {
+      isWorldCupScope: isScoped,
       playedCount: finished.length,
       liveCount: liveNow.length,
       pendingCount: pending.length,
@@ -93,7 +109,13 @@ export function useTournamentAnalytics(loadEvents = true) {
       goalsByConfederation: aggregateGoalsByConfederation(fixtures, teamConfed),
       confederationEfficiency: aggregateConfederationEfficiency(fixtures, teamConfed),
       pointsByConfederation: aggregatePointsByConfederation(standings, teamConfed),
-      pointsEfficiencyByConfederation: aggregatePointsEfficiencyByConfederation(standings, teamConfed),
+      pointsEfficiencyByConfederation: aggregatePointsEfficiencyByConfederation(
+        standings,
+        teamConfed
+      ),
+      goalsByLeague: aggregateGoalsByLeague(fixtures),
+      leagueEfficiency: aggregateLeagueEfficiency(fixtures),
+      matchesByLeague: aggregateMatchesByLeague(fixtures),
       homeAwayGoals: aggregateHomeAwayGoals(fixtures),
       goalsByPhase: aggregateGoalsByPhase(fixtures),
       goalsByMinute: aggregateGoalsByMinute(allEvents),
@@ -104,8 +126,19 @@ export function useTournamentAnalytics(loadEvents = true) {
       topMatches: topScoringMatches(fixtures),
       topCities: topScoringCities(fixtures),
       redCardsByConfederation: aggregateRedCardsByConfederation(allEvents, teamConfed),
+      redCardsByLeague: aggregateRedCardsByLeague(finishedIds, eventsByFixture, fixtures),
       earlyVsLateFirstGoal: aggregateEarlyVsLateFirstGoal(eventsByFixture),
-      dynamicInsight: generateDynamicInsight(fixtures, teamConfed, allEvents),
+      dynamicInsight: datoDelDia,
     };
-  }, [fixtures, teams, standings, eventsByFixture, lineupsByFixture, eventsLoading, hasFinished]);
+  }, [
+    fixtures,
+    teams,
+    standings,
+    eventsByFixture,
+    lineupsByFixture,
+    eventsLoading,
+    hasFinished,
+    finishedIds,
+    isScoped,
+  ]);
 }

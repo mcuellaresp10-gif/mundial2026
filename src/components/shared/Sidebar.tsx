@@ -2,38 +2,41 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X, Trophy, Flag } from "lucide-react";
+import { X, Trophy } from "lucide-react";
 import { useUIStore } from "@/stores/useUIStore";
+import { LeagueSelector } from "./LeagueSelector";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/", label: "Dashboard", icon: "🏠" },
   { href: "/calendario", label: "Calendario", icon: "📅" },
-  { href: "/selecciones", label: "Selecciones", icon: "🌍" },
-  { href: "/grupos", label: "Grupos", icon: "🏆" },
-  { href: "/jugadores/scouting", label: "Estadísticas jugadores", icon: "📈" },
+  { href: "/tablas", label: "Tablas", icon: "🏆" },
+  { href: "/equipos", label: "Equipos", icon: "⚽" },
+  { href: "/jugadores/scouting", label: "Scouting", icon: "📈" },
   { href: "/once-ideal", label: "Once Ideal", icon: "⭐" },
   { href: "/comparativas", label: "Comparativas", icon: "⚔️" },
-  { href: "/estadisticas", label: "Estadísticas", icon: "📊" },
   { href: "/simulacion", label: "Simulación", icon: "🎲" },
+  { href: "/estadisticas", label: "Estadísticas", icon: "📊" },
+  { href: "/mundial", label: "Mundial (archivo)", icon: "🌍" },
   { href: "/agente", label: "Agente", icon: "💬" },
-  { href: "/historico", label: "Histórico", icon: "📜" },
 ];
 
 function isNavLinkActive(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
   if (href === "/estadisticas") return pathname === "/estadisticas";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 const HIGHLIGHTS = [
-  { href: "/selecciones?team=colombia", label: "Colombia Focus", icon: Flag, match: (p: string) => p.startsWith("/selecciones") },
   { href: "/estadisticas#scorers", label: "Top Scorers", icon: Trophy, match: (p: string) => p === "/estadisticas" },
+  { href: "/mundial", label: "Archivo Mundial", icon: Trophy, match: (p: string) => p.startsWith("/mundial") },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
+  const hideLeagueSelector = pathname.startsWith("/mundial");
 
   return (
     <>
@@ -45,7 +48,7 @@ export function Sidebar() {
       )}
       <aside
         className={cn(
-          "fixed top-[70px] left-0 z-40 h-[calc(100vh-70px)] w-60 bg-mundial-sidebar border-r border-white/10 transition-transform duration-300 lg:translate-x-0",
+          "fixed top-[70px] left-0 z-40 h-[calc(100vh-6.5rem)] w-60 bg-mundial-sidebar border-r border-white/10 transition-transform duration-300 lg:translate-x-0 overflow-y-auto",
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
@@ -55,6 +58,13 @@ export function Sidebar() {
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {!hideLeagueSelector && (
+          <div className="px-4 pb-3 md:hidden">
+            <LeagueSelector />
+          </div>
+        )}
+
         <nav className="p-4 space-y-1">
           {LINKS.map((link) => (
             <Link
@@ -73,7 +83,7 @@ export function Sidebar() {
             </Link>
           ))}
         </nav>
-        <div className="px-4 pt-4 border-t border-white/10 mt-4">
+        <div className="px-4 pt-4 border-t border-white/10 mt-4 pb-6">
           <p className="text-xs text-white/40 uppercase tracking-wider mb-2 px-3">Destacados</p>
           {HIGHLIGHTS.map((link) => (
             <Link
@@ -81,10 +91,10 @@ export function Sidebar() {
               href={link.href}
               onClick={() => setSidebarOpen(false)}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-white/5",
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                 link.match(pathname)
                   ? "text-mundial-gold"
-                  : "text-white/70 hover:text-mundial-gold"
+                  : "text-white/60 hover:text-white"
               )}
             >
               <link.icon className="h-4 w-4" />

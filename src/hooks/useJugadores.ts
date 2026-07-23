@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { getPlayers, getPlayerProfile, getAllSquadsForTeams, getTeamSquadPlayers, getWorldCupTopScorers, getWorldCupAssistLeaders, getWorldCupPlayerStatsPool, getWorldCupGoalkeepersForTeams, getFixtureEvents, getFixtureLineups, getFixturePlayers } from "@/services/apiFootball";
+import { getPlayers, getPlayerProfile, getAllSquadsForTeams, getTeamSquadPlayers, getWorldCupTopScorers, getLeagueTopScorers, getLeagueTopAssists, getWorldCupAssistLeaders, getWorldCupPlayerStatsPool, getWorldCupGoalkeepersForTeams, getFixtureEvents, getFixtureLineups, getFixturePlayers } from "@/services/apiFootball";
 import { DEFAULT_SEASON, CACHE_TTL_MS } from "@/lib/utils";
 import type { Player, TopScorerEntry, TopGoalkeeperEntry, Fixture, Lineup } from "@/types";
 import { parseRating } from "@/utils/formatters";
@@ -17,7 +17,8 @@ import {
   enrichScorerEntriesFromPlayers,
 } from "@/utils/tournamentScorers";
 import { translateTeamName } from "@/utils/teamNames";
-import { useFixtures } from "./usePartidos";
+import { useFixtures, useWorldCupFixtures } from "./usePartidos";
+import { useActiveLeague } from "./useActiveLeague";
 import { useMemo } from "react";
 import { dedupeFixturesByMatch, uniqueTeamIdsFromFixtures } from "@/utils/fixtureMerge";
 import {
@@ -42,10 +43,18 @@ import {
 } from "@/utils/onceIdealRatings";
 import type { RatedPlayerCandidate } from "@/utils/calculations";
 
-export function usePlayers(params: { team?: number; page?: number; search?: string }) {
+export function usePlayers(params: { team?: number; page?: number; search?: string; league?: number; season?: number }) {
+  const { leagueId, season } = useActiveLeague();
+  const resolvedLeague = params.league ?? leagueId;
+  const resolvedSeason = params.season ?? season;
   return useQuery({
-    queryKey: ["players", params],
-    queryFn: () => getPlayers({ ...params, season: DEFAULT_SEASON }),
+    queryKey: ["players", { ...params, league: resolvedLeague, season: resolvedSeason }],
+    queryFn: () =>
+      getPlayers({
+        ...params,
+        league: resolvedLeague,
+        season: resolvedSeason,
+      }),
     staleTime: 4 * 60 * 60 * 1000,
   });
 }
@@ -184,9 +193,78 @@ function useWorldCupScorerFixtureEvents(fixtures: Fixture[]) {
   };
 }
 
+/** Goleadores de las ligas seleccionadas (hub Américas); suma goles si cruza competiciones. */
+export function useLeagueTopScorers(limit = 10) {
+  const { leagues, leagueIds } = useActiveLeague();
+  const apiScorers = useQuery({
+    queryKey: [
+      "leagueTopScorers",
+      leagueIds.join(","),
+      leagues.map((l) => l.defaultSeason).join(","),
+    ],
+    queryFn: async () => {
+      const lists = await Promise.all(
+        leagues.map((l) => getLeagueTopScorers(l.id, l.defaultSeason))
+      );
+      const byId = new Map<number, (typeof lists)[0][number]>();
+      for (const list of lists) {
+        for (const entry of list) {
+          const existing = byId.get(entry.playerId);
+          if (!existing) {
+            byId.set(entry.playerId, { ...entry });
+            continue;
+          }
+          byId.set(entry.playerId, {
+            ...existing,
+            goals: existing.goals + entry.goals,
+            assists: existing.assists + entry.assists,
+            matches: existing.matches + entry.matches,
+            minutes: (existing.minutes ?? 0) + (entry.minutes ?? 0),
+            rating:
+              existing.rating > 0 && entry.rating > 0
+                ? (existing.rating + entry.rating) / 2
+                : existing.rating || entry.rating,
+          });
+        }
+      }
+      return [...byId.values()].sort((a, b) => b.goals - a.goals || b.assists - a.assists);
+    },
+    staleTime: LIVE_REFRESH_MS.topScorers,
+  });
+
+  return {
+    data: (apiScorers.data ?? []).slice(0, limit),
+    isLoading: apiScorers.isLoading,
+    isFetching: apiScorers.isFetching,
+  };
+}
+
+/** Goleadores y asistidores de una liga concreta (pestaña Estadísticas). */
+export function useLeagueLeaders(leagueId: number, season: number, limit = 30) {
+  const scorersQ = useQuery({
+    queryKey: ["leagueTopScorers", "leaders", leagueId, season],
+    queryFn: () => getLeagueTopScorers(leagueId, season),
+    enabled: leagueId > 0,
+    staleTime: LIVE_REFRESH_MS.topScorers,
+  });
+  const assistsQ = useQuery({
+    queryKey: ["leagueTopAssists", "leaders", leagueId, season],
+    queryFn: () => getLeagueTopAssists(leagueId, season),
+    enabled: leagueId > 0,
+    staleTime: LIVE_REFRESH_MS.topScorers,
+  });
+
+  return {
+    scorers: (scorersQ.data ?? []).slice(0, limit),
+    assists: (assistsQ.data ?? []).slice(0, limit),
+    isLoading: scorersQ.isLoading || assistsQ.isLoading,
+    isFetching: scorersQ.isFetching || assistsQ.isFetching,
+  };
+}
+
 /** Goleadores del torneo — API + eventos de todos los partidos con goles. */
 export function useWorldCupTopScorers(limit = 10) {
-  const { data: fixtures = [] } = useFixtures();
+  const { data: fixtures = [] } = useWorldCupFixtures();
   const {
     eventsByFixture,
     eventsLoading,

@@ -6,7 +6,6 @@ import {
   eachDayOfInterval,
   isSameMonth,
   isToday,
-  parseISO,
 } from "date-fns";
 import { getLocalDayKey } from "@/lib/liveRefresh";
 import type { CalendarMatchEntry } from "@/types";
@@ -55,7 +54,8 @@ export function groupCalendarEntriesByDay(
 }
 
 export function countEntriesInMonth(entries: CalendarMatchEntry[], month: Date): number {
-  return entries.filter((entry) => isSameMonth(parseISO(entry.date), month)).length;
+  const prefix = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
+  return entries.filter((entry) => getLocalDayKey(entry.date).startsWith(prefix)).length;
 }
 
 export function pickDefaultDayKey(

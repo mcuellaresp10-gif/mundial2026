@@ -103,17 +103,41 @@ export function formatGroupFromRound(round: string): string {
 }
 
 export function formatRoundLabel(round: string): string {
+  if (!round) return "";
+
   const groupStage = round.match(/Group Stage\s*-\s*(\d+)/i);
   if (groupStage) return `Fase de grupos · Jornada ${groupStage[1]}`;
 
   const groupMatch = round.match(/Group\s+([A-L])/i);
   if (groupMatch) return `Grupo ${groupMatch[1].toUpperCase()}`;
 
-  if (/Round of 32|Round of thirty-two/i.test(round)) return "16avos de final";
-  if (/Round of 16|8th Finals|Round of sixteen/i.test(round)) return "Octavos de final";
+  const aperturaKo = round.match(/^Apertura\s*-\s*(.+)$/i);
+  if (aperturaKo && !/^\d+$/.test(aperturaKo[1].trim())) {
+    return `Apertura · ${formatRoundLabel(aperturaKo[1].trim())}`;
+  }
+  const clausuraKo = round.match(/^Clausura\s*-\s*(.+)$/i);
+  if (clausuraKo && !/^\d+$/.test(clausuraKo[1].trim())) {
+    return `Clausura · ${formatRoundLabel(clausuraKo[1].trim())}`;
+  }
+
+  if (/1\/256|Round of 256/i.test(round)) return "1/256 de final";
+  if (/1\/128|Round of 128/i.test(round)) return "1/128 de final";
+  if (/1\/64|Round of 64/i.test(round)) return "Treintaidosavos";
+  if (/Round of 32|Round of thirty-two|1\/32/i.test(round)) return "16avos de final";
+  if (/Round of 16|8th Finals|Round of sixteen|1\/8-finals/i.test(round)) {
+    return "Octavos de final";
+  }
   if (/Quarter[- ]finals?/i.test(round)) return "Cuartos de final";
   if (/Semi[- ]finals?/i.test(round)) return "Semifinal";
   if (/3rd Place|Third Place/i.test(round)) return "Tercer puesto";
+  if (/Play-?offs?/i.test(round)) return "Play-offs";
+  if (/Qualification Round\s*(\d+)/i.test(round)) {
+    const m = round.match(/Qualification Round\s*(\d+)/i);
+    return `Clasificatoria · Ronda ${m?.[1] ?? ""}`.trim();
+  }
+  if (/1st Round/i.test(round)) return "Primera ronda";
+  if (/2nd Round/i.test(round)) return "Segunda ronda";
+  if (/3rd Round/i.test(round)) return "Tercera ronda";
   if (/Final/i.test(round) && !/Semi|Quarter|Round|3rd|Third/i.test(round)) return "Final";
 
   return round;

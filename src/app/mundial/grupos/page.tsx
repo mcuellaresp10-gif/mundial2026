@@ -1,0 +1,5 @@
+import { GruposPageContent } from "@/components/Grupos/GruposPageContent";
+
+export default function MundialGruposPage() {
+  return <GruposPageContent />;
+}

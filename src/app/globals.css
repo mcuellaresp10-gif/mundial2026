@@ -22,6 +22,8 @@
     --input: 217 33% 17%;
     --ring: 48 96% 53%;
     --radius: 0.75rem;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
     color-scheme: dark;
   }
 }

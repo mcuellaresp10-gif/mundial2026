@@ -1,4 +1,9 @@
-import { LEAGUE_ID, PLAYER_STAT_SEASONS } from "@/lib/utils";
+import {
+  ALLOWED_SEASONS,
+  isAllowedLeagueId,
+  WORLD_CUP_LEAGUE,
+} from "@/data/americasLeagues";
+import { PLAYER_STAT_SEASONS } from "@/lib/utils";
 
 const ALLOWED_PATHS = new Set([
   "fixtures",
@@ -15,7 +20,11 @@ const ALLOWED_PATHS = new Set([
   "coachs",
 ]);
 
-const ALLOWED_SEASONS = new Set(PLAYER_STAT_SEASONS.map(String));
+const ALLOWED_SEASON_STRINGS = new Set([
+  ...PLAYER_STAT_SEASONS.map(String),
+  ...[...ALLOWED_SEASONS].map(String),
+]);
+
 const MAX_PAGE = 20;
 const MAX_SEARCH_LENGTH = 48;
 const ALLOWED_FIXTURE_STATUSES = new Set([
@@ -58,6 +67,11 @@ function reject(status: number, message: string): FootballAllowlistError {
   return { ok: false, status, message };
 }
 
+function isAllowedLeagueParam(value: string): boolean {
+  const id = positiveInt(value);
+  return id != null && isAllowedLeagueId(id);
+}
+
 /** Valida ruta y query params antes de proxy a API-Football. */
 export function validateFootballProxyRequest(
   pathSegments: string[],
@@ -80,10 +94,10 @@ export function validateFootballProxyRequest(
 
     switch (key) {
       case "league":
-        if (value !== String(LEAGUE_ID)) return reject(403, "Liga no permitida");
+        if (!isAllowedLeagueParam(value)) return reject(403, "Liga no permitida");
         break;
       case "season":
-        if (!ALLOWED_SEASONS.has(value)) return reject(403, "Temporada no permitida");
+        if (!ALLOWED_SEASON_STRINGS.has(value)) return reject(403, "Temporada no permitida");
         break;
       case "page": {
         const page = positiveInt(value);
@@ -111,6 +125,18 @@ export function validateFootballProxyRequest(
       case "round":
         if (value.length > 80) return reject(403, "Ronda no permitida");
         break;
+      case "date":
+      case "from":
+      case "to":
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          return reject(400, `Fecha inválida: ${key}`);
+        }
+        break;
+      case "timezone":
+        if (!/^[A-Za-z0-9_+\-/]{3,64}$/.test(value)) {
+          return reject(400, "Timezone inválido");
+        }
+        break;
       default:
         return reject(403, `Parámetro no permitido: ${key}`);
     }
@@ -121,13 +147,24 @@ export function validateFootballProxyRequest(
     const hasSeason = searchParams.has("season");
     const hasId = searchParams.has("id");
     const hasLive = searchParams.has("live");
-    const hasTeam = searchParams.has("team");
+    const hasDate = searchParams.has("date");
+    const hasFrom = searchParams.has("from");
+    const hasTo = searchParams.has("to");
 
-    if (hasLeague !== hasSeason && !hasId && !hasLive) {
-      return reject(400, "fixtures requiere league+season, id o live");
-    }
     if (hasLive && entries.length !== 1) {
       return reject(403, "live=all debe ir solo");
+    }
+    if (hasDate) {
+      const allowed = new Set(["date", "timezone"]);
+      if ([...searchParams.keys()].some((k) => !allowed.has(k))) {
+        return reject(403, "date solo admite timezone opcional");
+      }
+    } else if (hasFrom || hasTo) {
+      if (!hasLeague || !hasSeason || !hasFrom || !hasTo) {
+        return reject(400, "from/to requieren league+season+from+to");
+      }
+    } else if (hasLeague !== hasSeason && !hasId && !hasLive) {
+      return reject(400, "fixtures requiere league+season, id, date o live");
     }
   }
 
@@ -151,8 +188,8 @@ export function validateFootballProxyRequest(
   if (path === "standings" || path === "teams" || path === "players/topscorers") {
     const league = searchParams.get("league");
     const season = searchParams.get("season");
-    if (league !== String(LEAGUE_ID) || !season || !ALLOWED_SEASONS.has(season)) {
-      return reject(403, "Solo Mundial 2025/2026");
+    if (!league || !isAllowedLeagueParam(league) || !season || !ALLOWED_SEASON_STRINGS.has(season)) {
+      return reject(403, "Liga/temporada no permitida");
     }
   }
 
@@ -175,14 +212,14 @@ export function validateFootballProxyRequest(
     if (hasLeagueList) {
       const league = searchParams.get("league");
       const season = searchParams.get("season");
-      if (league !== String(LEAGUE_ID) || !season || !ALLOWED_SEASONS.has(season)) {
-        return reject(403, "Solo jugadores del Mundial");
+      if (!league || !isAllowedLeagueParam(league) || !season || !ALLOWED_SEASON_STRINGS.has(season)) {
+        return reject(403, "Liga/temporada de jugadores no permitida");
       }
     }
 
     if (hasId || hasTeam || hasSearch) {
       const season = searchParams.get("season");
-      if (season && !ALLOWED_SEASONS.has(season)) {
+      if (season && !ALLOWED_SEASON_STRINGS.has(season)) {
         return reject(403, "Temporada no permitida");
       }
     }
@@ -191,3 +228,6 @@ export function validateFootballProxyRequest(
   const search = searchParams.toString();
   return { ok: true, path, search };
 }
+
+/** @deprecated Use isAllowedLeagueId from americasLeagues */
+export const WORLD_CUP_LEAGUE_ID = WORLD_CUP_LEAGUE.id;

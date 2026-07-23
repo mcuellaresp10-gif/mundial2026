@@ -12,6 +12,7 @@ interface InsightsPanelProps {
   topMatches: TopMatch[];
   topCities: ChartDatum[];
   redCardsByConfederation: ChartDatum[];
+  redCardsTitle?: string;
   earlyVsLateFirstGoal: { early: number; late: number; total: number };
   dynamicInsight: string;
   loading?: boolean;
@@ -23,6 +24,7 @@ export function InsightsPanel({
   topMatches,
   topCities,
   redCardsByConfederation,
+  redCardsTitle = "Tarjetas rojas por confederación",
   earlyVsLateFirstGoal,
   dynamicInsight,
   loading,
@@ -137,7 +139,7 @@ export function InsightsPanel({
       {redCardsByConfederation.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Tarjetas rojas por confederación</CardTitle>
+            <CardTitle className="text-base">{redCardsTitle}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
             {redCardsByConfederation.map((r) => (

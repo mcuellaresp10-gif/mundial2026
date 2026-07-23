@@ -5,7 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** @deprecated Prefer WORLD_CUP_LEAGUE_ID or active Americas league from store. */
 export const LEAGUE_ID = 1;
+/** Liga del archivo Mundial 2026. */
+export const WORLD_CUP_LEAGUE_ID = 1;
 export const DEFAULT_SEASON = 2026;
 export const PLAYER_STAT_SEASONS = [2025, 2026] as const;
 export const PLAYER_STAT_SEASON_LABEL = "2025/2026";

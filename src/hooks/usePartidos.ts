@@ -11,7 +11,7 @@ import {
   getFixtureLineups,
   getH2H,
 } from "@/services/apiFootball";
-import { DEFAULT_SEASON } from "@/lib/utils";
+import { DEFAULT_SEASON, WORLD_CUP_LEAGUE_ID } from "@/lib/utils";
 import {
   hasAnyLiveFixture,
   isFixtureFinished,
@@ -29,6 +29,8 @@ import { isLiveSessionActive } from "@/services/liveSession";
 import { isWorldCupLive } from "@/services/tournamentPhase";
 import { mergeFixtureLists } from "@/utils/fixtureMerge";
 import type { Fixture } from "@/types";
+import { useActiveLeague } from "@/hooks/useActiveLeague";
+import { matchesLeaguePhase } from "@/data/americasLeagues";
 
 function fixturesPollInterval(fixtures?: Fixture[]): number | false {
   const aggressive = shouldPollFixtures(fixtures);
@@ -43,10 +45,40 @@ function shouldFastRefreshFixtures(
   return isLiveSessionActive() || shouldPollFixtures(fixtures);
 }
 
-export function useTeams(season = DEFAULT_SEASON) {
+export function useTeams(season?: number, leagueId?: number) {
+  const active = useActiveLeague();
+  const explicit = leagueId != null;
+  const resolvedLeague = leagueId ?? active.leagueId;
+  const resolvedSeason = season ?? active.season;
+  const multiIds = explicit ? [resolvedLeague] : active.leagueIds;
+  const multiSeasons = explicit
+    ? [resolvedSeason]
+    : active.leagues.map((l) => l.defaultSeason);
+
   return useQuery({
-    queryKey: ["teams", season],
-    queryFn: () => getTeams(season),
+    queryKey: ["teams", multiIds.join(","), multiSeasons.join(",")],
+    queryFn: async () => {
+      if (multiIds.length <= 1) {
+        return getTeams(multiSeasons[0] ?? resolvedSeason, multiIds[0] ?? resolvedLeague);
+      }
+      const batches = await Promise.all(
+        multiIds.map((id, i) => getTeams(multiSeasons[i] ?? resolvedSeason, id))
+      );
+      const byId = new Map<number, (typeof batches)[0][number]>();
+      for (const batch of batches) {
+        for (const team of batch) byId.set(team.id, team);
+      }
+      return [...byId.values()];
+    },
+    staleTime: NORMAL_STALE_MS,
+  });
+}
+
+/** Equipos del Mundial (archivo); no depende del selector Américas. */
+export function useWorldCupTeams(season = DEFAULT_SEASON) {
+  return useQuery({
+    queryKey: ["teams", WORLD_CUP_LEAGUE_ID, season],
+    queryFn: () => getTeams(season, WORLD_CUP_LEAGUE_ID),
     staleTime: NORMAL_STALE_MS,
   });
 }
@@ -55,23 +87,70 @@ export function useFixtures(params?: {
   status?: string;
   team?: number;
   season?: number;
+  league?: number;
   id?: number;
+  /** Si false, no aplica filtro Apertura/Clausura del store. */
+  applyPhaseFilter?: boolean;
 }) {
   const qc = useQueryClient();
+  const active = useActiveLeague();
   const isSingle = params?.id != null;
+  const explicitLeague = params?.league != null;
+  const leagueId = params?.league ?? (isSingle ? undefined : active.leagueId);
+  const season = params?.season ?? active.season;
+  const applyPhase = params?.applyPhaseFilter !== false && !isSingle;
+  const multiLeagueIds =
+    isSingle || explicitLeague ? (leagueId != null ? [leagueId] : []) : active.leagueIds;
+  const multiSeasons =
+    isSingle || explicitLeague
+      ? [season]
+      : active.leagues.map((l) => l.defaultSeason);
+
+  const queryKey = [
+    "fixtures",
+    {
+      ...params,
+      league: multiLeagueIds.length > 1 ? multiLeagueIds.join(",") : leagueId,
+      season: multiSeasons.length > 1 ? multiSeasons.join(",") : season,
+      phase: applyPhase ? active.phase : "all",
+    },
+  ] as const;
 
   return useQuery({
-    queryKey: ["fixtures", params],
+    queryKey,
     queryFn: async () => {
-      const fresh = await getFixtures(params);
-      if (isSingle) return fresh;
-      const existing = qc.getQueryData<Fixture[]>(["fixtures", params]);
-      return existing?.length ? mergeFixtureLists(existing, fresh) : fresh;
+      let fresh: Fixture[];
+      if (multiLeagueIds.length > 1) {
+        const batches = await Promise.all(
+          multiLeagueIds.map((id, i) =>
+            getFixtures({
+              ...params,
+              league: id,
+              season: multiSeasons[i] ?? season,
+            })
+          )
+        );
+        fresh = batches.flat();
+      } else {
+        fresh = await getFixtures({
+          ...params,
+          league: leagueId,
+          season,
+        });
+      }
+      let list = fresh;
+      if (applyPhase && !isSingle) {
+        const leagueById = new Map(active.leagues.map((l) => [l.id, l]));
+        list = fresh.filter((f) => {
+          const meta = leagueById.get(f.league.id) ?? active.league;
+          return matchesLeaguePhase(f.league.round, meta, active.phase);
+        });
+      }
+      if (isSingle) return list;
+      const existing = qc.getQueryData<Fixture[]>(queryKey);
+      return existing?.length ? mergeFixtureLists(existing, list) : list;
     },
-    refetchOnMount:
-      !isSingle && isLiveSessionActive()
-        ? "always"
-        : undefined,
+    refetchOnMount: !isSingle && isLiveSessionActive() ? "always" : undefined,
     staleTime: (query) => {
       const fixtures = query.state.data;
       if (isSingle || shouldFastRefreshFixtures(fixtures)) {
@@ -91,7 +170,6 @@ export function useFixtures(params?: {
         return false;
       }
       const isBaseList = !params?.team && !params?.status && params?.id == null;
-      // useLiveScoreSync refresca la lista base durante sesión en vivo.
       if (isLiveSessionActive() && isBaseList) return false;
       if (isLiveSessionActive()) return false;
       if (shouldFastRefreshFixtures(fixtures)) {
@@ -100,6 +178,20 @@ export function useFixtures(params?: {
       return false;
     },
     refetchOnWindowFocus: (query) => shouldFastRefreshFixtures(query.state.data),
+  });
+}
+
+export function useWorldCupFixtures(params?: {
+  status?: string;
+  team?: number;
+  season?: number;
+  id?: number;
+}) {
+  return useFixtures({
+    ...params,
+    league: WORLD_CUP_LEAGUE_ID,
+    season: params?.season ?? DEFAULT_SEASON,
+    applyPhaseFilter: false,
   });
 }
 
@@ -140,9 +232,10 @@ export function useFixture(fixtureId: number) {
 }
 
 export function useNextFixture() {
+  const { leagueId, season } = useActiveLeague();
   return useQuery({
-    queryKey: ["nextFixture"],
-    queryFn: getNextFixture,
+    queryKey: ["nextFixture", leagueId, season],
+    queryFn: () => getNextFixture(leagueId, season),
     staleTime: LIVE_REFRESH_MS.nextFixture,
     refetchInterval: (query) => {
       const fixture = query.state.data;
@@ -161,10 +254,37 @@ export function useNextFixture() {
   });
 }
 
-export function useStandings(season = DEFAULT_SEASON) {
+export function useStandings(season?: number, leagueId?: number) {
+  const active = useActiveLeague();
+  const explicit = leagueId != null;
+  const resolvedSeason = season ?? active.season;
+  const resolvedLeague = leagueId ?? active.leagueId;
+  const multiIds = explicit ? [resolvedLeague] : active.leagueIds;
+  const multiSeasons = explicit
+    ? [resolvedSeason]
+    : active.leagues.map((l) => l.defaultSeason);
+
   return useQuery({
-    queryKey: ["standings", season],
-    queryFn: () => getStandings(season),
+    queryKey: [
+      "standings",
+      multiIds.join(","),
+      multiSeasons.join(","),
+      active.phase,
+    ],
+    queryFn: async () => {
+      if (multiIds.length <= 1) {
+        return getStandings(
+          multiSeasons[0] ?? resolvedSeason,
+          multiIds[0] ?? resolvedLeague
+        );
+      }
+      const batches = await Promise.all(
+        multiIds.map((id, i) =>
+          getStandings(multiSeasons[i] ?? resolvedSeason, id)
+        )
+      );
+      return batches.flat();
+    },
     staleTime: LIVE_REFRESH_MS.standingsLive,
     refetchOnMount: (query) => (query.state.data?.length ?? 0) === 0,
     refetchOnWindowFocus: () =>
@@ -172,10 +292,19 @@ export function useStandings(season = DEFAULT_SEASON) {
     refetchInterval: (query) => {
       const standings = query.state.data ?? [];
       if (isLiveSessionActive()) return LIVE_REFRESH_MS.standingsLive;
-      if (isWorldCupLive(standings)) return LIVE_REFRESH_MS.standings;
+      if (
+        multiIds.includes(WORLD_CUP_LEAGUE_ID) &&
+        isWorldCupLive(standings)
+      ) {
+        return LIVE_REFRESH_MS.standings;
+      }
       return false;
     },
   });
+}
+
+export function useWorldCupStandings(season = DEFAULT_SEASON) {
+  return useStandings(season, WORLD_CUP_LEAGUE_ID);
 }
 
 export function useFixtureDetail(fixtureId: number, isLive = false) {

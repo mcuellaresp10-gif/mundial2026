@@ -2,10 +2,15 @@
 
 import type { BracketRound } from "@/data/worldCup2026Bracket";
 import type { StandingTeam } from "@/types";
+import { isCupKnockoutRound, isRegularSeasonMatchday } from "@/utils/cupBracket";
 
 export function isKnockoutFixtureRound(round: string): boolean {
+  if (isRegularSeasonMatchday(round)) return false;
+  if (isCupKnockoutRound(round)) return true;
   if (/Group Stage|Group\s+[A-L]\b/i.test(round)) return false;
-  return /Round of|Final|Quarter|Semi|3rd Place|Third Place|8th Finals/i.test(round);
+  return /Round of|Final|Quarter|Semi|3rd Place|Third Place|8th Finals|Play-?offs?/i.test(
+    round
+  );
 }
 
 export function isGroupStageFixtureRound(round: string): boolean {

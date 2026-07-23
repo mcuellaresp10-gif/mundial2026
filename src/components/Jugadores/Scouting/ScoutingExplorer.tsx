@@ -30,9 +30,23 @@ export function ScoutingExplorer() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  const { profiles, isLoading, isReady, isEnriching } = useWorldCupScoutingPool(true, {
+  const {
+    profiles,
+    isLoading,
+    isReady,
+    isEnriching,
+    selectionLabel,
+    minMinutes,
+    leagueIds,
+  } = useWorldCupScoutingPool(true, {
     loadGoalkeepers: position === "G",
   });
+
+  const leagueKey = leagueIds.join(",");
+
+  useEffect(() => {
+    setSelectedId(null);
+  }, [leagueKey]);
 
   const positionProfiles = useMemo(
     () => profilesForPosition(profiles, position),
@@ -98,7 +112,7 @@ export function ScoutingExplorer() {
         <div className="flex-1 min-w-[200px]">
           <label className="text-xs text-muted-foreground block mb-1">Buscar jugador</label>
           <Input
-            placeholder="Nombre o selección…"
+            placeholder="Nombre o equipo…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -128,12 +142,13 @@ export function ScoutingExplorer() {
                     {activeView?.label ?? "Mapa"} · {positionLabel.toLowerCase()}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground font-normal">
-                    Pool del torneo · ≥90 min · clic en un punto para seleccionar
+                    Pool {selectionLabel} · ≥{minMinutes} min · clic en un punto
+                    para seleccionar
                   </p>
                 </div>
                 <ChartExportButton
                   targetRef={chartRef}
-                  filename={`scouting-${position}-${metricView}-mundial.png`}
+                  filename={`scouting-${position}-${metricView}-${leagueIds.join("-")}.png`}
                 />
               </CardHeader>
               <CardContent className="space-y-2">

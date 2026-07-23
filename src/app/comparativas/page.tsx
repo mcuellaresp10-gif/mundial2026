@@ -2,6 +2,7 @@
 
 import { ComparativaSelecciones } from "@/components/Comparativas/ComparativaSelecciones";
 import { ComparativaJugadores } from "@/components/Comparativas/ComparativaJugadores";
+import { LeagueSelector } from "@/components/shared/LeagueSelector";
 import { useTeams, useStandings } from "@/hooks/usePartidos";
 import { useMemo } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -22,14 +23,19 @@ export default function ComparativasPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div>
-        <h1 className="text-3xl font-bold">Comparativas</h1>
-        <p className="text-muted-foreground mt-1">Selección vs selección · Jugador vs jugador</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Comparativas</h1>
+          <p className="text-muted-foreground mt-1">
+            Equipo vs equipo · Jugador vs jugador (liga activa)
+          </p>
+        </div>
+        <LeagueSelector variant="page" />
       </div>
 
       <Tabs defaultValue="teams">
         <TabsList>
-          <TabsTrigger value="teams">Selecciones</TabsTrigger>
+          <TabsTrigger value="teams">Equipos</TabsTrigger>
           <TabsTrigger value="players">Jugadores</TabsTrigger>
         </TabsList>
         <TabsContent value="teams">

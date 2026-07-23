@@ -49,13 +49,14 @@ export function TeamLink({
 }: TeamLinkProps) {
   const colors = getTeamColors(name);
   const displayName = translateTeamName(name);
-  const href = `/selecciones/${id}`;
+  const href = `/equipos/${id}`;
+  const ariaEntity = "equipo";
 
   if (variant === "name") {
     return (
       <Link
         href={href}
-        aria-label={`Ver selección ${displayName}`}
+        aria-label={`Ver ${ariaEntity} ${displayName}`}
         className={cn(
           "font-medium hover:underline underline-offset-2 rounded-sm",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -72,7 +73,7 @@ export function TeamLink({
     return (
       <Link
         href={href}
-        aria-label={`Ver selección ${displayName}`}
+        aria-label={`Ver ${ariaEntity} ${displayName}`}
         className={cn(
           "group flex min-w-0 items-center gap-2 rounded-xl p-1 -m-1",
           "transition-colors hover:bg-muted/50",
@@ -113,7 +114,7 @@ export function TeamLink({
   return (
     <Link
       href={href}
-      aria-label={`Ver selección ${displayName}`}
+      aria-label={`Ver ${ariaEntity} ${displayName}`}
       className={cn(
         "group flex min-w-0 flex-col gap-2 rounded-xl p-2 -m-2",
         "transition-colors hover:bg-muted/50",

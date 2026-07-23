@@ -3,7 +3,12 @@ import type { RatedPlayerCandidate } from "@/utils/calculations";
 import { parseRating } from "@/utils/formatters";
 import { positionToCode } from "@/utils/squad";
 import { translateTeamName } from "@/utils/teamNames";
-import { getStatBundle, getWorldCupTournamentStat } from "@/utils/playerStats";
+import {
+  getLeagueSeasonStat,
+  getStatBundle,
+  getWorldCupTournamentStat,
+} from "@/utils/playerStats";
+import { DEFAULT_SEASON, LEAGUE_ID } from "@/lib/utils";
 
 /** Mínimo de minutos en el torneo para entrar al once ideal acumulado. */
 export const ONCE_IDEAL_MIN_MINUTES_TOURNAMENT = 45;
@@ -19,6 +24,7 @@ interface PlayerRatingAccumulator {
   goals: number;
   assists: number;
   positionMinutes: Map<string, number>;
+  leagueId?: number;
 }
 
 function pickPrimaryPosition(positionMinutes: Map<string, number>): string {
@@ -44,7 +50,8 @@ function roundRating(value: number): number {
  */
 export function aggregateCandidatesFromFixturePlayerTeams(
   teamsGroups: FixturePlayersTeam[][],
-  minMinutes = 1
+  minMinutes = 1,
+  leagueId?: number
 ): RatedPlayerCandidate[] {
   const acc = new Map<number, PlayerRatingAccumulator>();
 
@@ -74,6 +81,7 @@ export function aggregateCandidatesFromFixturePlayerTeams(
             goals: 0,
             assists: 0,
             positionMinutes: new Map(),
+            leagueId,
           };
           acc.set(entry.player.id, row);
         }
@@ -100,6 +108,7 @@ export function aggregateCandidatesFromFixturePlayerTeams(
       goals: p.goals,
       assists: p.assists,
       minutes: p.minutes,
+      leagueId: p.leagueId,
     }));
 }
 
@@ -139,36 +148,57 @@ export function mergeWorldCupPoolIntoSquads(squads: Player[], pool: Player[]): P
 
 export function playerToOnceIdealCandidate(
   player: Player,
-  minMinutes = ONCE_IDEAL_MIN_MINUTES_TOURNAMENT
+  minMinutes = ONCE_IDEAL_MIN_MINUTES_TOURNAMENT,
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON
 ): RatedPlayerCandidate | null {
-  const wc = getWorldCupTournamentStat(player);
-  if (!wc) return null;
+  const row =
+    getLeagueSeasonStat(player, leagueId, season) ??
+    (leagueId === LEAGUE_ID ? getWorldCupTournamentStat(player) : null);
+  if (!row) return null;
 
-  const minutes = wc.games.minutes ?? 0;
+  const minutes = row.games.minutes ?? 0;
   if (minutes < minMinutes) return null;
 
-  const rating = parseRating(wc.games.rating);
+  const rating = parseRating(row.games.rating);
   if (rating <= 0) return null;
 
   return {
     id: player.player.id,
     name: player.player.name,
     photo: player.player.photo,
-    team: translateTeamName(wc.team.name),
-    teamLogo: wc.team.logo,
-    position: positionToCode(wc.games.position),
+    team: translateTeamName(row.team.name),
+    teamLogo: row.team.logo,
+    position: positionToCode(row.games.position),
     rating: roundRating(rating),
-    goals: wc.goals.total ?? 0,
-    assists: wc.goals.assists ?? 0,
+    goals: row.goals.total ?? 0,
+    assists: row.goals.assists ?? 0,
     minutes,
+    leagueId,
   };
 }
 
 export function buildCandidatesFromPlayers(
   players: Player[],
-  minMinutes = ONCE_IDEAL_MIN_MINUTES_TOURNAMENT
+  minMinutes = ONCE_IDEAL_MIN_MINUTES_TOURNAMENT,
+  leagueId: number = LEAGUE_ID,
+  season: number = DEFAULT_SEASON
 ): RatedPlayerCandidate[] {
   return players
-    .map((p) => playerToOnceIdealCandidate(p, minMinutes))
+    .map((p) => playerToOnceIdealCandidate(p, minMinutes, leagueId, season))
     .filter((c): c is RatedPlayerCandidate => c != null);
+}
+
+/** Si el mismo jugador aparece en varias ligas, conserva el de mejor rating. */
+export function dedupeCandidatesByBestRating(
+  candidates: RatedPlayerCandidate[]
+): RatedPlayerCandidate[] {
+  const byId = new Map<number, RatedPlayerCandidate>();
+  for (const c of candidates) {
+    const existing = byId.get(c.id);
+    if (!existing || c.rating > existing.rating) {
+      byId.set(c.id, c);
+    }
+  }
+  return [...byId.values()];
 }

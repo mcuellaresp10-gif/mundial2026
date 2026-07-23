@@ -8,12 +8,12 @@ import { useAgentChat } from "@/hooks/useAgentChat";
 import { cn } from "@/lib/utils";
 
 const SUGGESTED_PROMPTS = [
-  "¿Cómo va Argentina en el Mundial 2026 y qué títulos tiene en su historia?",
-  "¿Quién es favorito para ganar el Grupo A según las probabilidades?",
-  "Cuéntame la cronología de campeones del Mundial desde 1930",
-  "Compara el Brasil de 1970 con el estado actual del torneo",
-  "¿Cuántos títulos tiene Alemania y cómo va en 2026?",
-  "Curiosidades del Mundial de 1986 y qué récords vigilan en 2026",
+  "¿Quién lidera la tabla de la liga seleccionada?",
+  "Mejores goleadores de las ligas Américas ahora",
+  "¿Cómo va Millonarios en Liga BetPlay?",
+  "Próximos partidos de Copa Libertadores",
+  "Compara el ritmo goleador de Liga MX y MLS",
+  "¿Qué sé del archivo del Mundial 2026?",
 ];
 
 function formatAnswer(text: string): string {
@@ -62,9 +62,9 @@ export function MundialAgentChat() {
       <CardHeader className="pb-3 border-b border-border shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-lg">Experto Mundial — Historia & 2026</CardTitle>
+            <CardTitle className="text-lg">Agente Américas — Ligas & Copas</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Historia completa 1930-2022 · enfoque en el Mundial 2026 en vivo
+              CONMEBOL · Liga MX · MLS · copas · archivo Mundial si lo pides
             </p>
           </div>
           {messages.length > 0 && (
@@ -81,9 +81,9 @@ export function MundialAgentChat() {
           {messages.length === 0 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Pregúntame sobre el Mundial 2026, la historia de los torneos, probabilidades de
-                clasificación, récords y curiosidades. Respondo con datos del sitio y análisis
-                contextual.
+                Pregúntame sobre ligas y copas de las Américas: tablas, goleadores, próximos
+                partidos y análisis. También puedo consultar el archivo del Mundial 2026 si lo
+                necesitas.
               </p>
               <div className="flex flex-wrap gap-2">
                 {SUGGESTED_PROMPTS.map((prompt) => (
@@ -130,7 +130,7 @@ export function MundialAgentChat() {
           {isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Consultando datos del torneo…
+              Consultando datos de las ligas…
             </div>
           )}
           <div ref={bottomRef} />
@@ -145,7 +145,7 @@ export function MundialAgentChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Pregunta sobre el Mundial…"
+            placeholder="Pregunta sobre ligas y copas…"
             rows={1}
             disabled={isLoading}
             className="flex-1 resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-[44px] max-h-32 focus:outline-none focus:ring-2 focus:ring-mundial-gold/40 disabled:opacity-50"

@@ -21,7 +21,7 @@ export default function OnceIdealPage() {
         <div>
           <h1 className="text-3xl font-bold">Once Ideal</h1>
           <p className="text-muted-foreground mt-1">
-            {label} · torneo completo, jornada a jornada o tu propio XI
+            {label} · temporada completa, jornada a jornada o tu propio XI
           </p>
         </div>
         <LeagueSelector variant="page" />
@@ -29,7 +29,7 @@ export default function OnceIdealPage() {
 
       <Tabs defaultValue="torneo">
         <TabsList>
-          <TabsTrigger value="torneo">Once del torneo</TabsTrigger>
+          <TabsTrigger value="torneo">Once de la temporada</TabsTrigger>
           <TabsTrigger value="jornada">Por jornada</TabsTrigger>
           <TabsTrigger value="mi-xi">Armar Mi XI</TabsTrigger>
         </TabsList>

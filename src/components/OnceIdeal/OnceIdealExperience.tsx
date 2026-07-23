@@ -100,7 +100,7 @@ export function OnceIdealExperience({
       {isPartial && (
         <p className="text-xs text-muted-foreground">
           Once parcial ({players.length}/11) — faltan posiciones con jugadores que hayan jugado
-          en el torneo.
+          en la competición.
         </p>
       )}
 

@@ -24,7 +24,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mundial Américas — Análisis Táctico & Estadísticas",
+  title: "Fútbol Américas — Análisis Táctico & Estadísticas",
   description:
     "Hub de análisis táctico y estadísticas de fútbol sudamericano, Liga MX, MLS, copas continentales y domésticas",
   themeColor: "#0F172A",

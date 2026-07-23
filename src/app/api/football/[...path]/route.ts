@@ -20,7 +20,11 @@ function isLiveSessionRequest(request: NextRequest): boolean {
 }
 
 function isPlayerStatsPath(path: string): boolean {
-  return path.includes("players/topscorers") || path === "players";
+  return (
+    path.includes("players/topscorers") ||
+    path.includes("players/topassists") ||
+    path === "players"
+  );
 }
 
 function getCacheTtl(path: string, search: string, liveSession: boolean): number {

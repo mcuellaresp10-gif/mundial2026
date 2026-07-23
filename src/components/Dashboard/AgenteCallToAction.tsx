@@ -47,16 +47,20 @@ export function AgenteCallToAction() {
               </h2>
               <p className="text-sm text-white/70 mt-1 max-w-prose">
                 Ligas CONMEBOL, Liga MX, MLS, copas continentales y domésticas: tablas, goleadores y
-                análisis. El Mundial 2026 sigue disponible en el archivo.
+                análisis. El archivo del Mundial 2026 sigue en{" "}
+                <Link href="/mundial" className="text-mundial-gold/90 hover:underline">
+                  /mundial
+                </Link>
+                .
               </p>
               <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/55">
                 <li className="flex items-center gap-1.5">
                   <History className="h-3.5 w-3.5 text-mundial-gold/80" />
-                  Récords y ediciones
+                  Tablas y goleadores
                 </li>
                 <li className="flex items-center gap-1.5">
                   <TrendingUp className="h-3.5 w-3.5 text-mundial-gold/80" />
-                  Probabilidades en vivo
+                  Análisis de ligas y copas
                 </li>
               </ul>
             </div>

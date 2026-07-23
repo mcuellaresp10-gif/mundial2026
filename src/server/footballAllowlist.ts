@@ -17,6 +17,7 @@ const ALLOWED_PATHS = new Set([
   "players",
   "players/squads",
   "players/topscorers",
+  "players/topassists",
   "coachs",
 ]);
 
@@ -185,7 +186,7 @@ export function validateFootballProxyRequest(
     }
   }
 
-  if (path === "standings" || path === "teams" || path === "players/topscorers") {
+  if (path === "standings" || path === "teams" || path === "players/topscorers" || path === "players/topassists") {
     const league = searchParams.get("league");
     const season = searchParams.get("season");
     if (!league || !isAllowedLeagueParam(league) || !season || !ALLOWED_SEASON_STRINGS.has(season)) {

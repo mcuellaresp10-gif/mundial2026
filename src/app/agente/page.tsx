@@ -4,10 +4,11 @@ export default function AgentePage() {
   return (
     <div className="space-y-6 animate-in fade-in max-w-3xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold">Agente del Mundial</h1>
+        <h1 className="text-3xl font-bold">Agente Américas</h1>
         <p className="text-muted-foreground mt-1">
-          Historia completa de los Mundiales (1930-2022) con enfoque en el torneo 2026 en vivo:
-          tablas, probabilidades, récords y curiosidades.
+          Ligas CONMEBOL, Liga MX, MLS, Libertadores, Sudamericana y copas domésticas:
+          tablas, goleadores, próximos partidos y análisis. El archivo del Mundial 2026
+          sigue disponible si lo preguntas.
         </p>
       </div>
       <MundialAgentChat />

@@ -22,8 +22,8 @@ import type { ChartDatum } from "@/utils/tournamentAnalytics";
 export function GoalsByLeagueChart({ data }: { data: ChartDatum[] }) {
   return (
     <ChartCard
-      title="Goles por liga"
-      description="Total de goles en las competiciones seleccionadas"
+      title="Goles por liga / país"
+      description="Ligas domésticas por competición · copas internacionales por país del club"
       empty={data.length === 0}
     >
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
@@ -37,7 +37,7 @@ export function GoalsByLeagueChart({ data }: { data: ChartDatum[] }) {
           <YAxis
             type="category"
             dataKey="label"
-            width={100}
+            width={110}
             tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
           />
           <Tooltip {...chartTooltipProps} />
@@ -51,8 +51,8 @@ export function GoalsByLeagueChart({ data }: { data: ChartDatum[] }) {
 export function LeagueEfficiencyChart({ data }: { data: ChartDatum[] }) {
   return (
     <ChartCard
-      title="Ritmo goleador por liga"
-      description="Promedio de goles por partido iniciado"
+      title="Ritmo goleador por liga / país"
+      description="Promedio de goles por partido · copas internacionales por país del club"
       empty={data.length === 0}
     >
       <ResponsiveContainer width="100%" height={CHART_HEIGHT_MD}>
@@ -81,8 +81,8 @@ export function LeagueEfficiencyChart({ data }: { data: ChartDatum[] }) {
 export function MatchesByLeagueChart({ data }: { data: ChartDatum[] }) {
   return (
     <ChartCard
-      title="Partidos jugados por liga"
-      description="Encuentros iniciados en cada competición"
+      title="Partidos jugados por liga / país"
+      description="Encuentros iniciados · copas internacionales por país del club"
       empty={data.length === 0}
     >
       <ResponsiveContainer width="100%" height={CHART_HEIGHT_MD}>

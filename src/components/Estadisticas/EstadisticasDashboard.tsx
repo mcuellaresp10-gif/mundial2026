@@ -64,7 +64,9 @@ export function EstadisticasDashboard() {
       </div>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Ritmo del torneo</h2>
+        <h2 className="text-lg font-semibold">
+          {isWc ? "Ritmo del torneo" : "Ritmo de la competición"}
+        </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <GoalsByDayChart data={stats.goalsByDay} />
           <GoalsByRoundChart data={stats.goalsByRound} />
@@ -138,7 +140,7 @@ export function EstadisticasDashboard() {
             isWc ? stats.redCardsByConfederation : stats.redCardsByLeague
           }
           redCardsTitle={
-            isWc ? "Tarjetas rojas por confederación" : "Tarjetas rojas por liga"
+            isWc ? "Tarjetas rojas por confederación" : "Tarjetas rojas por liga / país"
           }
           earlyVsLateFirstGoal={stats.earlyVsLateFirstGoal}
           dynamicInsight={stats.dynamicInsight}

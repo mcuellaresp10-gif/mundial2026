@@ -7,8 +7,14 @@ import type { Player } from "@/types";
 import { getPositionProfile } from "@/config/positionMetricProfiles";
 import type { ScoutingMetricViewId } from "@/config/scoutingMetricViews";
 import { getMetricView } from "@/config/scoutingMetricViews";
-import { SCOUTING_MIN_WC_MINUTES, playerHasScoutingEligibleWc } from "@/utils/worldCupScoutingMetrics";
+import {
+  SCOUTING_MIN_LEAGUE_MINUTES,
+  SCOUTING_MIN_WC_MINUTES,
+  playerHasScoutingEligibleWc,
+} from "@/utils/worldCupScoutingMetrics";
 import { useScoutingProfile } from "@/hooks/useWorldCupScoutingPool";
+import { useActiveLeague } from "@/hooks/useActiveLeague";
+import { LEAGUE_ID } from "@/lib/utils";
 import {
   ChartExportButton,
   ScoutingRadarWC,
@@ -26,6 +32,11 @@ interface WorldCupScoutingTabProps {
 }
 
 export function WorldCupScoutingTab({ player }: WorldCupScoutingTabProps) {
+  const { league, leagueIds } = useActiveLeague();
+  const minMinutes =
+    leagueIds.length === 1 && leagueIds[0] === LEAGUE_ID
+      ? SCOUTING_MIN_WC_MINUTES
+      : SCOUTING_MIN_LEAGUE_MINUTES;
   const { profile, isLoading, isReady, profiles } = useScoutingProfile(player.player.id, true);
   const [metricView, setMetricView] = useState<ScoutingMetricViewId>("default");
   const chartRef = useRef<HTMLDivElement>(null);
@@ -42,12 +53,18 @@ export function WorldCupScoutingTab({ player }: WorldCupScoutingTabProps) {
     return syntheticPeerProfile(values, profile.position, profile);
   }, [profile, positionProfiles]);
 
-  if (!playerHasScoutingEligibleWc(player) && !isLoading) {
+  const eligible = playerHasScoutingEligibleWc(
+    player,
+    league.id,
+    league.defaultSeason
+  );
+
+  if (!eligible && !isLoading && !profile) {
     return (
       <Card>
         <CardContent className="p-6 text-sm text-muted-foreground">
-          Análisis avanzado disponible solo para jugadores con al menos {SCOUTING_MIN_WC_MINUTES} minutos
-          en el Mundial 2026. Este jugador aún no alcanza ese umbral en el torneo.
+          Análisis avanzado disponible solo para jugadores con al menos {minMinutes} minutos
+          en {league.shortName}. Este jugador aún no alcanza ese umbral.
         </CardContent>
       </Card>
     );
@@ -67,7 +84,7 @@ export function WorldCupScoutingTab({ player }: WorldCupScoutingTabProps) {
     return (
       <Card>
         <CardContent className="p-6 text-sm text-muted-foreground">
-          No hay datos de scouting del Mundial para este jugador.
+          No hay datos de scouting para este jugador en la selección actual de ligas.
         </CardContent>
       </Card>
     );
@@ -85,13 +102,13 @@ export function WorldCupScoutingTab({ player }: WorldCupScoutingTabProps) {
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4">
             <div>
-              <CardTitle>Radar vs pares del torneo</CardTitle>
+              <CardTitle>Radar vs pares de la competición</CardTitle>
               <p className="text-sm text-muted-foreground font-normal mt-1">
-                {positionProfile.label}s con ≥{SCOUTING_MIN_WC_MINUTES} min · escala 0–10 (5 = promedio del pool)
+                {positionProfile.label}s con ≥{minMinutes} min · escala 0–10 (5 = promedio del pool)
                 {!isReady && " · pool aún cargando"}
               </p>
             </div>
-            <ChartExportButton targetRef={chartRef} filename={`${profile.name}-radar-mundial.png`} />
+            <ChartExportButton targetRef={chartRef} filename={`${profile.name}-radar-scouting.png`} />
           </CardHeader>
           <CardContent>
             <ScoutingRadarWC
@@ -144,7 +161,7 @@ export function WorldCupScoutingTab({ player }: WorldCupScoutingTabProps) {
           <CardHeader>
             <CardTitle>Métricas por 90 minutos</CardTitle>
             <p className="text-sm text-muted-foreground font-normal">
-              Percentil vs {positionProfiles.length} {positionProfile.label.toLowerCase()}s del torneo
+              Percentil vs {positionProfiles.length} {positionProfile.label.toLowerCase()}s del pool
             </p>
           </CardHeader>
           <CardContent>

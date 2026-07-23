@@ -244,24 +244,34 @@ async function fetchFixturesPaginated(
   extraParams: Record<string, string | number> = {},
   leagueId: number = LEAGUE_ID
 ): Promise<Fixture[]> {
-  let page = 1;
-  let totalPages = 1;
-  const all: Fixture[] = [];
+  // API-Football rejects `page` on many fixtures queries ("The Page field do not exist")
+  // and returns an empty response. Request without page first; only paginate if needed.
+  const { data: first } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
+    params: { league: leagueId, season, ...extraParams },
+    ...liveRequestConfig(),
+  });
 
-  while (page <= totalPages) {
+  if (first.errors && Object.keys(first.errors).length > 0 && !(first.response?.length)) {
+    throw new Error("[API-Football] fixtures");
+  }
+
+  const all: Fixture[] = [...(first.response ?? [])];
+  const totalPages = first.paging?.total ?? 1;
+  if (totalPages <= 1) return all;
+
+  for (let page = 2; page <= totalPages; page++) {
     const { data } = await client.get<ApiResponse<Fixture[]>>("fixtures", {
       params: { league: leagueId, season, page, ...extraParams },
       ...liveRequestConfig(),
     });
 
     if (data.errors && Object.keys(data.errors).length > 0) {
-      if (all.length > 0) break;
-      throw new Error(`[API-Football] fixtures page ${page}`);
+      break;
     }
 
-    all.push(...(data.response ?? []));
-    totalPages = data.paging?.total ?? 1;
-    page++;
+    const batch = data.response ?? [];
+    if (batch.length === 0) break;
+    all.push(...batch);
   }
 
   return all;

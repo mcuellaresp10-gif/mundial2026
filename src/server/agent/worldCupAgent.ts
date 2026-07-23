@@ -29,7 +29,7 @@ export async function runAgentTurn(input: AgentTurnInput): Promise<AgentTurnResu
   const { question, messages = [], fixtures, standings, fairPlay = new Map() } = input;
   const trimmed = question.trim();
   if (!trimmed) {
-    return { answer: "Escribe una pregunta sobre el Mundial.", sources: [], direct: true };
+    return { answer: "Escribe una pregunta sobre ligas, copas o el archivo Mundial.", sources: [], direct: true };
   }
 
   const hints = analyzeAgentQuestion(trimmed);

@@ -59,6 +59,7 @@ export function useTournamentAnalytics(loadEvents = true) {
 
   return useMemo(() => {
     const teamConfed = buildTeamConfederationMap(teams);
+    const teamCountryById = new Map(teams.map((t) => [t.id, t.country]));
     const allEvents = flattenEvents(eventsByFixture);
     const allLineups = flattenLineups(lineupsByFixture);
     const positionMap = buildPlayerPositionMap(allLineups);
@@ -113,9 +114,9 @@ export function useTournamentAnalytics(loadEvents = true) {
         standings,
         teamConfed
       ),
-      goalsByLeague: aggregateGoalsByLeague(fixtures),
-      leagueEfficiency: aggregateLeagueEfficiency(fixtures),
-      matchesByLeague: aggregateMatchesByLeague(fixtures),
+      goalsByLeague: aggregateGoalsByLeague(fixtures, teamCountryById),
+      leagueEfficiency: aggregateLeagueEfficiency(fixtures, teamCountryById),
+      matchesByLeague: aggregateMatchesByLeague(fixtures, teamCountryById),
       homeAwayGoals: aggregateHomeAwayGoals(fixtures),
       goalsByPhase: aggregateGoalsByPhase(fixtures),
       goalsByMinute: aggregateGoalsByMinute(allEvents),
@@ -126,7 +127,12 @@ export function useTournamentAnalytics(loadEvents = true) {
       topMatches: topScoringMatches(fixtures),
       topCities: topScoringCities(fixtures),
       redCardsByConfederation: aggregateRedCardsByConfederation(allEvents, teamConfed),
-      redCardsByLeague: aggregateRedCardsByLeague(finishedIds, eventsByFixture, fixtures),
+      redCardsByLeague: aggregateRedCardsByLeague(
+        finishedIds,
+        eventsByFixture,
+        fixtures,
+        teamCountryById
+      ),
       earlyVsLateFirstGoal: aggregateEarlyVsLateFirstGoal(eventsByFixture),
       dynamicInsight: datoDelDia,
     };

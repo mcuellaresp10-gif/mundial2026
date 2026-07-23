@@ -77,8 +77,8 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="club">Club · Temp. {PLAYER_STAT_SEASON_LABEL}</TabsTrigger>
         <TabsTrigger value="national">Selección · Temp. {PLAYER_STAT_SEASON_LABEL}</TabsTrigger>
-        <TabsTrigger value="worldcup">Mundial 2026</TabsTrigger>
-        <TabsTrigger value="scouting">Análisis Mundial</TabsTrigger>
+        <TabsTrigger value="worldcup">Archivo Mundial</TabsTrigger>
+        <TabsTrigger value="scouting">Scouting</TabsTrigger>
         <TabsTrigger value="advanced">Stats avanzadas</TabsTrigger>
         <TabsTrigger value="ai">Análisis IA</TabsTrigger>
       </TabsList>
@@ -103,7 +103,7 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
       <TabsContent value="worldcup">
         <WorldCupStatsGrid
           stat={bundle.worldCup}
-          emptyMessage="Aún no hay estadísticas de Mundial 2026 para este jugador (no ha jugado minutos en el torneo)."
+          emptyMessage="Sin estadísticas en el archivo del Mundial 2026 para este jugador (aún no tiene minutos registrados)."
         />
       </TabsContent>
 
@@ -114,10 +114,10 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
       <TabsContent value="advanced">
         <Card>
           <CardHeader>
-            <CardTitle>Radar vs promedio Mundial · {positionLabel}</CardTitle>
+            <CardTitle>Radar vs promedio del pool · {positionLabel}</CardTitle>
             <p className="text-sm text-muted-foreground font-normal">
               Club · Temp. {PLAYER_STAT_SEASON_LABEL} (todas competiciones) · escala 0–10 (5 = promedio por posición)
-              {poolSampleSize > 0 && ` · Promedio Mundial = media de ${poolSampleSize} convocados`}
+              {poolSampleSize > 0 && ` · Promedio del pool = media de ${poolSampleSize} jugadores`}
             </p>
           </CardHeader>
           <CardContent>
@@ -126,14 +126,14 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
             ) : loadingPool && !poolReady ? (
               <>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Cargando pool del Mundial (primera vez puede tardar 1–2 min)…
+                  Cargando pool de comparación (primera vez puede tardar 1–2 min)…
                 </p>
                 {radar && (
                   <RadarChart
                     data={radar}
                     compare={avgMundial}
                     labelA={player.player.name}
-                    labelB="Promedio Mundial"
+                    labelB="Promedio del pool"
                   />
                 )}
                 <Skeleton className="h-2 w-full mt-3" />
@@ -155,7 +155,7 @@ export function PerfilJugador({ player }: PerfilJugadorProps) {
                     data={radar}
                     compare={avgMundial}
                     labelA={player.player.name}
-                    labelB="Promedio Mundial"
+                    labelB="Promedio del pool"
                   />
                 )}
               </>

@@ -14,7 +14,7 @@ export async function callAIChat(
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-        "X-Title": "Mundial Américas",
+        "X-Title": "Fútbol Américas",
       },
       body: JSON.stringify({
         model,
@@ -116,8 +116,8 @@ export function generateFallbackAnalysis(prompt: string): string {
       historialMundiales: null,
     });
   }
-  if (prompt.includes("asistente del Mundial") || prompt.includes("experto en datos del fútbol")) {
-    return "No tengo acceso a IA en este momento. Consulta las secciones Grupos, Calendario e Histórico para datos actualizados.";
+  if (prompt.includes("asistente del fútbol Américas") || prompt.includes("asistente del Mundial") || prompt.includes("experto en datos del fútbol")) {
+    return "No tengo acceso a IA en este momento. Consulta Tablas, Calendario y Estadísticas para datos actualizados.";
   }
   return JSON.stringify({
     contexto: "Partido crucial en la fase de grupos con implicaciones directas en la clasificación.",
@@ -138,7 +138,7 @@ export async function answerTelegramQuestion(
   question: string,
   context: string
 ): Promise<string> {
-  const prompt = `Eres el asistente del Mundial FIFA 2026. Responde en español, de forma clara y breve (máximo 400 palabras).
+  const prompt = `Eres el asistente del fútbol de las Américas (ligas CONMEBOL, Liga MX, MLS y copas). Responde en español, de forma clara y breve (máximo 400 palabras).
 Usa SOLO los datos del contexto (marcadores, tablas, alineaciones, clubes de jugadores).
 Si el contexto incluye ALINEACIONES o JUGADOR, prioriza esos datos en tu respuesta.
 Si no hay información suficiente, dilo honestamente. No inventes nombres, clubes ni titulares.

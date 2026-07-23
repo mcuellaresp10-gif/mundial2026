@@ -121,7 +121,7 @@ export function InsightsPanel({
       {comebacks.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Remontadas del torneo</CardTitle>
+            <CardTitle className="text-base">Remontadas</CardTitle>
           </CardHeader>
           <CardContent className="divide-y divide-border">
             {comebacks.slice(0, 5).map((c) => (

@@ -22,7 +22,7 @@ export function SplashScreen() {
         splashDone ? "opacity-0 pointer-events-none" : "opacity-100"
       )}
     >
-      <div className="text-5xl font-bold text-mundial-gold tracking-wider">MUNDIAL</div>
+      <div className="text-5xl font-bold text-mundial-gold tracking-wider">Fútbol</div>
       <div className="text-2xl font-semibold text-white mt-2">Américas</div>
       <div className="mt-6 h-1 w-32 bg-mundial-gold/30 rounded overflow-hidden">
         <div className="h-full bg-mundial-gold animate-pulse w-2/3" />

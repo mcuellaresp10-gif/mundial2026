@@ -21,7 +21,7 @@ function RatingGauge({ rating }: { rating: number }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Valoración Mundial</span>
+        <span>Valoración</span>
         <span className={cn("font-mono font-bold", ratingClass(rating))}>
           {rating.toFixed(1)}
         </span>

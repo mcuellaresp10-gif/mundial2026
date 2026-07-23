@@ -12,7 +12,7 @@ export function buildPreMatchPrompt(context: {
     ? "\nIMPORTANTE: Si Colombia participa, incluye una sección 'Colombia Focus' con tono apasionado pero analítico, con claves para ganar y predicción emocional."
     : "";
 
-  return `Eres un analista táctico experto del Mundial FIFA 2026. Genera un análisis PRE-partido en español.
+  return `Eres un analista táctico experto del fútbol de las Américas (ligas CONMEBOL, Liga MX, MLS y copas). Genera un análisis PRE-partido en español.
 
 Partido: ${context.home} vs ${context.away}
 Fecha: ${context.date}
@@ -41,7 +41,7 @@ export function buildPostMatchPrompt(context: {
   stats?: string;
   preAnalysis?: string;
 }): string {
-  return `Eres un analista táctico experto del Mundial FIFA 2026. Genera un análisis POST-partido en español.
+  return `Eres un analista táctico experto del fútbol de las Américas (ligas CONMEBOL, Liga MX, MLS y copas). Genera un análisis POST-partido en español.
 
 Partido: ${context.home} vs ${context.away}
 Resultado: ${context.score}

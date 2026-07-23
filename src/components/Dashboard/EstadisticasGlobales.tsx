@@ -44,6 +44,9 @@ function EstadisticasAmericas() {
       scorersTitle={scorersTitle}
       goalsByDay={goalsByDay}
       subtitle={`Resumen de ${scopeLabel} en tiempo real`}
+      leadersTitle="Líderes de tabla"
+      emptyScorersMessage="Sin goles registrados en las ligas seleccionadas aún"
+      showGroupLeaders={stats.groupLeaders.length > 0}
     />
   );
 }
@@ -68,6 +71,9 @@ function EstadisticasMundialArchive() {
       scorersTitle="Top 10 Goleadores del Mundial 2026"
       goalsByDay={goalsByDay}
       subtitle="Resumen de Mundial 2026 en tiempo real"
+      leadersTitle="Líderes de Grupo"
+      emptyScorersMessage="Sin goles registrados en el torneo aún"
+      showGroupLeaders
     />
   );
 }
@@ -80,6 +86,9 @@ function EstadisticasGlobalesView({
   scorersTitle,
   goalsByDay,
   subtitle,
+  leadersTitle,
+  emptyScorersMessage,
+  showGroupLeaders,
 }: {
   stats: ReturnType<typeof useEstadisticasAggregadas>;
   topScorers: ReturnType<typeof useLeagueTopScorers>["data"];
@@ -88,6 +97,9 @@ function EstadisticasGlobalesView({
   scorersTitle: string;
   goalsByDay: ReturnType<typeof aggregateGoalsByDayLastN>;
   subtitle: string;
+  leadersTitle: string;
+  emptyScorersMessage: string;
+  showGroupLeaders: boolean;
 }) {
   if (loadingScorers && topScorers.length === 0) {
     return (
@@ -138,7 +150,7 @@ function EstadisticasGlobalesView({
           <CardContent className="divide-y divide-border max-h-[28rem] overflow-y-auto scrollbar-thin">
             {topScorers.length === 0 ? (
               <p className="text-muted-foreground text-sm py-2">
-                Sin goles registrados en el torneo aún
+                {emptyScorersMessage}
               </p>
             ) : (
               topScorers.map((s, i) => (
@@ -175,31 +187,33 @@ function EstadisticasGlobalesView({
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl break-inside-avoid min-w-0">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Líderes de Grupo</CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y divide-border max-h-[28rem] overflow-y-auto scrollbar-thin">
-            {stats.groupLeaders.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-2">Tablas por definir</p>
-            ) : (
-              stats.groupLeaders.map((s) => (
-                <Link
-                  key={s.team.id}
-                  href={`/equipos/${s.team.id}`}
-                  className="flex min-w-0 items-center gap-3 py-2.5 first:pt-0 last:pb-0 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
-                >
-                  <div className="relative aspect-square w-7 shrink-0">
-                    <Image src={s.team.logo} alt={s.team.name} fill className="object-contain" sizes="28px" />
-                  </div>
-                  <span className="flex-1 font-medium truncate min-w-0">{translateTeamName(s.team.name)}</span>
-                  <BadgeGroup group={s.group} />
-                  <span className="font-mono font-bold shrink-0 tabular-nums">{s.points} pts</span>
-                </Link>
-              ))
-            )}
-          </CardContent>
-        </Card>
+        {showGroupLeaders && (
+          <Card className="rounded-2xl break-inside-avoid min-w-0">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">{leadersTitle}</CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y divide-border max-h-[28rem] overflow-y-auto scrollbar-thin">
+              {stats.groupLeaders.length === 0 ? (
+                <p className="text-muted-foreground text-sm py-2">Tablas por definir</p>
+              ) : (
+                stats.groupLeaders.map((s) => (
+                  <Link
+                    key={s.team.id}
+                    href={`/equipos/${s.team.id}`}
+                    className="flex min-w-0 items-center gap-3 py-2.5 first:pt-0 last:pb-0 hover:bg-muted/50 -mx-2 px-2 rounded-lg transition-colors"
+                  >
+                    <div className="relative aspect-square w-7 shrink-0">
+                      <Image src={s.team.logo} alt={s.team.name} fill className="object-contain" sizes="28px" />
+                    </div>
+                    <span className="flex-1 font-medium truncate min-w-0">{translateTeamName(s.team.name)}</span>
+                    <BadgeGroup group={s.group} />
+                    <span className="font-mono font-bold shrink-0 tabular-nums">{s.points} pts</span>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Card className="rounded-2xl bg-mundial-gold/5 border-mundial-gold/20 -mx-0">

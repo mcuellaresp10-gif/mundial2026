@@ -34,11 +34,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">
               {isMulti
                 ? `${leagues.length} seleccionadas · temporadas ${[...new Set(leagues.map((l) => l.defaultSeason))].join(", ")}`
-                : `${league.name} · temporada ${league.defaultSeason}${
-                    league.seasonMode === "apertura_clausura"
-                      ? " · soporta Apertura/Clausura"
-                      : ""
-                  }`}
+                : `${league.name} · temporada ${league.defaultSeason}`}
             </p>
           </div>
           <Link

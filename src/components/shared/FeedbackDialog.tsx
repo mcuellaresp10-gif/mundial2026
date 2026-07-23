@@ -109,7 +109,7 @@ export function FeedbackDialog({ trigger }: FeedbackDialogProps) {
           <DialogHeader>
             <DialogTitle>Reportar problema</DialogTitle>
             <DialogDescription>
-              Cuéntanos qué falló. Revisamos los reportes durante el torneo.
+              Cuéntanos qué falló. Revisamos los reportes regularmente.
             </DialogDescription>
           </DialogHeader>
 

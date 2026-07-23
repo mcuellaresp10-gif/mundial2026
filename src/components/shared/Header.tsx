@@ -23,7 +23,7 @@ const NAV = [
   { href: "/comparativas", label: "Comparativas" },
   { href: "/simulacion", label: "Simulación" },
   { href: "/estadisticas", label: "Estadísticas" },
-  { href: "/mundial", label: "Mundial" },
+  { href: "/mundial", label: "Archivo" },
   { href: "/agente", label: "Agente" },
 ];
 
@@ -60,7 +60,7 @@ export function Header() {
         </Button>
 
         <Link href="/" className="flex-shrink-0">
-          <span className="text-xl font-bold text-mundial-gold tracking-wide">MUNDIAL</span>
+          <span className="text-xl font-bold text-mundial-gold tracking-wide">Fútbol</span>
           <span className="text-xl font-bold text-white ml-1">Américas</span>
         </Link>
 

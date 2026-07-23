@@ -81,7 +81,7 @@ export function formatLiveFixtures(all: Fixture[]): string {
 export function formatNextFixture(all: Fixture[]): string {
   const upcoming = sortFixturesByKickoff(all.filter((f) => f.fixture.status.short === "NS"));
   const next = upcoming[0];
-  if (!next) return "🏁 *El Mundial terminó* — no quedan partidos por jugar.";
+  if (!next) return "🏁 *No quedan partidos por jugar* en el alcance actual.";
   const home = translateTeamName(next.teams.home.name);
   const away = translateTeamName(next.teams.away.name);
   return `⏭️ *Próximo partido*\n\n${formatFixtureLine(next, true)}\n\n⏰ Faltan ~${formatCountdown(next.fixture.date)} para el pitazo inicial.`;
@@ -162,7 +162,7 @@ export function formatFixtureDetail(f: Fixture): string {
 }
 
 export function formatColombiaHub(all: Fixture[], standings: StandingsGroup[]): string {
-  const parts: string[] = ["🇨🇴 *Colombia en el Mundial*\n"];
+  const parts: string[] = ["🇨🇴 *Colombia*\n"];
 
   const colStandings = findStandingTeam(standings, "colombia", teamNameMatchesQuery);
   if (colStandings) {
@@ -203,7 +203,7 @@ export function formatTeamFixtures(all: Fixture[], query: string, displayName?: 
       teamNameMatchesQuery(f.teams.away.name, query)
   );
   if (matches.length === 0) {
-    return `🤷 No encontré partidos de *${query}* en el Mundial.`;
+    return `🤷 No encontré partidos de *${query}* en las ligas Américas.`;
   }
   const live = matches.filter((f) => isPlausibleLiveFixture(f) || isFixtureLive(f.fixture.status.short));
   const upcoming = sortFixturesByKickoff(matches.filter((f) => f.fixture.status.short === "NS"));
@@ -258,7 +258,7 @@ export function buildTelegramContext(all: Fixture[], standings: StandingsGroup[]
   if (live.length > 0) parts.push("EN VIVO:\n" + live.map((f) => formatFixtureLine(f)).join("\n"));
   if (today.length > 0) parts.push("HOY:\n" + today.map((f) => formatFixtureLine(f)).join("\n"));
   if (standings.length > 0) parts.push(formatStandings(standings).replace(/\*/g, ""));
-  return parts.join("\n\n") || "Sin datos recientes del torneo.";
+  return parts.join("\n\n") || "Sin datos recientes.";
 }
 
 export function greeting(name?: string): string {
@@ -275,9 +275,9 @@ export const WELCOME_MESSAGE = (name?: string) =>
 
 Puedes usar los *botones de abajo* o hablarme normal:
 • _"partidos de hoy"_
-• _"cómo va Colombia"_
+• _"cómo va Millonarios"_
 • _"quién juega en vivo"_
-• _"tabla del grupo B"_
+• _"líderes de la tabla"_
 
 Te aviso solo cuando hay *goles, inicios y finales* ⚽🔔`;
 
@@ -287,8 +287,8 @@ export const HELP_MESSAGE = `❓ *Guía rápida*
 *Pregúntame en lenguaje natural*, por ejemplo:
 • _"alineaciones de los partidos en vivo"_
 • _"¿en qué club juega Messi?"_
-• _"formación de Colombia"_
-• _"tabla del grupo B"_
+• _"próximos partidos de Libertadores"_
+• _"tabla de Liga BetPlay"_
 • _"silenciar partido en vivo"_
 
 🔕 *Alertas:* usa los botones *Silenciar* / *Silenciados* para mutear goles de un partido.

@@ -42,10 +42,6 @@ export function MatchSimulationPanel() {
 
   const teamAName = translateTeamName(teamA?.name ?? "Equipo A");
   const teamBName = translateTeamName(teamB?.name ?? "Equipo B");
-  const cal = result?.calibration;
-  const homeBoostPct = cal
-    ? `+${((cal.homeAdvantage.homeLambdaMul - 1) * 100).toFixed(0)}% xG`
-    : null;
 
   return (
     <div className="space-y-6">
@@ -129,38 +125,11 @@ export function MatchSimulationPanel() {
             />
           </div>
 
-          {cal?.mode === "club" && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <KpiCard
-                label="Fuerza local"
-                value={cal.strengthHome.toFixed(1)}
-              />
-              <KpiCard
-                label="Fuerza visitante"
-                value={cal.strengthAway.toFixed(1)}
-              />
-              <KpiCard
-                label="Boost localía"
-                value={homeBoostPct ?? "—"}
-              />
-              <KpiCard
-                label="Forma reciente (L / V)"
-                value={`${cal.recentHome.played > 0 ? cal.recentHome.pointsPerGame.toFixed(2) : "—"} / ${cal.recentAway.played > 0 ? cal.recentAway.pointsPerGame.toFixed(2) : "—"} PPG`}
-              />
-            </div>
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
                 Matriz de probabilidad de marcador
               </CardTitle>
-              <p className="text-sm text-muted-foreground font-normal">
-                {result.simulations.toLocaleString()} simulaciones · localía dinámica, forma
-                reciente, ritmo goleador de liga, H2H (más peso si coincidió la localía) y mix
-                tabla + plantilla · 1X2: {formatPct(result.target1X2.homeWin)} /{" "}
-                {formatPct(result.target1X2.draw)} / {formatPct(result.target1X2.awayWin)}
-              </p>
             </CardHeader>
             <CardContent>
               <ScoreProbabilityHeatmap

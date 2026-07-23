@@ -82,4 +82,12 @@ describe("footballAllowlist", () => {
     const ok = validateFootballProxyRequest(["fixtures/players"], params({ fixture: "12345" }));
     assert.equal(ok.ok, true);
   });
+
+  it("permite players/topassists con league y season", () => {
+    const result = validateFootballProxyRequest(
+      ["players", "topassists"],
+      params({ league: "239", season: "2026" })
+    );
+    assert.equal(result.ok, true);
+  });
 });

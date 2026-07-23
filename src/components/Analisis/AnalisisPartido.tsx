@@ -195,7 +195,7 @@ export function AnalisisPartido({ fixture }: AnalisisPartidoProps) {
                   </CardContent>
                 </Card>
                 <AnalysisBlock title="Comparación con análisis previo" content={postAnalysis.comparacionPrevia} />
-                <AnalysisBlock title="Impacto en grupo" content={postAnalysis.impactoGrupo} />
+                <AnalysisBlock title="Impacto en la tabla" content={postAnalysis.impactoGrupo} />
                 <AnalysisBlock title="Proyección" content={postAnalysis.proyeccion} />
               </div>
             ) : (

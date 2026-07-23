@@ -153,6 +153,7 @@ export function useFixtures(params?: {
     refetchOnMount: !isSingle && isLiveSessionActive() ? "always" : undefined,
     staleTime: (query) => {
       const fixtures = query.state.data;
+      if (!fixtures?.length) return 30_000;
       if (isSingle || shouldFastRefreshFixtures(fixtures)) {
         const aggressive = shouldPollFixtures(fixtures);
         return isLiveSessionActive()

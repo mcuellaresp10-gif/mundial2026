@@ -28,7 +28,7 @@ interface GoalsByDayChartProps {
 export function GoalsByDayChart({ data, compact }: GoalsByDayChartProps) {
   return (
     <ChartCard
-      title={compact ? "Goles por día" : "Goles por día del torneo"}
+      title={compact ? "Goles por día" : "Goles por día"}
       description={compact ? "Últimos 7 días con partidos" : "Total de goles anotados cada jornada calendario"}
       empty={data.length === 0}
     >

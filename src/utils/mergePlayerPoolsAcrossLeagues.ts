@@ -102,7 +102,7 @@ export function mergePlayerPoolsAcrossLeagues(
         name: label,
         season: primaryLeague.defaultSeason,
       },
-      team: { id: team.id, name: team.name, logo: team.logo },
+      team,
     };
 
     merged.push({

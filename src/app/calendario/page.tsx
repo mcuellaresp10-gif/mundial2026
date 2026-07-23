@@ -18,6 +18,7 @@ function CalendarioAmericas() {
 
   const selectedIds = new Set(leagueIds);
   const filteredEntries = entries.filter((e) => {
+    if (e.fixtureId == null) return false;
     const leagueId = fixtureById.get(e.fixtureId)?.league.id;
     return leagueId != null && selectedIds.has(leagueId);
   });

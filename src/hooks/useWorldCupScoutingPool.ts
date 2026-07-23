@@ -82,7 +82,11 @@ export function useWorldCupScoutingPool(
     })),
   });
 
-  const poolsReady = poolQueries.every((q) => !q.isLoading || (q.data?.length ?? 0) > 0);
+  const poolsReady = poolQueries.every((q) => {
+    if (!q.isLoading) return true;
+    const rows = q.data as Player[] | undefined;
+    return (rows?.length ?? 0) > 0;
+  });
   const poolLoading = poolQueries.some((q) => q.isLoading) && !poolsReady;
   const poolDataKey = poolQueries.map((q) => q.dataUpdatedAt).join("|");
 
@@ -90,7 +94,7 @@ export function useWorldCupScoutingPool(
     () =>
       leagues.map((l, i) => ({
         league: l,
-        players: poolQueries[i]?.data ?? [],
+        players: (poolQueries[i]?.data as Player[] | undefined) ?? [],
       })),
     // poolQueries data identity changes per fetch; poolDataKey is a stable string.
     // eslint-disable-next-line react-hooks/exhaustive-deps

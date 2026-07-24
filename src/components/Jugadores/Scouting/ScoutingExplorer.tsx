@@ -27,6 +27,7 @@ export function ScoutingExplorer() {
   const [position, setPosition] = useState<ScoutingPosition>("M");
   const [metricView, setMetricView] = useState<ScoutingMetricViewId>("default");
   const [search, setSearch] = useState("");
+  const [teamFilter, setTeamFilter] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
@@ -46,12 +47,24 @@ export function ScoutingExplorer() {
 
   useEffect(() => {
     setSelectedId(null);
+    setTeamFilter("");
   }, [leagueKey]);
 
   const positionProfiles = useMemo(
     () => profilesForPosition(profiles, position),
     [profiles, position]
   );
+
+  const teamOptions = useMemo(() => {
+    const names = new Set(positionProfiles.map((p) => p.team).filter(Boolean));
+    return [...names].sort((a, b) => a.localeCompare(b, "es"));
+  }, [positionProfiles]);
+
+  useEffect(() => {
+    if (teamFilter && !teamOptions.includes(teamFilter)) {
+      setTeamFilter("");
+    }
+  }, [teamFilter, teamOptions]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -62,6 +75,13 @@ export function ScoutingExplorer() {
         p.team.toLowerCase().includes(q)
     );
   }, [positionProfiles, search]);
+
+  const teamHighlightIds = useMemo(() => {
+    if (!teamFilter) return [] as number[];
+    return positionProfiles
+      .filter((p) => p.team === teamFilter)
+      .map((p) => p.playerId);
+  }, [positionProfiles, teamFilter]);
 
   const selectedProfile = useMemo(() => {
     const id = selectedId ?? filtered[0]?.playerId ?? null;
@@ -109,6 +129,20 @@ export function ScoutingExplorer() {
             ))}
           </Select>
         </div>
+        <div className="min-w-[180px]">
+          <label className="text-xs text-muted-foreground block mb-1">Equipo</label>
+          <Select
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+          >
+            <option value="">Todos los equipos</option>
+            {teamOptions.map((team) => (
+              <option key={team} value={team}>
+                {team}
+              </option>
+            ))}
+          </Select>
+        </div>
         <div className="flex-1 min-w-[200px]">
           <label className="text-xs text-muted-foreground block mb-1">Buscar jugador</label>
           <Input
@@ -119,6 +153,7 @@ export function ScoutingExplorer() {
         </div>
         <p className="text-sm text-muted-foreground pb-2">
           {filtered.length} de {positionProfiles.length} {positionLabel.toLowerCase()}
+          {teamFilter ? ` · ${teamHighlightIds.length} de ${teamFilter}` : ""}
           {!isReady && isLoading && " · cargando pool…"}
           {isReady && isEnriching && " · actualizando porteros…"}
         </p>
@@ -144,6 +179,7 @@ export function ScoutingExplorer() {
                   <p className="text-sm text-muted-foreground font-normal">
                     Pool {selectionLabel} · ≥{minMinutes} min · clic en un punto
                     para seleccionar
+                    {teamFilter ? ` · resaltados: ${teamFilter}` : ""}
                   </p>
                 </div>
                 <ChartExportButton
@@ -157,6 +193,8 @@ export function ScoutingExplorer() {
                   position={position}
                   metricView={metricView}
                   highlightIds={selectedProfile ? [selectedProfile.playerId] : []}
+                  teamHighlightIds={teamHighlightIds}
+                  teamHighlightLabel={teamFilter || null}
                   selectedId={selectedProfile?.playerId}
                   onSelect={setSelectedId}
                 />

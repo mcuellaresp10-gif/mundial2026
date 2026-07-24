@@ -22,6 +22,8 @@ import { getScatterPoint } from "@/utils/worldCupScoutingMetrics";
 import { cn } from "@/lib/utils";
 
 const SCATTER_DOT_FILL = "#FCD116";
+/** Jugadores del equipo filtrado (distinto del dorado de selección). */
+const SCATTER_TEAM_FILL = "#34D399";
 
 export interface ScatterPoint {
   id: number;
@@ -39,7 +41,11 @@ interface ScoutingScatterProps {
   position: ScoutingPosition;
   metricView?: ScoutingMetricViewId;
   scatterConfig?: ScatterConfig;
+  /** Jugador seleccionado / hover — punto dorado grande. */
   highlightIds?: number[];
+  /** Equipo filtrado — puntos verdes. */
+  teamHighlightIds?: number[];
+  teamHighlightLabel?: string | null;
   selectedId?: number | null;
   onSelect?: (id: number) => void;
   height?: number;
@@ -77,6 +83,8 @@ export function ScoutingScatter({
   metricView = "default",
   scatterConfig: scatterConfigProp,
   highlightIds = [],
+  teamHighlightIds = [],
+  teamHighlightLabel = null,
   selectedId,
   onSelect,
   height = 360,
@@ -115,6 +123,7 @@ export function ScoutingScatter({
   const avgY = points.length ? points.reduce((s, p) => s + p.y, 0) / points.length : 0;
 
   const highlightSet = new Set(highlightIds);
+  const teamSet = new Set(teamHighlightIds);
   const activeId = selectedId ?? hoverId;
 
   return (
@@ -151,9 +160,17 @@ export function ScoutingScatter({
             }) => {
               const { cx = 0, cy = 0, payload } = props;
               if (!payload) return <g />;
-              const isHighlight = highlightSet.has(payload.id) || payload.id === activeId;
+              const isSelected =
+                highlightSet.has(payload.id) || payload.id === activeId;
+              const isTeam = !isSelected && teamSet.has(payload.id);
+              const isEmphasized = isSelected || isTeam;
+              const fill = isSelected
+                ? SCATTER_DOT_FILL
+                : isTeam
+                  ? SCATTER_TEAM_FILL
+                  : SCATTER_DOT_FILL;
               const label = payload.starLabel;
-              const labelY = cy - (isHighlight ? 14 : 11);
+              const labelY = cy - (isEmphasized ? 14 : 11);
               return (
                 <g>
                   {label && (
@@ -175,11 +192,17 @@ export function ScoutingScatter({
                   <circle
                     cx={cx}
                     cy={cy}
-                    r={isHighlight ? 8 : 5}
-                    fill={SCATTER_DOT_FILL}
-                    fillOpacity={isHighlight ? 1 : 0.72}
-                    stroke={isHighlight ? "hsl(var(--mundial-gold))" : "hsl(var(--background))"}
-                    strokeWidth={isHighlight ? 2.5 : 1}
+                    r={isSelected ? 8 : isTeam ? 7 : 5}
+                    fill={fill}
+                    fillOpacity={isEmphasized ? 1 : teamSet.size > 0 ? 0.35 : 0.72}
+                    stroke={
+                      isSelected
+                        ? "hsl(var(--mundial-gold))"
+                        : isTeam
+                          ? SCATTER_TEAM_FILL
+                          : "hsl(var(--background))"
+                    }
+                    strokeWidth={isEmphasized ? 2.5 : 1}
                     style={{ cursor: onSelect ? "pointer" : "default" }}
                     onClick={() => onSelect?.(payload.id)}
                     onMouseEnter={() => setHoverId(payload.id)}
@@ -196,7 +219,19 @@ export function ScoutingScatter({
           <span>
             {points.length} jugadores · prom. X {avgX.toFixed(2)} · prom. Y {avgY.toFixed(2)}
           </span>
-          <span className="text-[10px]">· estrellas etiquetadas</span>
+          <span className="flex flex-wrap items-center gap-3 text-[10px]">
+            {teamHighlightLabel && (
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: SCATTER_TEAM_FILL }}
+                  aria-hidden
+                />
+                {teamHighlightLabel}
+              </span>
+            )}
+            <span>· estrellas etiquetadas</span>
+          </span>
         </div>
       )}
     </div>

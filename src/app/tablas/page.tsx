@@ -12,6 +12,7 @@ import { matchesLeaguePhase } from "@/data/americasLeagues";
 import { GridSkeleton } from "@/components/shared/Loading";
 import { LeagueSelector } from "@/components/shared/LeagueSelector";
 import { CupBracketView } from "@/components/Tablas/CupBracketView";
+import { BetPlayPhaseProbsHeatmap } from "@/components/Tablas/BetPlayPhaseProbsHeatmap";
 import { getFixturesForBracket } from "@/services/apiFootball";
 import {
   buildCupBracketFromFixtures,
@@ -260,6 +261,7 @@ export default function TablasPage() {
               {bracketBlock}
             </>
           )}
+          <BetPlayPhaseProbsHeatmap />
         </>
       )}
     </div>

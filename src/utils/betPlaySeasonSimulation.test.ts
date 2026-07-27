@@ -4,8 +4,15 @@ import type { Fixture, StandingTeam, Team } from "@/types";
 import {
   applyMatchToStates,
   drawCuadrangularGroups,
+  fixturesBetweenTeams,
+  formatBetPlayPct,
+  isMathematicallyEliminatedFromTopN,
   rankTeamStates,
+  remainingMatchesByTeam,
+  shrinkPairLambdas,
   simulateBetPlayPhaseProbabilities,
+  simulateBetPlayPhaseProbabilitiesDetailed,
+  strengthConfidenceWeight,
   type BetPlayPhaseProbs,
 } from "./betPlaySeasonSimulation";
 import type { TeamGroupState } from "./matchOutcomeEngine";
@@ -127,6 +134,59 @@ function pendingFixture(
   };
 }
 
+function seededRng(seedStart = 1): () => number {
+  let seed = seedStart;
+  return () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+}
+
+/** Round-robin pendiente entre N equipos (ida). */
+function fullPendingRoundRobin(teamCount: number): Fixture[] {
+  const fixtures: Fixture[] = [];
+  let id = 1000;
+  for (let i = 1; i <= teamCount; i++) {
+    for (let j = i + 1; j <= teamCount; j++) {
+      fixtures.push(
+        pendingFixture(id++, i, j, `Team ${i}`, `Team ${j}`)
+      );
+    }
+  }
+  return fixtures;
+}
+
+function finishedFixture(
+  id: number,
+  homeId: number,
+  awayId: number,
+  homeName: string,
+  awayName: string,
+  hg: number,
+  ag: number,
+  round = "Apertura - 10"
+): Fixture {
+  const f = pendingFixture(id, homeId, awayId, homeName, awayName);
+  f.fixture.status = { long: "Match Finished", short: "FT", elapsed: 90 };
+  f.league.round = round;
+  f.goals = { home: hg, away: ag };
+  f.score.fulltime = { home: hg, away: ag };
+  return f;
+}
+
+describe("fixturesBetweenTeams", () => {
+  it("solo devuelve enfrentamientos FT entre el par", () => {
+    const list = [
+      finishedFixture(1, 1, 2, "A", "B", 2, 1),
+      finishedFixture(2, 3, 1, "C", "A", 0, 0),
+      pendingFixture(3, 1, 2, "A", "B"),
+    ];
+    const h2h = fixturesBetweenTeams(list, 1, 2);
+    assert.equal(h2h.length, 1);
+    assert.equal(h2h[0].fixture.id, 1);
+  });
+});
+
 describe("rankTeamStates", () => {
   it("ordena por pts, luego DIF, luego GF", () => {
     const ranked = rankTeamStates([
@@ -136,8 +196,8 @@ describe("rankTeamStates", () => {
       state(4, "D", 10, 7, 5),
     ]);
     assert.equal(ranked[0].teamId, 2);
-    assert.equal(ranked[1].teamId, 3); // same pts, better GD (3 vs 0)
-    assert.equal(ranked[2].teamId, 4); // same pts/GD as? wait D is 7-5=2, C is 7-4=3
+    assert.equal(ranked[1].teamId, 3);
+    assert.equal(ranked[2].teamId, 4);
     assert.equal(ranked[3].teamId, 1);
   });
 });
@@ -183,55 +243,206 @@ describe("drawCuadrangularGroups", () => {
   });
 });
 
+describe("strengthConfidenceWeight / shrinkPairLambdas", () => {
+  it("con 1 jornada w es bajo (~0.1)", () => {
+    const w = strengthConfidenceWeight(1);
+    assert.ok(w > 0.05 && w < 0.2, `w=${w}`);
+  });
+
+  it("shrink acerca λ a la media", () => {
+    const map = new Map([
+      ["1:2", { home: 2.5, away: 0.5 }],
+      ["2:1", { home: 0.6, away: 2.2 }],
+    ]);
+    const shrunk = shrinkPairLambdas(map, 0.1);
+    const a = shrunk.get("1:2")!;
+    assert.ok(a.home < 2.5);
+    assert.ok(a.away > 0.5);
+  });
+});
+
+describe("isMathematicallyEliminatedFromTopN", () => {
+  it("marca eliminado cuando 8 equipos ya tienen más puntos que su máximo", () => {
+    const standings = Array.from({ length: 10 }, (_, i) =>
+      standing(i + 1, `T${i + 1}`, i < 8 ? 30 : 0, 15, 20, 10, i + 1)
+    );
+    const remaining = new Map(standings.map((s) => [s.team.id, 0]));
+    const elim = isMathematicallyEliminatedFromTopN(standings, remaining, 8);
+    assert.equal(elim.get(9), true);
+    assert.equal(elim.get(10), true);
+    assert.equal(elim.get(1), false);
+  });
+
+  it("no elimina temprano si aún hay partidos", () => {
+    const standings = Array.from({ length: 10 }, (_, i) =>
+      standing(i + 1, `T${i + 1}`, i === 0 ? 3 : 0, 1, i === 0 ? 2 : 0, i === 0 ? 0 : 1, i + 1)
+    );
+    const remaining = new Map(standings.map((s) => [s.team.id, 18]));
+    const elim = isMathematicallyEliminatedFromTopN(standings, remaining, 8);
+    for (const s of standings) {
+      assert.equal(elim.get(s.team.id), false);
+    }
+  });
+});
+
+describe("formatBetPlayPct", () => {
+  it("muestra <0.1% temprano con valor 0", () => {
+    assert.equal(formatBetPlayPct(0, { maxPlayed: 1 }), "<0.1%");
+  });
+
+  it("muestra 0.0% si eliminado", () => {
+    assert.equal(
+      formatBetPlayPct(0, { mathematicallyEliminated: true, maxPlayed: 1 }),
+      "0.0%"
+    );
+  });
+
+  it("formatea valores normales", () => {
+    assert.equal(formatBetPlayPct(0.622), "62.2%");
+  });
+});
+
 describe("simulateBetPlayPhaseProbabilities", () => {
   it("devuelve probs que suman ~8 clasificados y 1 campeón en promedio", () => {
     const standings: StandingTeam[] = Array.from({ length: 10 }, (_, i) =>
-      standing(
-        i + 1,
-        `Team ${i + 1}`,
-        30 - i * 2,
-        10,
-        20 - i,
-        10 + i,
-        i + 1
-      )
+      standing(i + 1, `Team ${i + 1}`, 30 - i * 2, 10, 20 - i, 10 + i, i + 1)
     );
 
-    // Un solo pendiente: no cambia mucho la tabla.
-    const fixtures = [
-      pendingFixture(100, 9, 10, "Team 9", "Team 10"),
-    ];
-
-    let seed = 1;
-    const rng = () => {
-      seed = (seed * 16807) % 2147483647;
-      return (seed - 1) / 2147483646;
-    };
+    const fixtures = [pendingFixture(100, 9, 10, "Team 9", "Team 10")];
 
     const rows = simulateBetPlayPhaseProbabilities({
       standings,
       fixtures,
       simulations: 80,
-      rng,
+      rng: seededRng(1),
     });
 
     assert.equal(rows.length, 10);
     const sumQuad = rows.reduce((s, r) => s + r.probCuadrangulares, 0);
     const sumChamp = rows.reduce((s, r) => s + r.probChampion, 0);
-    // 8 clasifican → suma de probs ≈ 8
     assert.ok(sumQuad > 7.5 && sumQuad < 8.5, `sumQuad=${sumQuad}`);
     assert.ok(sumChamp > 0.9 && sumChamp < 1.1, `sumChamp=${sumChamp}`);
 
-    // Favorito (1º) debe tener mayor chance de título que el último
     const first = rows.find((r) => r.teamId === 1)!;
     const last = rows.find((r) => r.teamId === 10)!;
     assert.ok(first.probChampion >= last.probChampion);
     assert.ok(first.probCuadrangulares >= 0.9);
 
-    // Ordenados por campeón desc
+    // Ordenados por cuadrangulares desc
     for (let i = 1; i < rows.length; i++) {
-      assert.ok(rows[i - 1].probChampion >= rows[i].probChampion - 1e-9);
+      assert.ok(
+        rows[i - 1].probCuadrangulares >= rows[i].probCuadrangulares - 1e-9
+      );
     }
+  });
+
+  it("temprano (1 jornada + muchos pendientes): nadie en 0% ni favorito al 100%", () => {
+    const teamCount = 12;
+    const standings: StandingTeam[] = Array.from({ length: teamCount }, (_, i) =>
+      standing(
+        i + 1,
+        `Team ${i + 1}`,
+        i === 0 ? 3 : 0,
+        1,
+        i === 0 ? 2 : 0,
+        i === 0 ? 0 : 1,
+        i + 1
+      )
+    );
+    const fixtures = fullPendingRoundRobin(teamCount);
+
+    const rows = simulateBetPlayPhaseProbabilities({
+      standings,
+      fixtures,
+      simulations: 120,
+      rng: seededRng(42),
+    });
+
+    assert.equal(rows.length, teamCount);
+    for (const r of rows) {
+      assert.equal(r.mathematicallyEliminated, false);
+      assert.ok(
+        r.probCuadrangulares > 0,
+        `team ${r.teamId} quad=${r.probCuadrangulares}`
+      );
+      assert.ok(
+        r.probCuadrangulares < 1,
+        `team ${r.teamId} should not be 100% early`
+      );
+    }
+
+    const top = rows[0];
+    assert.ok(top.probCuadrangulares < 0.95, `top quad=${top.probCuadrangulares}`);
+  });
+
+  it("late season eliminado puede quedar en 0%", () => {
+    // 8 equipos con 40 pts, 2 con 0 y sin partidos restantes
+    const standings: StandingTeam[] = Array.from({ length: 10 }, (_, i) =>
+      standing(
+        i + 1,
+        `Team ${i + 1}`,
+        i < 8 ? 40 : 0,
+        20,
+        30,
+        10,
+        i + 1
+      )
+    );
+
+    const rows = simulateBetPlayPhaseProbabilities({
+      standings,
+      fixtures: [],
+      simulations: 40,
+      rng: seededRng(7),
+    });
+
+    const last = rows.find((r) => r.teamId === 10)!;
+    assert.equal(last.mathematicallyEliminated, true);
+    assert.equal(last.probCuadrangulares, 0);
+    assert.equal(formatBetPlayPct(0, { mathematicallyEliminated: true }), "0.0%");
+  });
+
+  it("historial no altera puntos del torneo (maxPlayed = tabla actual)", () => {
+    const standings: StandingTeam[] = Array.from({ length: 10 }, (_, i) =>
+      standing(
+        i + 1,
+        `Team ${i + 1}`,
+        i === 0 ? 3 : 0,
+        1,
+        i === 0 ? 1 : 0,
+        i === 0 ? 0 : 1,
+        i + 1
+      )
+    );
+    const tournament = [pendingFixture(100, 9, 10, "Team 9", "Team 10")];
+    // Muchos FT de Apertura: no deben contar como jornadas del torneo actual.
+    const history = [
+      ...tournament,
+      ...Array.from({ length: 20 }, (_, i) =>
+        finishedFixture(
+          200 + i,
+          (i % 10) + 1,
+          ((i + 1) % 10) + 1,
+          `Team ${(i % 10) + 1}`,
+          `Team ${((i + 1) % 10) + 1}`,
+          1,
+          0,
+          "Apertura - 5"
+        )
+      ),
+    ];
+
+    const { meta } = simulateBetPlayPhaseProbabilitiesDetailed({
+      standings,
+      fixtures: tournament,
+      historyFixtures: history,
+      simulations: 20,
+      rng: seededRng(3),
+    });
+
+    assert.equal(meta.maxPlayed, 1);
+    assert.ok(meta.historyFixtureCount >= 20);
+    assert.equal(meta.pendingCount, 1);
   });
 
   it("sin standings retorna vacío", () => {
@@ -241,5 +452,16 @@ describe("simulateBetPlayPhaseProbabilities", () => {
       simulations: 10,
     });
     assert.equal(rows.length, 0);
+  });
+
+  it("remainingMatchesByTeam cuenta pendientes", () => {
+    const fixtures = [
+      pendingFixture(1, 1, 2, "A", "B"),
+      pendingFixture(2, 1, 3, "A", "C"),
+    ];
+    const rem = remainingMatchesByTeam(fixtures, [1, 2, 3]);
+    assert.equal(rem.get(1), 2);
+    assert.equal(rem.get(2), 1);
+    assert.equal(rem.get(3), 1);
   });
 });

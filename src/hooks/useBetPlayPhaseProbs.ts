@@ -14,11 +14,29 @@ import { isFixtureFinished } from "@/lib/liveRefresh";
 import type { Fixture, StandingTeam, StandingsGroup } from "@/types";
 import {
   BETPLAY_DEFAULT_SIMULATIONS,
-  simulateBetPlayPhaseProbabilities,
+  simulateBetPlayPhaseProbabilitiesDetailed,
   type BetPlayPhaseProbs,
+  type BetPlaySimMeta,
 } from "@/utils/betPlaySeasonSimulation";
 
 const BETPLAY_SLUG = "liga-betplay";
+
+const EMPTY_META: BetPlaySimMeta = {
+  maxPlayed: 0,
+  pendingCount: 0,
+  simulations: BETPLAY_DEFAULT_SIMULATIONS,
+  strengthWeight: 0,
+  historyFixtureCount: 0,
+};
+
+/**
+ * Torneo cuyas probs se estiman.
+ * "all" → Clausura (2026-2) mientras ese sea el torneo vigente.
+ * Apertura solo se usa como historial H2H/forma, no como tabla de puntos.
+ */
+export function resolveBetPlayTournamentPhase(phase: LeaguePhase): "apertura" | "clausura" {
+  return phase === "apertura" ? "apertura" : "clausura";
+}
 
 function flattenStandings(standingsRaw: StandingsGroup[]): StandingTeam[] {
   const byId = new Map<number, StandingTeam>();
@@ -35,30 +53,37 @@ function flattenStandings(standingsRaw: StandingsGroup[]): StandingTeam[] {
   return [...byId.values()];
 }
 
+/** Tabla del torneo actual (fase); no mezcla grupos de otra fase. */
 function pickRegularSeasonTable(
   standingsRaw: StandingsGroup[],
-  phase: LeaguePhase,
-  league: AmericasLeague,
-  supportsPhaseFilter: boolean
+  tournamentPhase: "apertura" | "clausura",
+  league: AmericasLeague
 ): StandingTeam[] {
   const tables: StandingTeam[][] = [];
   for (const sg of standingsRaw) {
     for (const group of sg.league.standings) {
       if (!group.length) continue;
       const groupLabel = group[0]?.group ?? "";
-      if (supportsPhaseFilter && phase !== "all") {
-        const matches =
-          matchesLeaguePhase(groupLabel, league, phase) ||
-          group.some((r) => matchesLeaguePhase(r.group, league, phase));
-        if (!matches && group.length < 10) continue;
-        if (matches || group.length >= 10) tables.push(group);
-      } else {
-        tables.push(group);
-      }
+      const matches =
+        matchesLeaguePhase(groupLabel, league, tournamentPhase) ||
+        group.some((r) => matchesLeaguePhase(r.group, league, tournamentPhase));
+      if (matches) tables.push(group);
     }
   }
 
-  if (tables.length === 0) return flattenStandings(standingsRaw);
+  if (tables.length === 0) {
+    // Fallback: grupo más grande (API a veces no etiqueta la fase).
+    const all: StandingTeam[][] = [];
+    for (const sg of standingsRaw) {
+      for (const group of sg.league.standings) {
+        if (group.length) all.push(group);
+      }
+    }
+    if (all.length === 0) return flattenStandings(standingsRaw);
+    all.sort((a, b) => b.length - a.length);
+    return all[0];
+  }
+
   tables.sort((a, b) => b.length - a.length);
   return tables[0];
 }
@@ -74,30 +99,50 @@ function fixturesScoreSignature(fixtures: Fixture[]): string {
     .join("|");
 }
 
+function isPendingFixture(f: Fixture): boolean {
+  const s = f.fixture.status.short;
+  return s === "NS" || s === "PST" || s === "TBD";
+}
+
 export function useBetPlayPhaseProbs() {
-  const { league, phase, supportsPhaseFilter } = useActiveLeague();
+  const { league, phase } = useActiveLeague();
   const enabled = league.slug === BETPLAY_SLUG;
+  const tournamentPhase = resolveBetPlayTournamentPhase(phase);
 
   const { data: standingsRaw = [], isLoading: loadingStandings } = useStandings();
-  const { data: fixturesAll = [], isLoading: loadingFixtures } = useFixtures();
+  // Temporada completa (Apertura + Clausura) para historial H2H/forma.
+  const { data: seasonFixtures = [], isLoading: loadingFixtures } = useFixtures({
+    applyPhaseFilter: false,
+  });
 
   const standings = useMemo(
     () =>
-      enabled
-        ? pickRegularSeasonTable(standingsRaw, phase, league, supportsPhaseFilter)
-        : [],
-    [enabled, standingsRaw, phase, league, supportsPhaseFilter]
+      enabled ? pickRegularSeasonTable(standingsRaw, tournamentPhase, league) : [],
+    [enabled, standingsRaw, tournamentPhase, league]
   );
 
-  const fixtures = useMemo(() => {
+  /** Solo torneo actual: pendientes a simular + resultados de esta fase. */
+  const tournamentFixtures = useMemo(() => {
     if (!enabled) return [];
-    if (!supportsPhaseFilter || phase === "all") return fixturesAll;
-    return fixturesAll.filter((f) =>
-      matchesLeaguePhase(f.league.round, league, phase)
+    return seasonFixtures.filter((f) =>
+      matchesLeaguePhase(f.league.round, league, tournamentPhase)
     );
-  }, [enabled, fixturesAll, supportsPhaseFilter, phase, league]);
+  }, [enabled, seasonFixtures, league, tournamentPhase]);
 
-  const scoreSig = useMemo(() => fixturesScoreSignature(fixtures), [fixtures]);
+  /** Historial de temporada para H2H/forma (no suma puntos a la tabla). */
+  const historyFixtures = useMemo(
+    () => (enabled ? seasonFixtures : []),
+    [enabled, seasonFixtures]
+  );
+
+  const scoreSig = useMemo(
+    () => fixturesScoreSignature(tournamentFixtures),
+    [tournamentFixtures]
+  );
+  const historySig = useMemo(
+    () => fixturesScoreSignature(historyFixtures),
+    [historyFixtures]
+  );
   const standingsSig = useMemo(
     () =>
       standings
@@ -107,8 +152,24 @@ export function useBetPlayPhaseProbs() {
     [standings]
   );
 
+  const pendingCountPreview = useMemo(
+    () =>
+      tournamentFixtures.filter(
+        (f) =>
+          isPendingFixture(f) &&
+          standings.some((s) => s.team.id === f.teams.home.id) &&
+          standings.some((s) => s.team.id === f.teams.away.id)
+      ).length,
+    [tournamentFixtures, standings]
+  );
+
+  const maxPlayedPreview = useMemo(
+    () => (standings.length ? Math.max(...standings.map((s) => s.all.played)) : 0),
+    [standings]
+  );
+
   const {
-    data: probs = [],
+    data,
     isLoading: loadingProbs,
     isFetching,
   } = useQuery({
@@ -116,31 +177,42 @@ export function useBetPlayPhaseProbs() {
       "betPlayPhaseProbs",
       league.id,
       league.defaultSeason,
-      phase,
+      tournamentPhase,
       standingsSig,
       scoreSig,
+      historySig,
       BETPLAY_DEFAULT_SIMULATIONS,
     ],
-    queryFn: (): BetPlayPhaseProbs[] =>
-      simulateBetPlayPhaseProbabilities({
+    queryFn: () =>
+      simulateBetPlayPhaseProbabilitiesDetailed({
         standings,
-        fixtures,
+        fixtures: tournamentFixtures,
+        historyFixtures,
         simulations: BETPLAY_DEFAULT_SIMULATIONS,
       }),
     enabled: enabled && standings.length >= 8,
     staleTime: CACHE_TTL_MS,
   });
 
+  const probs: BetPlayPhaseProbs[] = data?.rows ?? [];
+  const meta: BetPlaySimMeta = data?.meta ?? {
+    ...EMPTY_META,
+    maxPlayed: maxPlayedPreview,
+    pendingCount: pendingCountPreview,
+    historyFixtureCount: historyFixtures.length,
+  };
+
   return {
     enabled,
     probs,
+    meta,
     isLoading:
       enabled &&
       (loadingStandings ||
         loadingFixtures ||
         (loadingProbs && probs.length === 0)),
     isFetching: enabled && isFetching,
-    phase,
+    phase: tournamentPhase,
     teamCount: standings.length,
   };
 }

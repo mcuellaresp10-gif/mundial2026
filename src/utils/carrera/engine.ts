@@ -1390,7 +1390,7 @@ export function avanzarAnio(
   const rng = opts.rng ?? Math.random;
   if (estado.retirado) return estado;
 
-  let jugador = {
+  const jugador = {
     ...estado.jugador,
     edad: estado.jugador.edad + 1,
     atributos: declivePorEdad(estado.jugador.atributos, estado.jugador.edad + 1),

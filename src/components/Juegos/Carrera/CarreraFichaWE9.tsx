@@ -131,6 +131,8 @@ export interface CarreraFichaWE9Props {
   ligaNombre?: string;
   /** Deltas del periodo (resultado). */
   deltas?: Partial<Record<keyof Atributos, number>>;
+  /** Padding más corto en el header. */
+  compact?: boolean;
   /** Etiqueta pequeña en la barra del club (ej. Prime). */
   badge?: string;
   className?: string;

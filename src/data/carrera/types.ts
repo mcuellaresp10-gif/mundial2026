@@ -21,6 +21,9 @@ export type CategoriaEvento = "generico" | "colombia_especifico";
 
 export type NivelSeleccion = "sub20" | "sub23" | "mayor";
 
+/** Sesgo de rendimiento en la fecha FIFA (decisiones de Selección). */
+export type RendimientoSeleccionBias = "figura" | "correcto" | "gris";
+
 export type MotivoRetiro = "edad" | "lesion_grave" | "mala_racha" | "voluntario";
 
 export interface Atributos {
@@ -56,6 +59,10 @@ export interface Jugador {
   clubActualId: string;
   ligaActualId: string;
   convocatoriaSeleccion: NivelSeleccion | null;
+  /** Partidos con Selección Colombia (todas las categorías). */
+  capsSeleccion: number;
+  golesSeleccion: number;
+  asistenciasSeleccion: number;
   /** false mientras está en cantera/juveniles; true tras el ascenso a Primera. */
   esProfesional: boolean;
   /** Edad en la que debutó en el plantel profesional (si aplica). */
@@ -110,6 +117,8 @@ export interface EfectosDecision {
   forzarLesion?: "leve" | "grave";
   /** Pide salida: no muda ya, pero empuja oferta al cierre del periodo. */
   buscarSalida?: boolean;
+  /** Sesga PJ/nota en la fase Selección del periodo. */
+  rendimientoSeleccion?: RendimientoSeleccionBias;
 }
 
 export interface OpcionEvento {
@@ -170,6 +179,15 @@ export interface PartidoClave {
   nota: string;
 }
 
+/** Rendimiento en la fecha FIFA / ciclo de Selección del periodo. */
+export interface ResultadoSeleccionPeriodo {
+  nivel: NivelSeleccion;
+  partidos: number;
+  goles: number;
+  asistencias: number;
+  nota: string;
+}
+
 export interface ResultadoTemporada {
   /** Edad al inicio del periodo (primer año). */
   edadInicio: number;
@@ -195,6 +213,8 @@ export interface ResultadoTemporada {
   resumenAnio: string;
   convocatoriaSeleccion: NivelSeleccion | null;
   narrativaSeleccion: string | null;
+  /** Stats de la fase Selección en este periodo (si hubo convocatoria). */
+  seleccion: ResultadoSeleccionPeriodo | null;
   ofertaTransferencia: OfertaTransferencia | null;
   aceptoTransferencia: boolean;
   lesion: Lesion | null;
@@ -272,12 +292,20 @@ export interface EstadoCarrera {
   motivoRetiro: MotivoRetiro | null;
   /** Oferta pendiente de aceptar/rechazar en la pantalla de resultado. */
   ofertaPendiente: OfertaTransferencia | null;
-  /** Eventos de la temporada en curso (antes de resolver). */
+  /** Eventos de la temporada en curso (club o selección según fase). */
   eventosPendientes: EventoDecision[];
+  /**
+   * Eventos de club del periodo, guardados al pasar a fase Selección
+   * (para snapshot al cerrar). Vacío si no hubo fase Selección.
+   */
+  eventosClubDelPeriodo: EventoDecision[];
+  /** Nivel peekeado al entrar a fase Selección (para UI / simulación). */
+  nivelSeleccionPeek: NivelSeleccion | null;
   decisionesTemporada: { eventoId: string; opcionIndex: number }[];
   fase:
     | "creacion"
     | "temporada_eventos"
+    | "seleccion_eventos"
     | "temporada_resultado"
     | "retiro";
 }

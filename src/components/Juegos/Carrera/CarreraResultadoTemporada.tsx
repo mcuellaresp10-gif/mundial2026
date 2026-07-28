@@ -9,6 +9,7 @@ import { getClubById, getLigaById } from "@/data/carrera/clubes";
 import type { Atributos, EstadoCarrera } from "@/data/carrera/types";
 import { cn } from "@/lib/utils";
 import { CarreraFichaWE9, POSICION_CODE, we9StatTone } from "./CarreraFichaWE9";
+import { CarreraVitrina } from "./CarreraVitrina";
 
 function DeltaMark({ delta }: { delta: number | undefined }) {
   if (delta == null || delta === 0) {
@@ -95,6 +96,7 @@ export function CarreraResultadoTemporada({
 }: Props) {
   const [cronicaOpen, setCronicaOpen] = useState(false);
   const [carreraOpen, setCarreraOpen] = useState(false);
+  const [vitrinaOpen, setVitrinaOpen] = useState(false);
 
   const last = estado.historialTemporadas[estado.historialTemporadas.length - 1];
   if (!last) return null;
@@ -168,22 +170,18 @@ export function CarreraResultadoTemporada({
   if (last.debutProfesional) {
     hechos.push(`Debut profesional · ${j.edadDebutProfesional ?? last.edad} años`);
   }
-  for (const t of last.titulos.slice(0, 2)) hechos.push(`Campeón · ${t}`);
-  for (const p of (last.premiosIndividuales ?? []).slice(0, 2)) {
-    hechos.push(`Premio · ${p}`);
-  }
-  if (last.convocatoriaSeleccion) {
+  if (last.seleccion) {
     const nivel =
-      last.convocatoriaSeleccion === "mayor"
-        ? "Selección mayor"
-        : last.convocatoriaSeleccion === "sub23"
+      last.seleccion.nivel === "mayor"
+        ? "Mayor"
+        : last.seleccion.nivel === "sub23"
           ? "Sub-23"
           : "Sub-20";
     hechos.push(
-      last.narrativaSeleccion?.includes("por tu decisión")
-        ? `Convocado · ${nivel}`
-        : (last.narrativaSeleccion?.slice(0, 100) ?? `Selección · ${nivel}`)
+      `Selección ${nivel} · ${last.seleccion.partidos} PJ · ${last.seleccion.goles} G`
     );
+  } else if (last.convocatoriaSeleccion) {
+    hechos.push(`Convocado · ${last.convocatoriaSeleccion}`);
   }
   if (last.lesion) {
     hechos.push(last.lesion.grave ? "Lesión grave · menos minutos" : "Lesión · menos minutos");
@@ -202,6 +200,9 @@ export function CarreraResultadoTemporada({
 
   const pk = last.partidoClave;
   const clubNombre = club?.nombre ?? "Tu club";
+  const titulosPeriodo = last.titulos ?? [];
+  const premiosPeriodo = last.premiosIndividuales ?? [];
+  const sel = last.seleccion;
 
   const fichaJugador = {
     ...j,
@@ -213,6 +214,9 @@ export function CarreraResultadoTemporada({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 animate-in fade-in">
+      {vitrinaOpen && (
+        <CarreraVitrina estado={estado} onCerrar={() => setVitrinaOpen(false)} />
+      )}
       {/* Marcador de periodo */}
       <Card>
         <CardHeader className="border-b border-border/50 pb-3">
@@ -267,10 +271,7 @@ export function CarreraResultadoTemporada({
             <StatBig label="PJ" value={last.partidosJugados} />
             <StatBig label="Goles" value={last.goles} />
             <StatBig label="Asist." value={last.asistencias} />
-            <StatBig
-              label="Títulos"
-              value={last.titulos.length + (last.premiosIndividuales?.length ?? 0)}
-            />
+            <StatBig label="Copas" value={titulosPeriodo.length} />
           </div>
 
           {pk && (
@@ -304,6 +305,51 @@ export function CarreraResultadoTemporada({
                 </li>
               ))}
             </ul>
+          )}
+
+          {(titulosPeriodo.length > 0 || premiosPeriodo.length > 0) && (
+            <div className="space-y-2 rounded-2xl border border-mundial-gold/30 bg-mundial-gold/5 px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-mundial-gold">
+                Copas y premios
+              </p>
+              {titulosPeriodo.length > 0 && (
+                <ul className="space-y-1 text-sm">
+                  {titulosPeriodo.map((t, i) => (
+                    <li key={`tit-${i}`}>Campeón · {t}</li>
+                  ))}
+                </ul>
+              )}
+              {premiosPeriodo.length > 0 && (
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {premiosPeriodo.map((p, i) => (
+                    <li key={`prem-${i}`}>Premio · {p}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {sel && (
+            <div className="space-y-2 rounded-2xl border border-[#ffcd00]/35 bg-[#ffcd00]/5 px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#c9a000]">
+                Selección Colombia ·{" "}
+                {sel.nivel === "mayor"
+                  ? "Mayor"
+                  : sel.nivel === "sub23"
+                    ? "Sub-23"
+                    : "Sub-20"}
+              </p>
+              <p className="text-sm tabular-nums">
+                <span className="font-semibold">{sel.partidos}</span> PJ ·{" "}
+                <span className="font-semibold">{sel.goles}</span> G ·{" "}
+                <span className="font-semibold">{sel.asistencias}</span> A
+              </p>
+              <p className="text-xs text-muted-foreground">{sel.nota}</p>
+              <p className="text-[11px] text-muted-foreground">
+                Carrera · {j.capsSeleccion} caps · {j.golesSeleccion} G ·{" "}
+                {j.asistenciasSeleccion} A
+              </p>
+            </div>
           )}
 
           {huboCambioClub && (
@@ -427,8 +473,26 @@ export function CarreraResultadoTemporada({
         )}
 
         {!oferta && (
-          <Button className="w-full" onClick={onContinuar}>
-            Siguiente periodo
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setVitrinaOpen(true)}
+            >
+              Ver vitrina
+            </Button>
+            <Button className="w-full flex-1" onClick={onContinuar}>
+              Siguiente periodo
+            </Button>
+          </div>
+        )}
+        {oferta && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setVitrinaOpen(true)}
+          >
+            Ver vitrina
           </Button>
         )}
       </div>

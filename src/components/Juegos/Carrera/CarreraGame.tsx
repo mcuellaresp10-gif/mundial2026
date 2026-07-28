@@ -27,6 +27,27 @@ export function CarreraGame() {
     );
   }
 
+  if (game.view === "seleccion" && game.eventoActual) {
+    const nivel = game.estado.nivelSeleccionPeek;
+    const nivelLabel =
+      nivel === "mayor"
+        ? "Selección mayor"
+        : nivel === "sub23"
+          ? "Sub-23"
+          : "Sub-20";
+    return (
+      <CarreraEventos
+        estado={game.estado}
+        evento={game.eventoActual}
+        eventoIndex={game.eventoIndex}
+        totalEventos={game.estado.eventosPendientes.length}
+        onElegir={game.elegirOpcion}
+        modoSeleccion
+        nivelSeleccion={nivelLabel}
+      />
+    );
+  }
+
   if (game.view === "resultado") {
     return (
       <CarreraResultadoTemporada

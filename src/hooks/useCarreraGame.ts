@@ -12,11 +12,13 @@ import {
   EDAD_RETIRO_OPCION,
   estadoInicial,
   iniciarPrimeraTemporada,
+  prepararFaseSeleccion,
 } from "@/utils/carrera/engine";
 
 export type CarreraView =
   | "setup"
   | "eventos"
+  | "seleccion"
   | "resultado"
   | "retiro_prompt"
   | "resumen";
@@ -51,7 +53,11 @@ export function useCarreraGame() {
   const elegirOpcion = useCallback(
     (opcionIndex: number) => {
       setEstado((prev) => {
-        if (!prev || prev.fase !== "temporada_eventos") return prev;
+        if (!prev) return prev;
+        const enClub = prev.fase === "temporada_eventos";
+        const enSelec = prev.fase === "seleccion_eventos";
+        if (!enClub && !enSelec) return prev;
+
         const ev = prev.eventosPendientes[eventoIndex];
         if (!ev) return prev;
 
@@ -66,10 +72,18 @@ export function useCarreraGame() {
           return { ...prev, decisionesTemporada: decisiones };
         }
 
-        const cerrado = cerrarTemporada({
-          ...prev,
-          decisionesTemporada: decisiones,
-        });
+        const conDecisiones = { ...prev, decisionesTemporada: decisiones };
+
+        if (enClub) {
+          const faseSel = prepararFaseSeleccion(conDecisiones);
+          if (faseSel) {
+            setEventoIndex(0);
+            setView("seleccion");
+            return faseSel;
+          }
+        }
+
+        const cerrado = cerrarTemporada(conDecisiones);
         setEventoIndex(0);
         if (cerrado.retirado) {
           setView("resumen");
@@ -86,51 +100,54 @@ export function useCarreraGame() {
     setEstado((prev) => (prev ? aceptarOferta(prev, aceptar) : prev));
   }, []);
 
-  const continuarSiguienteAnio = useCallback((retirarse = false) => {
-    setEstado((prev) => {
-      if (!prev) return prev;
+  const continuarSiguienteAnio = useCallback(
+    (retirarse = false) => {
+      setEstado((prev) => {
+        if (!prev) return prev;
 
-      if (retirarse) {
-        const done = {
-          ...prev,
-          retirado: true,
-          motivoRetiro: "voluntario" as const,
-          fase: "retiro" as const,
-          ofertaPendiente: null,
-        };
-        setView("resumen");
+        if (retirarse) {
+          const done = {
+            ...prev,
+            retirado: true,
+            motivoRetiro: "voluntario" as const,
+            fase: "retiro" as const,
+            ofertaPendiente: null,
+          };
+          setView("resumen");
+          setShowRetiroPrompt(false);
+          return done;
+        }
+
+        const edadSiguiente = prev.jugador.edad + 1;
+        const last = prev.historialTemporadas[prev.historialTemporadas.length - 1];
+        const enDeclive = last != null && last.rendimientoPromedio < 0.55;
+
+        if (
+          !showRetiroPrompt &&
+          edadSiguiente >= EDAD_RETIRO_OPCION &&
+          edadSiguiente < EDAD_RETIRO_FORZADO &&
+          enDeclive
+        ) {
+          setShowRetiroPrompt(true);
+          setView("retiro_prompt");
+          return prev;
+        }
+
+        const next = avanzarAnio(prev, {
+          forzarRetiro: edadSiguiente >= EDAD_RETIRO_FORZADO,
+        });
         setShowRetiroPrompt(false);
-        return done;
-      }
-
-      const edadSiguiente = prev.jugador.edad + 1;
-      const last = prev.historialTemporadas[prev.historialTemporadas.length - 1];
-      const enDeclive = last != null && last.rendimientoPromedio < 0.55;
-
-      if (
-        !showRetiroPrompt &&
-        edadSiguiente >= EDAD_RETIRO_OPCION &&
-        edadSiguiente < EDAD_RETIRO_FORZADO &&
-        enDeclive
-      ) {
-        setShowRetiroPrompt(true);
-        setView("retiro_prompt");
-        return prev;
-      }
-
-      const next = avanzarAnio(prev, {
-        forzarRetiro: edadSiguiente >= EDAD_RETIRO_FORZADO,
+        if (next.retirado) {
+          setView("resumen");
+        } else {
+          setView("eventos");
+          setEventoIndex(0);
+        }
+        return next;
       });
-      setShowRetiroPrompt(false);
-      if (next.retirado) {
-        setView("resumen");
-      } else {
-        setView("eventos");
-        setEventoIndex(0);
-      }
-      return next;
-    });
-  }, [showRetiroPrompt]);
+    },
+    [showRetiroPrompt]
+  );
 
   const eventoActual = estado?.eventosPendientes[eventoIndex] ?? null;
 

@@ -5,6 +5,7 @@ import {
   agruparTitulosPorClub,
   calcularPrimeCarrera,
   calcularRendimiento,
+  construirDatosVitrina,
   crearJugador,
   declivePorEdad,
   EDAD_INICIO,
@@ -16,8 +17,11 @@ import {
   iniciarPrimeraTemporada,
   estadoInicial,
   cerrarTemporada,
+  peekConvocatoria,
+  prepararFaseSeleccion,
   resolverDecisiones,
   resolverTransferenciaPorDestino,
+  simularRendimientoSeleccion,
   statsDesdeRendimiento,
   tramoDesdeEdad,
   RACHA_TRANSFERENCIA,
@@ -667,7 +671,253 @@ describe("cerrarTemporada", () => {
       estado.fase === "temporada_resultado" || estado.fase === "retiro"
     );
     assert.ok(periodo.rendimientoPromedio <= 1.2);
+    assert.ok("seleccion" in periodo);
     void UMBRAL_RENDIMIENTO_TRANSFERENCIA;
     void RACHA_TRANSFERENCIA;
+  });
+});
+
+describe("fase Selección", () => {
+  it("peek con convocatoria forzada detecta nivel", () => {
+    const j = crearJugador({
+      apellido: "Sel",
+      posicion: "extremo",
+      piernaHabil: "izquierda",
+      nacionalidad: "Colombia",
+      clubOrigenId: "junior",
+    });
+    const evento = {
+      id: "ev-force-sel",
+      tramoCarrera: "prime" as const,
+      categoria: "colombia_especifico" as const,
+      texto: "Fecha FIFA",
+      opciones: [
+        {
+          texto: "Ir a la Selección",
+          efectos: { convocatoria: "mayor" as const, moral: 2 },
+        },
+      ],
+    };
+    const estado = {
+      ...estadoInicial({ ...j, edad: 24, esProfesional: true }),
+      eventosPendientes: [evento],
+      decisionesTemporada: [{ eventoId: evento.id, opcionIndex: 0 }],
+    };
+    const peek = peekConvocatoria(estado, () => 0.5);
+    assert.equal(peek.nivel, "mayor");
+    assert.equal(peek.forzada, true);
+  });
+
+  it("prepararFaseSeleccion carga dilemas si hay convocatoria", () => {
+    const j = crearJugador({
+      apellido: "Sel",
+      posicion: "delantero",
+      piernaHabil: "derecha",
+      nacionalidad: "Colombia",
+      clubOrigenId: "millonarios",
+    });
+    const evento = {
+      id: "ev-force-sel-2",
+      tramoCarrera: "consolidacion" as const,
+      categoria: "colombia_especifico" as const,
+      texto: "Sub-20",
+      opciones: [
+        {
+          texto: "Ir a la Selección",
+          efectos: { convocatoria: "sub20" as const },
+        },
+      ],
+    };
+    const base = {
+      ...estadoInicial({ ...j, edad: 18 }),
+      eventosPendientes: [evento],
+      decisionesTemporada: [{ eventoId: evento.id, opcionIndex: 0 }],
+      fase: "temporada_eventos" as const,
+    };
+    const fase = prepararFaseSeleccion(base, () => 0.2);
+    assert.ok(fase);
+    assert.equal(fase!.fase, "seleccion_eventos");
+    assert.equal(fase!.nivelSeleccionPeek, "sub20");
+    assert.ok(fase!.eventosPendientes.length >= 1);
+    assert.equal(fase!.eventosClubDelPeriodo.length, 1);
+  });
+
+  it("sin convocatoria y rendimiento flojo no abre fase", () => {
+    const j = crearJugador({
+      apellido: "No",
+      posicion: "arquero",
+      piernaHabil: "derecha",
+      nacionalidad: "Colombia",
+      clubOrigenId: "santa-fe",
+    });
+    const evento = {
+      id: "ev-nada",
+      tramoCarrera: "cantera" as const,
+      categoria: "generico" as const,
+      texto: "Gym",
+      opciones: [{ texto: "Descansar", efectos: { moral: 1 } }],
+    };
+    const base = {
+      ...estadoInicial({
+        ...j,
+        edad: 16,
+        reputacion: -20,
+        atributos: { ...j.atributos, fisico: 30, ritmo: 30 },
+      }),
+      eventosPendientes: [evento],
+      decisionesTemporada: [{ eventoId: evento.id, opcionIndex: 0 }],
+    };
+    const peek = peekConvocatoria(base, () => 0.99);
+    assert.equal(peek.nivel, null);
+    assert.equal(prepararFaseSeleccion(base, () => 0.99), null);
+  });
+
+  it("simularRendimientoSeleccion produce stats en banda", () => {
+    const r = simularRendimientoSeleccion({
+      nivel: "mayor",
+      edad: 26,
+      posicion: "delantero",
+      atributos: { ...ATRIBUTOS_INICIALES.delantero, tiro: 80, ritmo: 78 },
+      bias: "figura",
+      lesionGrave: false,
+      rng: () => 0.3,
+    });
+    assert.ok(r.partidos >= 1 && r.partidos <= 4);
+    assert.ok(r.goles >= 0);
+    assert.ok(r.nota.length > 0);
+  });
+
+  it("cerrar tras fase Selección escribe seleccion y acumula caps", () => {
+    const j = crearJugador({
+      apellido: "Caps",
+      posicion: "extremo",
+      piernaHabil: "izquierda",
+      nacionalidad: "Colombia",
+      clubOrigenId: "junior",
+    });
+    const clubEv = {
+      id: "club-force",
+      tramoCarrera: "prime" as const,
+      categoria: "colombia_especifico" as const,
+      texto: "Convocatoria",
+      opciones: [
+        {
+          texto: "Ir a la Selección",
+          efectos: { convocatoria: "mayor" as const, moral: 3 },
+        },
+      ],
+    };
+    const selEv = {
+      id: "sel-test-figura",
+      tramoCarrera: "prime" as const,
+      categoria: "colombia_especifico" as const,
+      etiqueta: "Selección",
+      texto: "Fecha FIFA",
+      opciones: [
+        {
+          texto: "Buscar ser figura",
+          efectos: { rendimientoSeleccion: "figura" as const, moral: 2 },
+        },
+      ],
+    };
+    const estado = cerrarTemporada(
+      {
+        ...estadoInicial({
+          ...j,
+          edad: 25,
+          esProfesional: true,
+          reputacion: 40,
+        }),
+        eventosClubDelPeriodo: [clubEv],
+        eventosPendientes: [selEv],
+        nivelSeleccionPeek: "mayor",
+        decisionesTemporada: [
+          { eventoId: clubEv.id, opcionIndex: 0 },
+          { eventoId: selEv.id, opcionIndex: 0 },
+        ],
+        fase: "seleccion_eventos",
+      },
+      () => 0.4
+    );
+    const last = estado.historialTemporadas[0]!;
+    assert.ok(last.seleccion);
+    assert.equal(last.seleccion!.nivel, "mayor");
+    assert.ok(last.seleccion!.partidos >= 1);
+    assert.ok(estado.jugador.capsSeleccion >= last.seleccion!.partidos);
+  });
+});
+
+describe("construirDatosVitrina", () => {
+  it("agrega títulos, premios y caps", () => {
+    const j = crearJugador({
+      apellido: "Vit",
+      posicion: "mediocampista",
+      piernaHabil: "derecha",
+      nacionalidad: "Colombia",
+      clubOrigenId: "millonarios",
+    });
+    const estado = estadoInicial({
+      ...j,
+      capsSeleccion: 8,
+      golesSeleccion: 2,
+      asistenciasSeleccion: 1,
+    });
+    estado.historialTemporadas = [
+      {
+        edadInicio: 22,
+        edad: 23,
+        clubId: "millonarios",
+        ligaId: "liga-betplay",
+        partidosJugados: 40,
+        goles: 5,
+        asistencias: 8,
+        titulos: ["Título de liga"],
+        premiosIndividuales: ["MVP de la liga"],
+        cantera: {
+          partidos: 0,
+          goles: 0,
+          asistencias: 0,
+          titulos: [],
+          premiosIndividuales: [],
+        },
+        profesional: {
+          partidos: 40,
+          goles: 5,
+          asistencias: 8,
+          titulos: ["Título de liga"],
+          premiosIndividuales: ["MVP de la liga"],
+        },
+        partidoClave: null,
+        rendimientoPromedio: 0.7,
+        eventosResolvidos: [],
+        resumenAnio: "x",
+        convocatoriaSeleccion: "mayor",
+        narrativaSeleccion: "ok",
+        seleccion: {
+          nivel: "mayor",
+          partidos: 3,
+          goles: 1,
+          asistencias: 0,
+          nota: "Fuiste figura con la tricolor.",
+        },
+        ofertaTransferencia: null,
+        aceptoTransferencia: false,
+        lesion: null,
+        notas: [],
+        atributos: { ...j.atributos },
+        deltasAtributos: {},
+        reputacion: 30,
+        moral: 20,
+        deltaReputacion: 0,
+        deltaMoral: 0,
+        debutProfesional: false,
+      },
+    ];
+    const v = construirDatosVitrina(estado);
+    assert.equal(v.titulosPorClub.length, 1);
+    assert.equal(v.premios.length, 1);
+    assert.equal(v.capsSeleccion, 8);
+    assert.ok(v.primeraConvocatoria);
+    assert.match(v.primeraConvocatoria!.nota, /figura/);
   });
 });

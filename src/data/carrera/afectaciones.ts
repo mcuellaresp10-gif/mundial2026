@@ -35,6 +35,13 @@ export function formatImpactos(efectos: EfectosDecision): string[] {
   if (efectos.buscarSalida) {
     bits.push("busca salida");
   }
+  if (efectos.rendimientoSeleccion === "figura") {
+    bits.push("figura Selección");
+  } else if (efectos.rendimientoSeleccion === "gris") {
+    bits.push("bajo impacto Selección");
+  } else if (efectos.rendimientoSeleccion === "correcto") {
+    bits.push("aporte Selección");
+  }
   if (efectos.convocatoria) {
     bits.push(
       efectos.convocatoria === "mayor"

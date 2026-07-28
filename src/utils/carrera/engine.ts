@@ -8,6 +8,7 @@ import {
   getLigaById,
 } from "@/data/carrera/clubes";
 import { getEventosByTramo } from "@/data/carrera/eventos";
+import { seleccionarEventosSeleccion } from "@/data/carrera/eventosSeleccion";
 import type {
   Atributos,
   ComparacionEstilo,
@@ -25,6 +26,8 @@ import type {
   PartidoClave,
   Posicion,
   PrimeCarrera,
+  RendimientoSeleccionBias,
+  ResultadoSeleccionPeriodo,
   ResultadoTemporada,
   ResumenCarrera,
   StatsEtapaCarrera,
@@ -138,6 +141,9 @@ export function crearJugador(input: CrearJugadorInput): Jugador {
     clubActualId: input.clubOrigenId,
     ligaActualId: club.ligaId,
     convocatoriaSeleccion: null,
+    capsSeleccion: 0,
+    golesSeleccion: 0,
+    asistenciasSeleccion: 0,
     esProfesional: false,
     edadDebutProfesional: null,
   };
@@ -154,6 +160,8 @@ export function estadoInicial(jugador: Jugador): EstadoCarrera {
     motivoRetiro: null,
     ofertaPendiente: null,
     eventosPendientes: [],
+    eventosClubDelPeriodo: [],
+    nivelSeleccionPeek: null,
     decisionesTemporada: [],
     fase: "temporada_eventos",
   };
@@ -321,6 +329,156 @@ export function evaluarConvocatoria(
   }
 
   return { nivel: actual, narrativa: null };
+}
+
+function labelNivelSeleccion(nivel: NivelSeleccion): string {
+  if (nivel === "mayor") return "Selección mayor";
+  if (nivel === "sub23") return "Sub-23";
+  return "Sub-20";
+}
+
+/**
+ * Estima convocatoria tras decisiones de club, sin cerrar el periodo.
+ * Usa edad de cierre del periodo y un rendimiento puntual post-decisiones.
+ */
+export function peekConvocatoria(
+  estado: EstadoCarrera,
+  rng: () => number = Math.random
+): {
+  nivel: NivelSeleccion | null;
+  narrativa: string | null;
+  forzada: boolean;
+} {
+  const eventosClub =
+    estado.eventosClubDelPeriodo.length > 0
+      ? estado.eventosClubDelPeriodo
+      : estado.eventosPendientes;
+  const resolved = resolverDecisiones(
+    estado.jugador,
+    estado.decisionesTemporada,
+    eventosClub,
+    rng
+  );
+  const edadPeek = Math.min(
+    estado.jugador.edad + ANIOS_POR_PERIODO - 1,
+    EDAD_RETIRO_FORZADO
+  );
+  if (resolved.convocatoriaForzada) {
+    return {
+      nivel: resolved.convocatoriaForzada,
+      narrativa: `Convocado a la ${labelNivelSeleccion(resolved.convocatoriaForzada)} por tu decisión.`,
+      forzada: true,
+    };
+  }
+  const rend = calcularRendimiento(
+    resolved.jugador.atributos,
+    resolved.jugador.posicion,
+    rng
+  );
+  const selec = evaluarConvocatoria(
+    edadPeek,
+    rend,
+    resolved.jugador.reputacion,
+    resolved.jugador.convocatoriaSeleccion
+  );
+  return { nivel: selec.nivel, narrativa: selec.narrativa, forzada: false };
+}
+
+/**
+ * Si hay convocatoria, pasa a fase Selección con 1–2 dilemas.
+ * Si no, el caller debe cerrar el periodo.
+ */
+export function prepararFaseSeleccion(
+  estado: EstadoCarrera,
+  rng: () => number = Math.random
+): EstadoCarrera | null {
+  const peek = peekConvocatoria(estado, rng);
+  if (!peek.nivel) return null;
+
+  const count = 1 + (rng() < 0.45 ? 1 : 0);
+  const eventosSel = seleccionarEventosSeleccion(
+    peek.nivel,
+    estado.eventosVistos,
+    count,
+    rng
+  );
+  if (eventosSel.length === 0) return null;
+
+  return {
+    ...estado,
+    eventosClubDelPeriodo: [...estado.eventosPendientes],
+    eventosPendientes: eventosSel,
+    nivelSeleccionPeek: peek.nivel,
+    fase: "seleccion_eventos",
+  };
+}
+
+/** Stats densas de la fecha FIFA según bias de decisiones. */
+export function simularRendimientoSeleccion(input: {
+  nivel: NivelSeleccion;
+  edad: number;
+  posicion: Posicion;
+  atributos: Atributos;
+  bias: RendimientoSeleccionBias | null;
+  lesionGrave: boolean;
+  rng?: () => number;
+}): ResultadoSeleccionPeriodo {
+  const rng = input.rng ?? Math.random;
+  const media = calcularMedia(input.atributos, input.posicion) / 100;
+  const bias = input.bias ?? "correcto";
+
+  let partidos = 2;
+  if (bias === "figura") partidos = 3 + (rng() < 0.4 ? 1 : 0);
+  else if (bias === "gris") partidos = 1 + (rng() < 0.35 ? 1 : 0);
+  else partidos = 2 + (rng() < 0.35 ? 1 : 0);
+
+  if (input.lesionGrave) partidos = Math.max(0, partidos - 2);
+  if (input.nivel === "mayor") partidos = Math.min(partidos, 4);
+  else partidos = Math.min(partidos, 5);
+
+  const ofensivo =
+    input.posicion === "delantero" ||
+    input.posicion === "extremo" ||
+    input.posicion === "mediocampista";
+
+  let goles = 0;
+  let asistencias = 0;
+  if (!input.lesionGrave && partidos > 0) {
+    const mult =
+      bias === "figura" ? 1.35 : bias === "gris" ? 0.45 : 0.85;
+    const chanceGol = (ofensivo ? 0.28 : 0.08) * media * mult;
+    const chanceAst = (ofensivo ? 0.22 : 0.12) * media * mult;
+    for (let i = 0; i < partidos; i++) {
+      if (rng() < chanceGol) goles += 1;
+      if (rng() < chanceAst) asistencias += 1;
+    }
+  }
+
+  let nota: string;
+  if (input.lesionGrave && partidos === 0) {
+    nota = "La lesión te sacó de la fecha FIFA.";
+  } else if (bias === "figura" && (goles > 0 || asistencias > 0)) {
+    nota = "Fuiste figura con la tricolor.";
+  } else if (bias === "figura") {
+    nota = "Gran aporte aunque no figuraste en el marcador.";
+  } else if (bias === "gris") {
+    nota =
+      partidos <= 1
+        ? "Casi no jugaste en la convocatoria."
+        : "Pasaste sin pena ni gloria.";
+  } else if (goles > 0) {
+    nota = "Aporte correcto y gol incluido.";
+  } else {
+    nota = "Cumpliste sin sobresalir.";
+  }
+
+  return {
+    nivel: input.nivel,
+    partidos,
+    goles,
+    asistencias,
+    nota,
+  };
 }
 
 function pickRandomClub(
@@ -904,6 +1062,7 @@ export function resolverDecisiones(
   transferenciaPorDecision: OfertaTransferencia | null;
   convocatoriaForzada: NivelSeleccion | null;
   buscarSalida: boolean;
+  biasSeleccion: RendimientoSeleccionBias | null;
 } {
   let attrs = { ...jugador.atributos };
   let reputacion = jugador.reputacion;
@@ -919,6 +1078,7 @@ export function resolverDecisiones(
   let convocatoriaForzada: NivelSeleccion | null = null;
   let buscarSalida = false;
   let forzarLesion: "leve" | "grave" | null = null;
+  let biasSeleccion: RendimientoSeleccionBias | null = null;
 
   for (const d of decisiones) {
     const ev = eventos.find((e) => e.id === d.eventoId);
@@ -944,6 +1104,10 @@ export function resolverDecisiones(
 
     if (op.efectos.forzarLesion) {
       forzarLesion = op.efectos.forzarLesion;
+    }
+
+    if (op.efectos.rendimientoSeleccion) {
+      biasSeleccion = op.efectos.rendimientoSeleccion;
     }
 
     if (op.efectos.transferencia) {
@@ -1032,6 +1196,7 @@ export function resolverDecisiones(
     transferenciaPorDecision,
     convocatoriaForzada,
     buscarSalida,
+    biasSeleccion,
   };
 }
 
@@ -1244,14 +1409,18 @@ export function cerrarTemporada(
   estado: EstadoCarrera,
   rng: () => number = Math.random
 ): EstadoCarrera {
-  const { jugador: j0, decisionesTemporada, eventosPendientes } = estado;
+  const { jugador: j0, decisionesTemporada } = estado;
+  const eventosTodos =
+    estado.eventosClubDelPeriodo.length > 0
+      ? [...estado.eventosClubDelPeriodo, ...estado.eventosPendientes]
+      : estado.eventosPendientes;
   const edadInicio = j0.edad;
   const edadFin = Math.min(edadInicio + ANIOS_POR_PERIODO - 1, EDAD_RETIRO_FORZADO);
   const attrsAntes: Atributos = { ...j0.atributos };
   const repAntes = j0.reputacion;
   const moralAntes = j0.moral;
 
-  const resolved = resolverDecisiones(j0, decisionesTemporada, eventosPendientes, rng);
+  const resolved = resolverDecisiones(j0, decisionesTemporada, eventosTodos, rng);
   let jugador = resolved.jugador;
   const lesionGrave = resolved.lesion?.grave === true;
   const notasExtra: string[] = [];
@@ -1448,17 +1617,56 @@ export function cerrarTemporada(
     jugador.reputacion,
     jugador.convocatoriaSeleccion
   );
-  if (resolved.convocatoriaForzada) {
-    const nivel = resolved.convocatoriaForzada;
-    const label =
-      nivel === "mayor" ? "Selección mayor" : nivel === "sub23" ? "Sub-23" : "Sub-20";
-    jugador = { ...jugador, convocatoriaSeleccion: nivel };
-    notasExtra.push(
-      `Por tu decisión quedaste en el radar de la ${label} de Colombia.`
-    );
+  const nivelSeleccionFinal =
+    estado.nivelSeleccionPeek ??
+    resolved.convocatoriaForzada ??
+    selec.nivel;
+  if (resolved.convocatoriaForzada || estado.nivelSeleccionPeek) {
+    const nivel = nivelSeleccionFinal;
+    if (nivel) {
+      jugador = { ...jugador, convocatoriaSeleccion: nivel };
+      notasExtra.push(
+        `Quedaste en el radar de la ${labelNivelSeleccion(nivel)} de Colombia.`
+      );
+    }
   } else {
     jugador = { ...jugador, convocatoriaSeleccion: selec.nivel };
     if (selec.narrativa) notasExtra.push(selec.narrativa);
+  }
+
+  let seleccionPeriodo: ResultadoSeleccionPeriodo | null = null;
+  if (nivelSeleccionFinal) {
+    seleccionPeriodo = simularRendimientoSeleccion({
+      nivel: nivelSeleccionFinal,
+      edad: jugador.edad,
+      posicion: jugador.posicion,
+      atributos: jugador.atributos,
+      bias: resolved.biasSeleccion,
+      lesionGrave,
+      rng,
+    });
+    jugador = {
+      ...jugador,
+      capsSeleccion: jugador.capsSeleccion + seleccionPeriodo.partidos,
+      golesSeleccion: jugador.golesSeleccion + seleccionPeriodo.goles,
+      asistenciasSeleccion:
+        jugador.asistenciasSeleccion + seleccionPeriodo.asistencias,
+    };
+    if (resolved.biasSeleccion === "figura") {
+      jugador = {
+        ...jugador,
+        reputacion: clipScore(jugador.reputacion + 4),
+        moral: clipScore(jugador.moral + 5),
+      };
+    } else if (resolved.biasSeleccion === "gris") {
+      jugador = {
+        ...jugador,
+        moral: clipScore(jugador.moral - 2),
+      };
+    }
+    notasExtra.push(
+      `Selección (${labelNivelSeleccion(nivelSeleccionFinal)}): ${seleccionPeriodo.partidos} PJ · ${seleccionPeriodo.goles} G · ${seleccionPeriodo.asistencias} A. ${seleccionPeriodo.nota}`
+    );
   }
 
   let rachaAlto = estado.rachaAltoRendimiento;
@@ -1504,7 +1712,7 @@ export function cerrarTemporada(
 
   const eventosResolvidos = snapshotDecisiones(
     decisionesTemporada,
-    eventosPendientes
+    eventosTodos
   );
   const clubTemporada = getClubById(j0.clubActualId);
   const liga = ligaTemporada ?? getLigaById(j0.ligaActualId);
@@ -1545,10 +1753,11 @@ export function cerrarTemporada(
     oferta,
   });
 
-  const nivelSeleccionFinal = resolved.convocatoriaForzada ?? selec.nivel;
-  const narrativaSeleccionFinal = resolved.convocatoriaForzada
-    ? `Convocado a la ${resolved.convocatoriaForzada === "mayor" ? "Selección mayor" : "Sub-20"} por tu decisión.`
-    : selec.narrativa;
+  const narrativaSeleccionFinal = seleccionPeriodo
+    ? `${seleccionPeriodo.nota} (${labelNivelSeleccion(seleccionPeriodo.nivel)})`
+    : resolved.convocatoriaForzada
+      ? `Convocado a la ${labelNivelSeleccion(resolved.convocatoriaForzada)} por tu decisión.`
+      : selec.narrativa;
 
   const resultado: ResultadoTemporada = {
     edadInicio,
@@ -1572,6 +1781,7 @@ export function cerrarTemporada(
     resumenAnio,
     convocatoriaSeleccion: nivelSeleccionFinal,
     narrativaSeleccion: narrativaSeleccionFinal,
+    seleccion: seleccionPeriodo,
     ofertaTransferencia: oferta,
     aceptoTransferencia: false,
     lesion: resolved.lesion,
@@ -1600,6 +1810,8 @@ export function cerrarTemporada(
       rachaBaja,
       ofertaPendiente: null,
       eventosPendientes: [],
+      eventosClubDelPeriodo: [],
+      nivelSeleccionPeek: null,
       decisionesTemporada: [],
       retirado: true,
       motivoRetiro: motivoAnticipado,
@@ -1616,6 +1828,8 @@ export function cerrarTemporada(
     rachaBaja,
     ofertaPendiente: oferta,
     eventosPendientes: [],
+    eventosClubDelPeriodo: [],
+    nivelSeleccionPeek: null,
     decisionesTemporada: [],
     fase: "temporada_resultado",
   };
@@ -1714,6 +1928,8 @@ export function avanzarAnio(
     jugador,
     eventosPendientes,
     decisionesTemporada: [],
+    eventosClubDelPeriodo: [],
+    nivelSeleccionPeek: null,
     ofertaPendiente: null,
     fase: "temporada_eventos",
   };
@@ -1733,6 +1949,8 @@ export function iniciarPrimeraTemporada(
     ...estado,
     eventosPendientes,
     decisionesTemporada: [],
+    eventosClubDelPeriodo: [],
+    nivelSeleccionPeek: null,
     fase: "temporada_eventos",
   };
 }
@@ -1881,3 +2099,57 @@ export function agruparTitulosPorClub(
     };
   });
 }
+
+export interface PremioVitrina {
+  nombre: string;
+  edadInicio: number;
+  edad: number;
+}
+
+export interface HighlightSeleccion {
+  edad: number;
+  nota: string;
+  nivel: NivelSeleccion;
+}
+
+/** Datos agregados para la vitrina de carrera (entre periodos / retiro). */
+export function construirDatosVitrina(estado: EstadoCarrera): {
+  titulosPorClub: TitulosPorClub[];
+  premios: PremioVitrina[];
+  capsSeleccion: number;
+  golesSeleccion: number;
+  asistenciasSeleccion: number;
+  highlightsSeleccion: HighlightSeleccion[];
+  primeraConvocatoria: HighlightSeleccion | null;
+} {
+  const historial = estado.historialTemporadas;
+  const premios: PremioVitrina[] = [];
+  const highlightsSeleccion: HighlightSeleccion[] = [];
+  let primeraConvocatoria: HighlightSeleccion | null = null;
+
+  for (const t of historial) {
+    for (const p of t.premiosIndividuales ?? []) {
+      premios.push({ nombre: p, edadInicio: t.edadInicio, edad: t.edad });
+    }
+    if (t.seleccion) {
+      const h: HighlightSeleccion = {
+        edad: t.edad,
+        nota: t.seleccion.nota,
+        nivel: t.seleccion.nivel,
+      };
+      highlightsSeleccion.push(h);
+      if (!primeraConvocatoria) primeraConvocatoria = h;
+    }
+  }
+
+  return {
+    titulosPorClub: agruparTitulosPorClub(historial),
+    premios,
+    capsSeleccion: estado.jugador.capsSeleccion,
+    golesSeleccion: estado.jugador.golesSeleccion,
+    asistenciasSeleccion: estado.jugador.asistenciasSeleccion,
+    highlightsSeleccion: highlightsSeleccion.slice(-5).reverse(),
+    primeraConvocatoria,
+  };
+}
+

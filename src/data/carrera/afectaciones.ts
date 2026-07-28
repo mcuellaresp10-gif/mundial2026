@@ -32,7 +32,23 @@ export function formatImpactos(efectos: EfectosDecision): string[] {
   if (efectos.transferencia) {
     bits.push("cambio de club");
   }
-  if ((efectos.riesgoLesion ?? 0) >= 0.1) {
+  if (efectos.buscarSalida) {
+    bits.push("busca salida");
+  }
+  if (efectos.convocatoria) {
+    bits.push(
+      efectos.convocatoria === "mayor"
+        ? "convocado mayor"
+        : efectos.convocatoria === "sub23"
+          ? "convocado Sub-23"
+          : "convocado Sub-20"
+    );
+  }
+  if (efectos.forzarLesion === "grave") {
+    bits.push("lesión grave");
+  } else if (efectos.forzarLesion === "leve") {
+    bits.push("lesión");
+  } else if ((efectos.riesgoLesion ?? 0) >= 0.1) {
     bits.push("+riesgo lesión");
   }
   if ((efectos.riesgoFinCarrera ?? 0) >= 0.08) {

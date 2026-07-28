@@ -155,6 +155,16 @@ export function CarreraResultadoTemporada({
   );
 
   const hechos: string[] = [];
+  const clubActual = getClubById(j.clubActualId);
+  const huboCambioClub =
+    Boolean(last.clubId) &&
+    j.clubActualId !== last.clubId &&
+    Boolean(clubActual);
+  if (huboCambioClub) {
+    hechos.push(
+      `Cambio de club · ${club?.nombre ?? "Club"} → ${clubActual!.nombre}`
+    );
+  }
   if (last.debutProfesional) {
     hechos.push(`Debut profesional · ${j.edadDebutProfesional ?? last.edad} años`);
   }
@@ -163,18 +173,32 @@ export function CarreraResultadoTemporada({
     hechos.push(`Premio · ${p}`);
   }
   if (last.convocatoriaSeleccion) {
+    const nivel =
+      last.convocatoriaSeleccion === "mayor"
+        ? "Selección mayor"
+        : last.convocatoriaSeleccion === "sub23"
+          ? "Sub-23"
+          : "Sub-20";
     hechos.push(
-      last.narrativaSeleccion?.slice(0, 100) ??
-        `Selección · ${last.convocatoriaSeleccion}`
+      last.narrativaSeleccion?.includes("por tu decisión")
+        ? `Convocado · ${nivel}`
+        : (last.narrativaSeleccion?.slice(0, 100) ?? `Selección · ${nivel}`)
     );
   }
   if (last.lesion) {
-    hechos.push(last.lesion.grave ? "Lesión grave · menos minutos" : "Lesión menor");
+    hechos.push(last.lesion.grave ? "Lesión grave · menos minutos" : "Lesión · menos minutos");
   }
+  const pedioSalida = last.eventosResolvidos.some((d) =>
+    /busca salida|cambio de club/i.test(d.afectacion)
+  );
   if (oferta) {
-    hechos.push(`Oferta · ${oferta.clubNombre}`);
+    hechos.push(
+      pedioSalida && (last.notas ?? []).some((n) => /pedir la salida/i.test(n))
+        ? `Oferta · ${oferta.clubNombre} (por pedir la salida)`
+        : `Oferta · ${oferta.clubNombre}`
+    );
   }
-  const hechosCortos = hechos.slice(0, 3);
+  const hechosCortos = hechos.slice(0, 4);
 
   const pk = last.partidoClave;
   const clubNombre = club?.nombre ?? "Tu club";
@@ -282,6 +306,12 @@ export function CarreraResultadoTemporada({
             </ul>
           )}
 
+          {huboCambioClub && (
+            <div className="rounded-lg border border-mundial-gold/40 bg-mundial-gold/10 px-3 py-2 text-sm font-medium">
+              Cambio de club · {club?.nombre ?? "Club"} → {clubActual!.nombre}
+            </div>
+          )}
+
           {last.debutProfesional && hechosCortos.every((h) => !h.includes("Debut")) && (
             <div className="rounded-lg border border-mundial-gold/40 bg-mundial-gold/10 px-3 py-2 text-sm font-medium">
               Ascenso a Primera · debut a los {j.edadDebutProfesional ?? last.edad}
@@ -314,6 +344,11 @@ export function CarreraResultadoTemporada({
                   · {oferta.ligaNombre}
                 </span>
               </p>
+              {(last.notas ?? []).some((n) => /pedir la salida/i.test(n)) && (
+                <p className="text-xs text-muted-foreground">
+                  Llegó tras pedir la salida en un momento del periodo.
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => onResolverOferta(true)}>Aceptar</Button>
                 <Button variant="outline" onClick={() => onResolverOferta(false)}>

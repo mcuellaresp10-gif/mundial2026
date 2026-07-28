@@ -60,8 +60,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"riesgoLesion":-0.1,"moral":-3,"atributos":{"fisico":1}},
     },
     {
-      texto: "Jugar igual",
-      efectos: {"riesgoLesion":0.2,"moral":4,"atributos":{"fisico":-2}},
+      texto: "Jugar lesionado",
+      efectos: {"forzarLesion":"leve","riesgoLesion":0.2,"moral":4,"atributos":{"fisico":-2}},
     },
     {
       texto: "Bajar minutos y cargar gym",
@@ -191,7 +191,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"reputacion":-4,"moral":-5},
+      efectos: {"buscarSalida":true,"reputacion":-4,"moral":-5},
     },
     ],
   },
@@ -204,7 +204,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Aceptar el préstamo",
-      efectos: {"moral":6,"reputacion":3,"atributos":{"ritmo":1,"tiro":1}},
+      efectos: {"transferencia":"mismo_nivel","moral":6,"reputacion":3,"atributos":{"ritmo":1,"tiro":1}},
     },
     {
       texto: "Pelear el puesto acá",
@@ -330,7 +330,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Operarte ya",
-      efectos: {"riesgoLesion":-0.15,"moral":-6,"atributos":{"fisico":-2},"riesgoFinCarrera":0.02},
+      efectos: {"forzarLesion":"grave","riesgoLesion":-0.15,"moral":-6,"atributos":{"fisico":-2},"riesgoFinCarrera":0.02},
     },
     {
       texto: "Tratamiento conservador",
@@ -338,7 +338,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Acelerar el retorno",
-      efectos: {"moral":5,"riesgoLesion":0.25,"atributos":{"ritmo":-1},"riesgoFinCarrera":0.05},
+      efectos: {"moral":5,"forzarLesion":"leve","riesgoLesion":0.25,"atributos":{"ritmo":-1},"riesgoFinCarrera":0.05},
     },
     ],
   },
@@ -350,8 +350,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Te convocan a la Selección, pero el club duda. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Ir sí o sí",
-      efectos: {"reputacion":10,"moral":8,"atributos":{"tiro":1}},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"mayor","reputacion":10,"moral":8,"atributos":{"tiro":1}},
     },
     {
       texto: "Negociar minutos con el club",
@@ -379,8 +379,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"riesgoLesion":-0.08,"moral":1,"reputacion":1},
     },
     {
-      texto: "Jugar aunque estés molesto",
-      efectos: {"moral":6,"riesgoLesion":0.18,"atributos":{"fisico":-2}},
+      texto: "Jugar lesionado",
+      efectos: {"moral":6,"forzarLesion":"leve","riesgoLesion":0.18,"atributos":{"fisico":-2}},
     },
     ],
   },
@@ -401,7 +401,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-4,"reputacion":-2},
     },
     ],
   },
@@ -1022,12 +1022,12 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Una pelea en el vestuario te involucra. ¿Qué haces?",
     opciones: [
     {
-      texto: "Mediar entre los dos",
-      efectos: {"reputacion":5,"moral":2},
+      texto: "Hablar claro con el DT",
+      efectos: {"reputacion":4,"moral":2},
     },
     {
-      texto: "Tomar partido por un lado",
-      efectos: {"moral":3,"reputacion":-2},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-3},
     },
     {
       texto: "Salirte y no meterte",
@@ -1039,20 +1039,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-029",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Compromiso",
-    texto: "El club te pregunta si estás 100% comprometido. ¿Qué respondes?",
+    etiqueta: "Transferencia",
+    texto: "Un rival de Primera ofrece un préstamo corto. ¿Qué haces?",
     opciones: [
     {
-      texto: "Decir que sí y demostrarlo",
-      efectos: {"reputacion":4,"moral":4,"atributos":{"fisico":1}},
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"colombia_rival","moral":5,"atributos":{"ritmo":1}},
     },
     {
-      texto: "Pedir más minutos a cambio",
-      efectos: {"moral":3,"reputacion":-1},
+      texto: "Quedarte a pelear el puesto",
+      efectos: {"moral":2,"atributos":{"fisico":1}},
     },
     {
-      texto: "Dudar en voz alta",
-      efectos: {"moral":-3,"reputacion":-3},
+      texto: "Pedir ficha profesional ya",
+      efectos: {"reputacion":3,"moral":2},
     },
     ],
   },
@@ -1060,20 +1060,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-030",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Posición",
-    texto: "El DT quiere probarte en otra posición. ¿Aceptas el cambio?",
+    etiqueta: "Compromiso",
+    texto: "El club te pregunta si estás 100% comprometido. ¿Qué respondes?",
     opciones: [
     {
-      texto: "Aceptar y adaptarte",
-      efectos: {"atributos":{"pase":1,"defensa":1},"moral":2},
+      texto: "Decir que sí y demostrarlo",
+      efectos: {"reputacion":4,"moral":4,"atributos":{"fisico":1}},
     },
     {
-      texto: "Pedir quedarte en tu puesto",
+      texto: "Pedir más minutos a cambio",
       efectos: {"moral":3,"reputacion":-1},
     },
     {
-      texto: "Probar solo unos partidos",
-      efectos: {"atributos":{"ritmo":1},"moral":1},
+      texto: "Dudar en voz alta",
+      efectos: {"moral":-3,"reputacion":-3},
     },
     ],
   },
@@ -1081,20 +1081,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-031",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Entrenamiento",
-    texto: "Hay doble turno y el cuerpo pesa. ¿Cómo lo encaras?",
+    etiqueta: "Posición",
+    texto: "El DT quiere probarte en otra posición. ¿Aceptas el cambio?",
     opciones: [
     {
-      texto: "Completar ambos turnos",
-      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.08},
+      texto: "Aceptar y adaptarte",
+      efectos: {"atributos":{"pase":1,"defensa":1},"moral":2},
     },
     {
-      texto: "Bajar intensidad el segundo",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.04},
+      texto: "Pedir quedarte en tu puesto",
+      efectos: {"moral":3,"reputacion":-1},
     },
     {
-      texto: "Pedir descanso al fisio",
-      efectos: {"moral":-2,"riesgoLesion":-0.1},
+      texto: "Probar solo unos partidos",
+      efectos: {"atributos":{"ritmo":1},"moral":1},
     },
     ],
   },
@@ -1102,20 +1102,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-032",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Vestuario",
-    texto: "Un compañero te desafía en el gym delante de todos. ¿Qué haces?",
+    etiqueta: "Entrenamiento",
+    texto: "Hay doble turno y el cuerpo pesa. ¿Cómo lo encaras?",
     opciones: [
     {
-      texto: "Aceptar el reto",
-      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":2},
+      texto: "Completar ambos turnos",
+      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.08},
     },
     {
-      texto: "Ignorarlo y seguir tu plan",
-      efectos: {"reputacion":3,"moral":1},
+      texto: "Bajar intensidad el segundo",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.04},
     },
     {
-      texto: "Responder de malas",
-      efectos: {"moral":2,"reputacion":-4},
+      texto: "Pedir descanso al fisio",
+      efectos: {"moral":-2,"riesgoLesion":-0.1},
     },
     ],
   },
@@ -1123,20 +1123,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-033",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Ascenso",
-    texto: "Te llaman a mirar al primer equipo. ¿Cómo te presentas?",
+    etiqueta: "Vestuario",
+    texto: "Un compañero te desafía en el gym delante de todos. ¿Qué haces?",
     opciones: [
     {
-      texto: "Llegar puntual y atento",
-      efectos: {"reputacion":5,"moral":4},
+      texto: "Aceptar el reto",
+      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":2},
     },
     {
-      texto: "Pedir que te dejen entrenar",
-      efectos: {"moral":5,"reputacion":2},
+      texto: "Ignorarlo y seguir tu plan",
+      efectos: {"reputacion":3,"moral":1},
     },
     {
-      texto: "Ponerte nervioso y fallar",
-      efectos: {"moral":-3,"reputacion":-2},
+      texto: "Responder de malas",
+      efectos: {"moral":2,"reputacion":-4},
     },
     ],
   },
@@ -1144,20 +1144,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-034",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Plantilla",
-    texto: "Hay corte de plantilla en la cantera. ¿Cómo te mueves?",
+    etiqueta: "Ascenso",
+    texto: "Te llaman a mirar al primer equipo. ¿Cómo te presentas?",
     opciones: [
     {
-      texto: "Entrenar más duro",
-      efectos: {"atributos":{"fisico":2,"ritmo":1},"moral":3},
+      texto: "Llegar puntual y atento",
+      efectos: {"reputacion":5,"moral":4},
     },
     {
-      texto: "Hablar con el DT",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Pedir que te dejen entrenar",
+      efectos: {"moral":5,"reputacion":2},
     },
     {
-      texto: "Bajar la cabeza",
-      efectos: {"moral":-4,"reputacion":-1},
+      texto: "Ponerte nervioso y fallar",
+      efectos: {"moral":-3,"reputacion":-2},
     },
     ],
   },
@@ -1165,20 +1165,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-035",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Entrenamiento",
-    texto: "Te marcan muy fuerte en cada entrenamiento. ¿Cómo respondes?",
+    etiqueta: "Plantilla",
+    texto: "Hay corte de plantilla en la cantera. ¿Cómo te mueves?",
     opciones: [
     {
-      texto: "Aguantar y pelear cada balón",
-      efectos: {"atributos":{"fisico":2,"defensa":1},"moral":3},
+      texto: "Entrenar más duro",
+      efectos: {"atributos":{"fisico":2,"ritmo":1},"moral":3},
     },
     {
-      texto: "Pedir protección al DT",
-      efectos: {"reputacion":1,"moral":-1},
+      texto: "Hablar con el DT",
+      efectos: {"reputacion":2,"moral":1},
     },
     {
-      texto: "Bajar el ritmo para evitar choques",
-      efectos: {"riesgoLesion":-0.06,"atributos":{"ritmo":-1}},
+      texto: "Bajar la cabeza",
+      efectos: {"moral":-4,"reputacion":-1},
     },
     ],
   },
@@ -1186,20 +1186,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-036",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Vestuario",
-    texto: "Una pelea en el vestuario te involucra. ¿Qué haces?",
+    etiqueta: "Entrenamiento",
+    texto: "Te marcan muy fuerte en cada entrenamiento. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Mediar entre los dos",
-      efectos: {"reputacion":5,"moral":2},
+      texto: "Aguantar y pelear cada balón",
+      efectos: {"atributos":{"fisico":2,"defensa":1},"moral":3},
     },
     {
-      texto: "Tomar partido por un lado",
-      efectos: {"moral":3,"reputacion":-2},
-    },
-    {
-      texto: "Salirte y no meterte",
+      texto: "Pedir protección al DT",
       efectos: {"reputacion":1,"moral":-1},
+    },
+    {
+      texto: "Bajar el ritmo para evitar choques",
+      efectos: {"riesgoLesion":-0.06,"atributos":{"ritmo":-1}},
     },
     ],
   },
@@ -1207,20 +1207,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-037",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Compromiso",
-    texto: "El club te pregunta si estás 100% comprometido. ¿Qué respondes?",
+    etiqueta: "Vestuario",
+    texto: "Una pelea en el vestuario te involucra. ¿Qué haces?",
     opciones: [
     {
-      texto: "Decir que sí y demostrarlo",
-      efectos: {"reputacion":4,"moral":4,"atributos":{"fisico":1}},
+      texto: "Hablar claro con el DT",
+      efectos: {"reputacion":4,"moral":2},
     },
     {
-      texto: "Pedir más minutos a cambio",
-      efectos: {"moral":3,"reputacion":-1},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-3},
     },
     {
-      texto: "Dudar en voz alta",
-      efectos: {"moral":-3,"reputacion":-3},
+      texto: "Salirte y no meterte",
+      efectos: {"reputacion":1,"moral":-1},
     },
     ],
   },
@@ -1228,151 +1228,25 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "can-gen-auto-038",
     tramoCarrera: "cantera",
     categoria: "generico",
-    etiqueta: "Posición",
-    texto: "El DT quiere probarte en otra posición. ¿Aceptas el cambio?",
+    etiqueta: "Transferencia",
+    texto: "Un rival de Primera ofrece un préstamo corto. ¿Qué haces?",
     opciones: [
     {
-      texto: "Aceptar y adaptarte",
-      efectos: {"atributos":{"pase":1,"defensa":1},"moral":2},
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"colombia_rival","moral":5,"atributos":{"ritmo":1}},
     },
     {
-      texto: "Pedir quedarte en tu puesto",
-      efectos: {"moral":3,"reputacion":-1},
+      texto: "Quedarte a pelear el puesto",
+      efectos: {"moral":2,"atributos":{"fisico":1}},
     },
     {
-      texto: "Probar solo unos partidos",
-      efectos: {"atributos":{"ritmo":1},"moral":1},
+      texto: "Pedir ficha profesional ya",
+      efectos: {"reputacion":3,"moral":2},
     },
     ],
   },
   {
     id: "can-gen-auto-039",
-    tramoCarrera: "cantera",
-    categoria: "generico",
-    etiqueta: "Entrenamiento",
-    texto: "Hay doble turno y el cuerpo pesa. ¿Cómo lo encaras?",
-    opciones: [
-    {
-      texto: "Completar ambos turnos",
-      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.08},
-    },
-    {
-      texto: "Bajar intensidad el segundo",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.04},
-    },
-    {
-      texto: "Pedir descanso al fisio",
-      efectos: {"moral":-2,"riesgoLesion":-0.1},
-    },
-    ],
-  },
-  {
-    id: "can-gen-auto-040",
-    tramoCarrera: "cantera",
-    categoria: "generico",
-    etiqueta: "Vestuario",
-    texto: "Un compañero te desafía en el gym delante de todos. ¿Qué haces?",
-    opciones: [
-    {
-      texto: "Aceptar el reto",
-      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":2},
-    },
-    {
-      texto: "Ignorarlo y seguir tu plan",
-      efectos: {"reputacion":3,"moral":1},
-    },
-    {
-      texto: "Responder de malas",
-      efectos: {"moral":2,"reputacion":-4},
-    },
-    ],
-  },
-  {
-    id: "can-gen-auto-041",
-    tramoCarrera: "cantera",
-    categoria: "generico",
-    etiqueta: "Ascenso",
-    texto: "Te llaman a mirar al primer equipo. ¿Cómo te presentas?",
-    opciones: [
-    {
-      texto: "Llegar puntual y atento",
-      efectos: {"reputacion":5,"moral":4},
-    },
-    {
-      texto: "Pedir que te dejen entrenar",
-      efectos: {"moral":5,"reputacion":2},
-    },
-    {
-      texto: "Ponerte nervioso y fallar",
-      efectos: {"moral":-3,"reputacion":-2},
-    },
-    ],
-  },
-  {
-    id: "can-gen-auto-042",
-    tramoCarrera: "cantera",
-    categoria: "generico",
-    etiqueta: "Plantilla",
-    texto: "Hay corte de plantilla en la cantera. ¿Cómo te mueves?",
-    opciones: [
-    {
-      texto: "Entrenar más duro",
-      efectos: {"atributos":{"fisico":2,"ritmo":1},"moral":3},
-    },
-    {
-      texto: "Hablar con el DT",
-      efectos: {"reputacion":2,"moral":1},
-    },
-    {
-      texto: "Bajar la cabeza",
-      efectos: {"moral":-4,"reputacion":-1},
-    },
-    ],
-  },
-  {
-    id: "can-gen-auto-043",
-    tramoCarrera: "cantera",
-    categoria: "generico",
-    etiqueta: "Entrenamiento",
-    texto: "Te marcan muy fuerte en cada entrenamiento. ¿Cómo respondes?",
-    opciones: [
-    {
-      texto: "Aguantar y pelear cada balón",
-      efectos: {"atributos":{"fisico":2,"defensa":1},"moral":3},
-    },
-    {
-      texto: "Pedir protección al DT",
-      efectos: {"reputacion":1,"moral":-1},
-    },
-    {
-      texto: "Bajar el ritmo para evitar choques",
-      efectos: {"riesgoLesion":-0.06,"atributos":{"ritmo":-1}},
-    },
-    ],
-  },
-  {
-    id: "can-gen-auto-044",
-    tramoCarrera: "cantera",
-    categoria: "generico",
-    etiqueta: "Vestuario",
-    texto: "Una pelea en el vestuario te involucra. ¿Qué haces?",
-    opciones: [
-    {
-      texto: "Mediar entre los dos",
-      efectos: {"reputacion":5,"moral":2},
-    },
-    {
-      texto: "Tomar partido por un lado",
-      efectos: {"moral":3,"reputacion":-2},
-    },
-    {
-      texto: "Salirte y no meterte",
-      efectos: {"reputacion":1,"moral":-1},
-    },
-    ],
-  },
-  {
-    id: "can-gen-auto-045",
     tramoCarrera: "cantera",
     categoria: "generico",
     etiqueta: "Compromiso",
@@ -1393,7 +1267,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "can-gen-auto-046",
+    id: "can-gen-auto-040",
     tramoCarrera: "cantera",
     categoria: "generico",
     etiqueta: "Posición",
@@ -1414,7 +1288,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "can-gen-auto-047",
+    id: "can-gen-auto-041",
     tramoCarrera: "cantera",
     categoria: "generico",
     etiqueta: "Entrenamiento",
@@ -1435,7 +1309,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "can-gen-auto-048",
+    id: "can-gen-auto-042",
     tramoCarrera: "cantera",
     categoria: "generico",
     etiqueta: "Vestuario",
@@ -1456,7 +1330,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "can-gen-auto-049",
+    id: "can-gen-auto-043",
     tramoCarrera: "cantera",
     categoria: "generico",
     etiqueta: "Ascenso",
@@ -1477,7 +1351,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "can-gen-auto-050",
+    id: "can-gen-auto-044",
     tramoCarrera: "cantera",
     categoria: "generico",
     etiqueta: "Plantilla",
@@ -1498,7 +1372,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "can-gen-auto-051",
+    id: "can-gen-auto-045",
     tramoCarrera: "cantera",
     categoria: "generico",
     etiqueta: "Entrenamiento",
@@ -1519,23 +1393,149 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "can-gen-auto-052",
+    id: "can-gen-auto-046",
     tramoCarrera: "cantera",
     categoria: "generico",
     etiqueta: "Vestuario",
     texto: "Una pelea en el vestuario te involucra. ¿Qué haces?",
     opciones: [
     {
-      texto: "Mediar entre los dos",
-      efectos: {"reputacion":5,"moral":2},
+      texto: "Hablar claro con el DT",
+      efectos: {"reputacion":4,"moral":2},
     },
     {
-      texto: "Tomar partido por un lado",
-      efectos: {"moral":3,"reputacion":-2},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-3},
     },
     {
       texto: "Salirte y no meterte",
       efectos: {"reputacion":1,"moral":-1},
+    },
+    ],
+  },
+  {
+    id: "can-gen-auto-047",
+    tramoCarrera: "cantera",
+    categoria: "generico",
+    etiqueta: "Transferencia",
+    texto: "Un rival de Primera ofrece un préstamo corto. ¿Qué haces?",
+    opciones: [
+    {
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"colombia_rival","moral":5,"atributos":{"ritmo":1}},
+    },
+    {
+      texto: "Quedarte a pelear el puesto",
+      efectos: {"moral":2,"atributos":{"fisico":1}},
+    },
+    {
+      texto: "Pedir ficha profesional ya",
+      efectos: {"reputacion":3,"moral":2},
+    },
+    ],
+  },
+  {
+    id: "can-gen-auto-048",
+    tramoCarrera: "cantera",
+    categoria: "generico",
+    etiqueta: "Compromiso",
+    texto: "El club te pregunta si estás 100% comprometido. ¿Qué respondes?",
+    opciones: [
+    {
+      texto: "Decir que sí y demostrarlo",
+      efectos: {"reputacion":4,"moral":4,"atributos":{"fisico":1}},
+    },
+    {
+      texto: "Pedir más minutos a cambio",
+      efectos: {"moral":3,"reputacion":-1},
+    },
+    {
+      texto: "Dudar en voz alta",
+      efectos: {"moral":-3,"reputacion":-3},
+    },
+    ],
+  },
+  {
+    id: "can-gen-auto-049",
+    tramoCarrera: "cantera",
+    categoria: "generico",
+    etiqueta: "Posición",
+    texto: "El DT quiere probarte en otra posición. ¿Aceptas el cambio?",
+    opciones: [
+    {
+      texto: "Aceptar y adaptarte",
+      efectos: {"atributos":{"pase":1,"defensa":1},"moral":2},
+    },
+    {
+      texto: "Pedir quedarte en tu puesto",
+      efectos: {"moral":3,"reputacion":-1},
+    },
+    {
+      texto: "Probar solo unos partidos",
+      efectos: {"atributos":{"ritmo":1},"moral":1},
+    },
+    ],
+  },
+  {
+    id: "can-gen-auto-050",
+    tramoCarrera: "cantera",
+    categoria: "generico",
+    etiqueta: "Entrenamiento",
+    texto: "Hay doble turno y el cuerpo pesa. ¿Cómo lo encaras?",
+    opciones: [
+    {
+      texto: "Completar ambos turnos",
+      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.08},
+    },
+    {
+      texto: "Bajar intensidad el segundo",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.04},
+    },
+    {
+      texto: "Pedir descanso al fisio",
+      efectos: {"moral":-2,"riesgoLesion":-0.1},
+    },
+    ],
+  },
+  {
+    id: "can-gen-auto-051",
+    tramoCarrera: "cantera",
+    categoria: "generico",
+    etiqueta: "Vestuario",
+    texto: "Un compañero te desafía en el gym delante de todos. ¿Qué haces?",
+    opciones: [
+    {
+      texto: "Aceptar el reto",
+      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":2},
+    },
+    {
+      texto: "Ignorarlo y seguir tu plan",
+      efectos: {"reputacion":3,"moral":1},
+    },
+    {
+      texto: "Responder de malas",
+      efectos: {"moral":2,"reputacion":-4},
+    },
+    ],
+  },
+  {
+    id: "can-gen-auto-052",
+    tramoCarrera: "cantera",
+    categoria: "generico",
+    etiqueta: "Ascenso",
+    texto: "Te llaman a mirar al primer equipo. ¿Cómo te presentas?",
+    opciones: [
+    {
+      texto: "Llegar puntual y atento",
+      efectos: {"reputacion":5,"moral":4},
+    },
+    {
+      texto: "Pedir que te dejen entrenar",
+      efectos: {"moral":5,"reputacion":2},
+    },
+    {
+      texto: "Ponerte nervioso y fallar",
+      efectos: {"moral":-3,"reputacion":-2},
     },
     ],
   },
@@ -1610,8 +1610,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Fecha FIFA y el club duda en cedarte. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Insistir en ir",
-      efectos: {"reputacion":6,"moral":5},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"sub20","reputacion":6,"moral":5},
     },
     {
       texto: "Negociar una solución",
@@ -1648,20 +1648,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-058",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Partido",
-    texto: "Cancha irregular en provincia. ¿Cómo te adaptas?",
+    etiqueta: "Transferencia",
+    texto: "Suena un fichaje a un rival colombiano. ¿Qué haces?",
     opciones: [
     {
-      texto: "Simplificar el juego",
-      efectos: {"atributos":{"pase":2,"defensa":1}},
+      texto: "Aceptar y fichar",
+      efectos: {"transferencia":"colombia_rival","moral":4,"reputacion":2},
     },
     {
-      texto: "Imponer físico",
-      efectos: {"atributos":{"fisico":2},"riesgoLesion":0.05},
+      texto: "Pedir quedarte",
+      efectos: {"moral":2,"reputacion":1},
     },
     {
-      texto: "Quejarte del terreno",
-      efectos: {"moral":-2,"reputacion":-2},
+      texto: "Usarlo para negociar",
+      efectos: {"reputacion":3,"moral":1},
     },
     ],
   },
@@ -1670,19 +1670,19 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Partido",
-    texto: "Calor de mediodía en la costa. ¿Cómo dosificas?",
+    texto: "Cancha irregular en provincia. ¿Cómo te adaptas?",
     opciones: [
     {
-      texto: "Dosificar y hidratarte",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
+      texto: "Simplificar el juego",
+      efectos: {"atributos":{"pase":2,"defensa":1}},
     },
     {
-      texto: "Ir a full",
-      efectos: {"moral":4,"riesgoLesion":0.1},
+      texto: "Imponer físico",
+      efectos: {"atributos":{"fisico":2},"riesgoLesion":0.05},
     },
     {
-      texto: "Pedir rotación",
-      efectos: {"moral":-1,"reputacion":1},
+      texto: "Quejarte del terreno",
+      efectos: {"moral":-2,"reputacion":-2},
     },
     ],
   },
@@ -1690,20 +1690,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-060",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Prensa",
-    texto: "La prensa local te pone nota baja. ¿Qué haces?",
+    etiqueta: "Partido",
+    texto: "Calor de mediodía en la costa. ¿Cómo dosificas?",
     opciones: [
     {
-      texto: "Responder en la cancha",
-      efectos: {"atributos":{"tiro":1},"reputacion":2},
+      texto: "Dosificar y hidratarte",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
     },
     {
-      texto: "Hablar con calma",
-      efectos: {"reputacion":3,"moral":1},
+      texto: "Ir a full",
+      efectos: {"moral":4,"riesgoLesion":0.1},
     },
     {
-      texto: "Explotar en redes",
-      efectos: {"reputacion":-5,"moral":2},
+      texto: "Pedir rotación",
+      efectos: {"moral":-1,"reputacion":1},
     },
     ],
   },
@@ -1711,20 +1711,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-061",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Clásico",
-    texto: "Semana de clásico paisa o cafetero. ¿Cómo te preparas?",
+    etiqueta: "Prensa",
+    texto: "La prensa local te pone nota baja. ¿Qué haces?",
     opciones: [
     {
-      texto: "Cerrar la semana enfocado",
-      efectos: {"atributos":{"defensa":2},"moral":4},
+      texto: "Responder en la cancha",
+      efectos: {"atributos":{"tiro":1},"reputacion":2},
     },
     {
-      texto: "Subir intensidad en entrenos",
-      efectos: {"atributos":{"ritmo":2},"riesgoLesion":0.05},
+      texto: "Hablar con calma",
+      efectos: {"reputacion":3,"moral":1},
     },
     {
-      texto: "Bajar exposición mediática",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Explotar en redes",
+      efectos: {"reputacion":-5,"moral":2},
     },
     ],
   },
@@ -1732,20 +1732,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-062",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Altura",
-    texto: "Viaje a Bogotá y la altura. ¿Qué haces?",
+    etiqueta: "Clásico",
+    texto: "Semana de clásico paisa o cafetero. ¿Cómo te preparas?",
     opciones: [
     {
-      texto: "Llegar antes",
-      efectos: {"atributos":{"fisico":2},"riesgoLesion":-0.05},
+      texto: "Cerrar la semana enfocado",
+      efectos: {"atributos":{"defensa":2},"moral":4},
     },
     {
-      texto: "Viajar con el plantel",
-      efectos: {"moral":1,"atributos":{"fisico":1}},
+      texto: "Subir intensidad en entrenos",
+      efectos: {"atributos":{"ritmo":2},"riesgoLesion":0.05},
     },
     {
-      texto: "Forzar sin aclimatación",
-      efectos: {"moral":2,"riesgoLesion":0.1},
+      texto: "Bajar exposición mediática",
+      efectos: {"reputacion":2,"moral":1},
     },
     ],
   },
@@ -1753,20 +1753,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-063",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Hinchada",
-    texto: "La barra pide más entrega. ¿Cómo respondes?",
+    etiqueta: "Altura",
+    texto: "Viaje a Bogotá y la altura. ¿Qué haces?",
     opciones: [
     {
-      texto: "Demostrarlo en la cancha",
-      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":3},
+      texto: "Llegar antes",
+      efectos: {"atributos":{"fisico":2},"riesgoLesion":-0.05},
     },
     {
-      texto: "Hablar con humildad",
-      efectos: {"reputacion":4,"moral":2},
+      texto: "Viajar con el plantel",
+      efectos: {"moral":1,"atributos":{"fisico":1}},
     },
     {
-      texto: "Ignorar la presión",
-      efectos: {"moral":1,"reputacion":-1},
+      texto: "Forzar sin aclimatación",
+      efectos: {"moral":2,"riesgoLesion":0.1},
     },
     ],
   },
@@ -1774,20 +1774,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-064",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Selección",
-    texto: "Fecha FIFA y el club duda en cedarte. ¿Qué priorizas?",
+    etiqueta: "Hinchada",
+    texto: "La barra pide más entrega. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Insistir en ir",
-      efectos: {"reputacion":6,"moral":5},
+      texto: "Demostrarlo en la cancha",
+      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":3},
     },
     {
-      texto: "Negociar una solución",
-      efectos: {"reputacion":3,"moral":2},
+      texto: "Hablar con humildad",
+      efectos: {"reputacion":4,"moral":2},
     },
     {
-      texto: "Quedarte con el club",
-      efectos: {"reputacion":-2,"atributos":{"fisico":1}},
+      texto: "Ignorar la presión",
+      efectos: {"moral":1,"reputacion":-1},
     },
     ],
   },
@@ -1795,20 +1795,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-065",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Copa",
-    texto: "Noche de Sudamericana en casa. ¿Cómo la encaras?",
+    etiqueta: "Selección",
+    texto: "Fecha FIFA y el club duda en cedarte. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Salir a ganar sí o sí",
-      efectos: {"atributos":{"tiro":1,"ritmo":1},"moral":5},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"sub20","reputacion":6,"moral":5},
     },
     {
-      texto: "Cumplir el plan",
-      efectos: {"atributos":{"pase":2},"reputacion":3},
+      texto: "Negociar una solución",
+      efectos: {"reputacion":3,"moral":2},
     },
     {
-      texto: "Cuidar el cuerpo",
-      efectos: {"riesgoLesion":-0.06,"moral":1},
+      texto: "Quedarte con el club",
+      efectos: {"reputacion":-2,"atributos":{"fisico":1}},
     },
     ],
   },
@@ -1816,20 +1816,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-066",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Partido",
-    texto: "Cancha irregular en provincia. ¿Cómo te adaptas?",
+    etiqueta: "Copa",
+    texto: "Noche de Sudamericana en casa. ¿Cómo la encaras?",
     opciones: [
     {
-      texto: "Simplificar el juego",
-      efectos: {"atributos":{"pase":2,"defensa":1}},
+      texto: "Salir a ganar sí o sí",
+      efectos: {"atributos":{"tiro":1,"ritmo":1},"moral":5},
     },
     {
-      texto: "Imponer físico",
-      efectos: {"atributos":{"fisico":2},"riesgoLesion":0.05},
+      texto: "Cumplir el plan",
+      efectos: {"atributos":{"pase":2},"reputacion":3},
     },
     {
-      texto: "Quejarte del terreno",
-      efectos: {"moral":-2,"reputacion":-2},
+      texto: "Cuidar el cuerpo",
+      efectos: {"riesgoLesion":-0.06,"moral":1},
     },
     ],
   },
@@ -1837,20 +1837,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-067",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Partido",
-    texto: "Calor de mediodía en la costa. ¿Cómo dosificas?",
+    etiqueta: "Transferencia",
+    texto: "Suena un fichaje a un rival colombiano. ¿Qué haces?",
     opciones: [
     {
-      texto: "Dosificar y hidratarte",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
+      texto: "Aceptar y fichar",
+      efectos: {"transferencia":"colombia_rival","moral":4,"reputacion":2},
     },
     {
-      texto: "Ir a full",
-      efectos: {"moral":4,"riesgoLesion":0.1},
+      texto: "Pedir quedarte",
+      efectos: {"moral":2,"reputacion":1},
     },
     {
-      texto: "Pedir rotación",
-      efectos: {"moral":-1,"reputacion":1},
+      texto: "Usarlo para negociar",
+      efectos: {"reputacion":3,"moral":1},
     },
     ],
   },
@@ -1858,20 +1858,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-068",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Prensa",
-    texto: "La prensa local te pone nota baja. ¿Qué haces?",
+    etiqueta: "Partido",
+    texto: "Cancha irregular en provincia. ¿Cómo te adaptas?",
     opciones: [
     {
-      texto: "Responder en la cancha",
-      efectos: {"atributos":{"tiro":1},"reputacion":2},
+      texto: "Simplificar el juego",
+      efectos: {"atributos":{"pase":2,"defensa":1}},
     },
     {
-      texto: "Hablar con calma",
-      efectos: {"reputacion":3,"moral":1},
+      texto: "Imponer físico",
+      efectos: {"atributos":{"fisico":2},"riesgoLesion":0.05},
     },
     {
-      texto: "Explotar en redes",
-      efectos: {"reputacion":-5,"moral":2},
+      texto: "Quejarte del terreno",
+      efectos: {"moral":-2,"reputacion":-2},
     },
     ],
   },
@@ -1879,20 +1879,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-069",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Clásico",
-    texto: "Semana de clásico paisa o cafetero. ¿Cómo te preparas?",
+    etiqueta: "Partido",
+    texto: "Calor de mediodía en la costa. ¿Cómo dosificas?",
     opciones: [
     {
-      texto: "Cerrar la semana enfocado",
-      efectos: {"atributos":{"defensa":2},"moral":4},
+      texto: "Dosificar y hidratarte",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
     },
     {
-      texto: "Subir intensidad en entrenos",
-      efectos: {"atributos":{"ritmo":2},"riesgoLesion":0.05},
+      texto: "Ir a full",
+      efectos: {"moral":4,"riesgoLesion":0.1},
     },
     {
-      texto: "Bajar exposición mediática",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Pedir rotación",
+      efectos: {"moral":-1,"reputacion":1},
     },
     ],
   },
@@ -1900,20 +1900,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-070",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Altura",
-    texto: "Viaje a Bogotá y la altura. ¿Qué haces?",
+    etiqueta: "Prensa",
+    texto: "La prensa local te pone nota baja. ¿Qué haces?",
     opciones: [
     {
-      texto: "Llegar antes",
-      efectos: {"atributos":{"fisico":2},"riesgoLesion":-0.05},
+      texto: "Responder en la cancha",
+      efectos: {"atributos":{"tiro":1},"reputacion":2},
     },
     {
-      texto: "Viajar con el plantel",
-      efectos: {"moral":1,"atributos":{"fisico":1}},
+      texto: "Hablar con calma",
+      efectos: {"reputacion":3,"moral":1},
     },
     {
-      texto: "Forzar sin aclimatación",
-      efectos: {"moral":2,"riesgoLesion":0.1},
+      texto: "Explotar en redes",
+      efectos: {"reputacion":-5,"moral":2},
     },
     ],
   },
@@ -1921,20 +1921,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-071",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Hinchada",
-    texto: "La barra pide más entrega. ¿Cómo respondes?",
+    etiqueta: "Clásico",
+    texto: "Semana de clásico paisa o cafetero. ¿Cómo te preparas?",
     opciones: [
     {
-      texto: "Demostrarlo en la cancha",
-      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":3},
+      texto: "Cerrar la semana enfocado",
+      efectos: {"atributos":{"defensa":2},"moral":4},
     },
     {
-      texto: "Hablar con humildad",
-      efectos: {"reputacion":4,"moral":2},
+      texto: "Subir intensidad en entrenos",
+      efectos: {"atributos":{"ritmo":2},"riesgoLesion":0.05},
     },
     {
-      texto: "Ignorar la presión",
-      efectos: {"moral":1,"reputacion":-1},
+      texto: "Bajar exposición mediática",
+      efectos: {"reputacion":2,"moral":1},
     },
     ],
   },
@@ -1942,20 +1942,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-072",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Selección",
-    texto: "Fecha FIFA y el club duda en cedarte. ¿Qué priorizas?",
+    etiqueta: "Altura",
+    texto: "Viaje a Bogotá y la altura. ¿Qué haces?",
     opciones: [
     {
-      texto: "Insistir en ir",
-      efectos: {"reputacion":6,"moral":5},
+      texto: "Llegar antes",
+      efectos: {"atributos":{"fisico":2},"riesgoLesion":-0.05},
     },
     {
-      texto: "Negociar una solución",
-      efectos: {"reputacion":3,"moral":2},
+      texto: "Viajar con el plantel",
+      efectos: {"moral":1,"atributos":{"fisico":1}},
     },
     {
-      texto: "Quedarte con el club",
-      efectos: {"reputacion":-2,"atributos":{"fisico":1}},
+      texto: "Forzar sin aclimatación",
+      efectos: {"moral":2,"riesgoLesion":0.1},
     },
     ],
   },
@@ -1963,20 +1963,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-073",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Copa",
-    texto: "Noche de Sudamericana en casa. ¿Cómo la encaras?",
+    etiqueta: "Hinchada",
+    texto: "La barra pide más entrega. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Salir a ganar sí o sí",
-      efectos: {"atributos":{"tiro":1,"ritmo":1},"moral":5},
+      texto: "Demostrarlo en la cancha",
+      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":3},
     },
     {
-      texto: "Cumplir el plan",
-      efectos: {"atributos":{"pase":2},"reputacion":3},
+      texto: "Hablar con humildad",
+      efectos: {"reputacion":4,"moral":2},
     },
     {
-      texto: "Cuidar el cuerpo",
-      efectos: {"riesgoLesion":-0.06,"moral":1},
+      texto: "Ignorar la presión",
+      efectos: {"moral":1,"reputacion":-1},
     },
     ],
   },
@@ -1984,20 +1984,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-074",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Partido",
-    texto: "Cancha irregular en provincia. ¿Cómo te adaptas?",
+    etiqueta: "Selección",
+    texto: "Fecha FIFA y el club duda en cedarte. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Simplificar el juego",
-      efectos: {"atributos":{"pase":2,"defensa":1}},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"sub20","reputacion":6,"moral":5},
     },
     {
-      texto: "Imponer físico",
-      efectos: {"atributos":{"fisico":2},"riesgoLesion":0.05},
+      texto: "Negociar una solución",
+      efectos: {"reputacion":3,"moral":2},
     },
     {
-      texto: "Quejarte del terreno",
-      efectos: {"moral":-2,"reputacion":-2},
+      texto: "Quedarte con el club",
+      efectos: {"reputacion":-2,"atributos":{"fisico":1}},
     },
     ],
   },
@@ -2005,20 +2005,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-075",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Partido",
-    texto: "Calor de mediodía en la costa. ¿Cómo dosificas?",
+    etiqueta: "Copa",
+    texto: "Noche de Sudamericana en casa. ¿Cómo la encaras?",
     opciones: [
     {
-      texto: "Dosificar y hidratarte",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
+      texto: "Salir a ganar sí o sí",
+      efectos: {"atributos":{"tiro":1,"ritmo":1},"moral":5},
     },
     {
-      texto: "Ir a full",
-      efectos: {"moral":4,"riesgoLesion":0.1},
+      texto: "Cumplir el plan",
+      efectos: {"atributos":{"pase":2},"reputacion":3},
     },
     {
-      texto: "Pedir rotación",
-      efectos: {"moral":-1,"reputacion":1},
+      texto: "Cuidar el cuerpo",
+      efectos: {"riesgoLesion":-0.06,"moral":1},
     },
     ],
   },
@@ -2026,130 +2026,25 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-col-auto-076",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
-    etiqueta: "Prensa",
-    texto: "La prensa local te pone nota baja. ¿Qué haces?",
+    etiqueta: "Transferencia",
+    texto: "Suena un fichaje a un rival colombiano. ¿Qué haces?",
     opciones: [
     {
-      texto: "Responder en la cancha",
-      efectos: {"atributos":{"tiro":1},"reputacion":2},
+      texto: "Aceptar y fichar",
+      efectos: {"transferencia":"colombia_rival","moral":4,"reputacion":2},
     },
     {
-      texto: "Hablar con calma",
+      texto: "Pedir quedarte",
+      efectos: {"moral":2,"reputacion":1},
+    },
+    {
+      texto: "Usarlo para negociar",
       efectos: {"reputacion":3,"moral":1},
-    },
-    {
-      texto: "Explotar en redes",
-      efectos: {"reputacion":-5,"moral":2},
     },
     ],
   },
   {
     id: "con-col-auto-077",
-    tramoCarrera: "consolidacion",
-    categoria: "colombia_especifico",
-    etiqueta: "Clásico",
-    texto: "Semana de clásico paisa o cafetero. ¿Cómo te preparas?",
-    opciones: [
-    {
-      texto: "Cerrar la semana enfocado",
-      efectos: {"atributos":{"defensa":2},"moral":4},
-    },
-    {
-      texto: "Subir intensidad en entrenos",
-      efectos: {"atributos":{"ritmo":2},"riesgoLesion":0.05},
-    },
-    {
-      texto: "Bajar exposición mediática",
-      efectos: {"reputacion":2,"moral":1},
-    },
-    ],
-  },
-  {
-    id: "con-col-auto-078",
-    tramoCarrera: "consolidacion",
-    categoria: "colombia_especifico",
-    etiqueta: "Altura",
-    texto: "Viaje a Bogotá y la altura. ¿Qué haces?",
-    opciones: [
-    {
-      texto: "Llegar antes",
-      efectos: {"atributos":{"fisico":2},"riesgoLesion":-0.05},
-    },
-    {
-      texto: "Viajar con el plantel",
-      efectos: {"moral":1,"atributos":{"fisico":1}},
-    },
-    {
-      texto: "Forzar sin aclimatación",
-      efectos: {"moral":2,"riesgoLesion":0.1},
-    },
-    ],
-  },
-  {
-    id: "con-col-auto-079",
-    tramoCarrera: "consolidacion",
-    categoria: "colombia_especifico",
-    etiqueta: "Hinchada",
-    texto: "La barra pide más entrega. ¿Cómo respondes?",
-    opciones: [
-    {
-      texto: "Demostrarlo en la cancha",
-      efectos: {"atributos":{"fisico":2},"moral":4,"reputacion":3},
-    },
-    {
-      texto: "Hablar con humildad",
-      efectos: {"reputacion":4,"moral":2},
-    },
-    {
-      texto: "Ignorar la presión",
-      efectos: {"moral":1,"reputacion":-1},
-    },
-    ],
-  },
-  {
-    id: "con-col-auto-080",
-    tramoCarrera: "consolidacion",
-    categoria: "colombia_especifico",
-    etiqueta: "Selección",
-    texto: "Fecha FIFA y el club duda en cedarte. ¿Qué priorizas?",
-    opciones: [
-    {
-      texto: "Insistir en ir",
-      efectos: {"reputacion":6,"moral":5},
-    },
-    {
-      texto: "Negociar una solución",
-      efectos: {"reputacion":3,"moral":2},
-    },
-    {
-      texto: "Quedarte con el club",
-      efectos: {"reputacion":-2,"atributos":{"fisico":1}},
-    },
-    ],
-  },
-  {
-    id: "con-col-auto-081",
-    tramoCarrera: "consolidacion",
-    categoria: "colombia_especifico",
-    etiqueta: "Copa",
-    texto: "Noche de Sudamericana en casa. ¿Cómo la encaras?",
-    opciones: [
-    {
-      texto: "Salir a ganar sí o sí",
-      efectos: {"atributos":{"tiro":1,"ritmo":1},"moral":5},
-    },
-    {
-      texto: "Cumplir el plan",
-      efectos: {"atributos":{"pase":2},"reputacion":3},
-    },
-    {
-      texto: "Cuidar el cuerpo",
-      efectos: {"riesgoLesion":-0.06,"moral":1},
-    },
-    ],
-  },
-  {
-    id: "con-col-auto-082",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Partido",
@@ -2170,7 +2065,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-col-auto-083",
+    id: "con-col-auto-078",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Partido",
@@ -2191,7 +2086,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-col-auto-084",
+    id: "con-col-auto-079",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Prensa",
@@ -2212,7 +2107,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-col-auto-085",
+    id: "con-col-auto-080",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Clásico",
@@ -2233,7 +2128,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-col-auto-086",
+    id: "con-col-auto-081",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Altura",
@@ -2254,7 +2149,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-col-auto-087",
+    id: "con-col-auto-082",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Hinchada",
@@ -2275,15 +2170,15 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-col-auto-088",
+    id: "con-col-auto-083",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Selección",
     texto: "Fecha FIFA y el club duda en cedarte. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Insistir en ir",
-      efectos: {"reputacion":6,"moral":5},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"sub20","reputacion":6,"moral":5},
     },
     {
       texto: "Negociar una solución",
@@ -2296,7 +2191,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-col-auto-089",
+    id: "con-col-auto-084",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Copa",
@@ -2317,7 +2212,28 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-col-auto-090",
+    id: "con-col-auto-085",
+    tramoCarrera: "consolidacion",
+    categoria: "colombia_especifico",
+    etiqueta: "Transferencia",
+    texto: "Suena un fichaje a un rival colombiano. ¿Qué haces?",
+    opciones: [
+    {
+      texto: "Aceptar y fichar",
+      efectos: {"transferencia":"colombia_rival","moral":4,"reputacion":2},
+    },
+    {
+      texto: "Pedir quedarte",
+      efectos: {"moral":2,"reputacion":1},
+    },
+    {
+      texto: "Usarlo para negociar",
+      efectos: {"reputacion":3,"moral":1},
+    },
+    ],
+  },
+  {
+    id: "con-col-auto-086",
     tramoCarrera: "consolidacion",
     categoria: "colombia_especifico",
     etiqueta: "Partido",
@@ -2334,6 +2250,90 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     {
       texto: "Quejarte del terreno",
       efectos: {"moral":-2,"reputacion":-2},
+    },
+    ],
+  },
+  {
+    id: "con-col-auto-087",
+    tramoCarrera: "consolidacion",
+    categoria: "colombia_especifico",
+    etiqueta: "Partido",
+    texto: "Calor de mediodía en la costa. ¿Cómo dosificas?",
+    opciones: [
+    {
+      texto: "Dosificar y hidratarte",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
+    },
+    {
+      texto: "Ir a full",
+      efectos: {"moral":4,"riesgoLesion":0.1},
+    },
+    {
+      texto: "Pedir rotación",
+      efectos: {"moral":-1,"reputacion":1},
+    },
+    ],
+  },
+  {
+    id: "con-col-auto-088",
+    tramoCarrera: "consolidacion",
+    categoria: "colombia_especifico",
+    etiqueta: "Prensa",
+    texto: "La prensa local te pone nota baja. ¿Qué haces?",
+    opciones: [
+    {
+      texto: "Responder en la cancha",
+      efectos: {"atributos":{"tiro":1},"reputacion":2},
+    },
+    {
+      texto: "Hablar con calma",
+      efectos: {"reputacion":3,"moral":1},
+    },
+    {
+      texto: "Explotar en redes",
+      efectos: {"reputacion":-5,"moral":2},
+    },
+    ],
+  },
+  {
+    id: "con-col-auto-089",
+    tramoCarrera: "consolidacion",
+    categoria: "colombia_especifico",
+    etiqueta: "Clásico",
+    texto: "Semana de clásico paisa o cafetero. ¿Cómo te preparas?",
+    opciones: [
+    {
+      texto: "Cerrar la semana enfocado",
+      efectos: {"atributos":{"defensa":2},"moral":4},
+    },
+    {
+      texto: "Subir intensidad en entrenos",
+      efectos: {"atributos":{"ritmo":2},"riesgoLesion":0.05},
+    },
+    {
+      texto: "Bajar exposición mediática",
+      efectos: {"reputacion":2,"moral":1},
+    },
+    ],
+  },
+  {
+    id: "con-col-auto-090",
+    tramoCarrera: "consolidacion",
+    categoria: "colombia_especifico",
+    etiqueta: "Altura",
+    texto: "Viaje a Bogotá y la altura. ¿Qué haces?",
+    opciones: [
+    {
+      texto: "Llegar antes",
+      efectos: {"atributos":{"fisico":2},"riesgoLesion":-0.05},
+    },
+    {
+      texto: "Viajar con el plantel",
+      efectos: {"moral":1,"atributos":{"fisico":1}},
+    },
+    {
+      texto: "Forzar sin aclimatación",
+      efectos: {"moral":2,"riesgoLesion":0.1},
     },
     ],
   },
@@ -2354,7 +2354,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-4,"reputacion":-2},
     },
     ],
   },
@@ -2413,7 +2413,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Acelerar el retorno",
-      efectos: {"moral":3,"riesgoLesion":0.15},
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.25},
     },
     {
       texto: "Usar el tiempo para estudiar rivales",
@@ -2425,20 +2425,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-095",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Prensa",
-    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
+    etiqueta: "Préstamo",
+    texto: "El club plantea un préstamo para que juegues. ¿Qué decides?",
     opciones: [
     {
-      texto: "Callar y responder en la cancha",
-      efectos: {"reputacion":3,"atributos":{"tiro":1}},
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"mismo_nivel","moral":5,"atributos":{"tiro":1,"ritmo":1}},
     },
     {
-      texto: "Salir a aclarar",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Pelear minutos acá",
+      efectos: {"moral":2,"atributos":{"fisico":2}},
     },
     {
-      texto: "Enojarte en redes",
-      efectos: {"reputacion":-5,"moral":3},
+      texto: "Pedir la salida definitiva",
+      efectos: {"buscarSalida":true,"reputacion":-2,"moral":-2},
     },
     ],
   },
@@ -2446,20 +2446,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-096",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Liderazgo",
-    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
+    etiqueta: "Prensa",
+    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Hablar más y empujar al grupo",
-      efectos: {"reputacion":5,"moral":4},
+      texto: "Callar y responder en la cancha",
+      efectos: {"reputacion":3,"atributos":{"tiro":1}},
     },
     {
-      texto: "Apoyar en silencio",
+      texto: "Salir a aclarar",
       efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Decir que no es tu rol",
-      efectos: {"moral":-1,"reputacion":-2},
+      texto: "Enojarte en redes",
+      efectos: {"reputacion":-5,"moral":3},
     },
     ],
   },
@@ -2467,20 +2467,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-097",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Titularidad",
-    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
+    etiqueta: "Liderazgo",
+    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
     opciones: [
     {
-      texto: "Competir en silencio",
-      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
+      texto: "Hablar más y empujar al grupo",
+      efectos: {"reputacion":5,"moral":4},
     },
     {
-      texto: "Hablar claro con él",
-      efectos: {"moral":3,"reputacion":2},
+      texto: "Apoyar en silencio",
+      efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Pedir intervención del DT",
-      efectos: {"reputacion":1,"moral":-1},
+      texto: "Decir que no es tu rol",
+      efectos: {"moral":-1,"reputacion":-2},
     },
     ],
   },
@@ -2488,20 +2488,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-098",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Partido",
-    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
+    etiqueta: "Titularidad",
+    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
     opciones: [
     {
-      texto: "Ir a demostrar",
-      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+      texto: "Competir en silencio",
+      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
     },
     {
-      texto: "Cumplir el plan del DT",
-      efectos: {"atributos":{"pase":2},"reputacion":4},
+      texto: "Hablar claro con él",
+      efectos: {"moral":3,"reputacion":2},
     },
     {
-      texto: "Cuidarte para no lesionarte",
-      efectos: {"riesgoLesion":-0.08,"moral":-1},
+      texto: "Pedir intervención del DT",
+      efectos: {"reputacion":1,"moral":-1},
     },
     ],
   },
@@ -2509,20 +2509,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-099",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Competencia",
-    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
+    etiqueta: "Partido",
+    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
     opciones: [
     {
-      texto: "Subir el nivel en entrenamientos",
-      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
+      texto: "Ir a demostrar",
+      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
     },
     {
-      texto: "Pedir charla con el DT",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Cumplir el plan del DT",
+      efectos: {"atributos":{"pase":2},"reputacion":4},
     },
     {
-      texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      texto: "Cuidarte para no lesionarte",
+      efectos: {"riesgoLesion":-0.08,"moral":-1},
     },
     ],
   },
@@ -2530,20 +2530,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-100",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Táctica",
-    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
+    etiqueta: "Competencia",
+    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
     opciones: [
     {
-      texto: "Adaptarte al nuevo rol",
-      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
+      texto: "Subir el nivel en entrenamientos",
+      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
     },
     {
-      texto: "Pedir tu rol anterior",
-      efectos: {"moral":2,"reputacion":-1},
+      texto: "Pedir charla con el DT",
+      efectos: {"reputacion":2,"moral":1},
     },
     {
-      texto: "Quejarte en el vestuario",
-      efectos: {"moral":-2,"reputacion":-4},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-4,"reputacion":-2},
     },
     ],
   },
@@ -2551,20 +2551,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-101",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Te ofrecen renovar barato. ¿Qué decides?",
+    etiqueta: "Táctica",
+    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
     opciones: [
     {
-      texto: "Firmar por minutos",
-      efectos: {"moral":4,"reputacion":2},
+      texto: "Adaptarte al nuevo rol",
+      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
     },
     {
-      texto: "Pedir más sueldo",
-      efectos: {"reputacion":1,"moral":1},
+      texto: "Pedir tu rol anterior",
+      efectos: {"moral":2,"reputacion":-1},
     },
     {
-      texto: "Rechazar y esperar",
-      efectos: {"moral":-2,"reputacion":3},
+      texto: "Quejarte en el vestuario",
+      efectos: {"moral":-2,"reputacion":-4},
     },
     ],
   },
@@ -2572,20 +2572,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-102",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Lesión",
-    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
+    etiqueta: "Contrato",
+    texto: "Te ofrecen renovar barato. ¿Qué decides?",
     opciones: [
     {
-      texto: "Cumplir la rehab al pie de la letra",
-      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
+      texto: "Firmar por minutos",
+      efectos: {"moral":4,"reputacion":2},
     },
     {
-      texto: "Acelerar el retorno",
-      efectos: {"moral":3,"riesgoLesion":0.15},
+      texto: "Pedir más sueldo",
+      efectos: {"reputacion":1,"moral":1},
     },
     {
-      texto: "Usar el tiempo para estudiar rivales",
-      efectos: {"atributos":{"pase":1},"moral":1},
+      texto: "Rechazar y esperar",
+      efectos: {"moral":-2,"reputacion":3},
     },
     ],
   },
@@ -2593,20 +2593,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-103",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Prensa",
-    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
+    etiqueta: "Lesión",
+    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
     opciones: [
     {
-      texto: "Callar y responder en la cancha",
-      efectos: {"reputacion":3,"atributos":{"tiro":1}},
+      texto: "Cumplir la rehab al pie de la letra",
+      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
     },
     {
-      texto: "Salir a aclarar",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Acelerar el retorno",
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.25},
     },
     {
-      texto: "Enojarte en redes",
-      efectos: {"reputacion":-5,"moral":3},
+      texto: "Usar el tiempo para estudiar rivales",
+      efectos: {"atributos":{"pase":1},"moral":1},
     },
     ],
   },
@@ -2614,20 +2614,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-104",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Liderazgo",
-    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
+    etiqueta: "Préstamo",
+    texto: "El club plantea un préstamo para que juegues. ¿Qué decides?",
     opciones: [
     {
-      texto: "Hablar más y empujar al grupo",
-      efectos: {"reputacion":5,"moral":4},
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"mismo_nivel","moral":5,"atributos":{"tiro":1,"ritmo":1}},
     },
     {
-      texto: "Apoyar en silencio",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Pelear minutos acá",
+      efectos: {"moral":2,"atributos":{"fisico":2}},
     },
     {
-      texto: "Decir que no es tu rol",
-      efectos: {"moral":-1,"reputacion":-2},
+      texto: "Pedir la salida definitiva",
+      efectos: {"buscarSalida":true,"reputacion":-2,"moral":-2},
     },
     ],
   },
@@ -2635,20 +2635,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-105",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Titularidad",
-    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
+    etiqueta: "Prensa",
+    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Competir en silencio",
-      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
+      texto: "Callar y responder en la cancha",
+      efectos: {"reputacion":3,"atributos":{"tiro":1}},
     },
     {
-      texto: "Hablar claro con él",
-      efectos: {"moral":3,"reputacion":2},
+      texto: "Salir a aclarar",
+      efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Pedir intervención del DT",
-      efectos: {"reputacion":1,"moral":-1},
+      texto: "Enojarte en redes",
+      efectos: {"reputacion":-5,"moral":3},
     },
     ],
   },
@@ -2656,20 +2656,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-106",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Partido",
-    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
+    etiqueta: "Liderazgo",
+    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
     opciones: [
     {
-      texto: "Ir a demostrar",
-      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+      texto: "Hablar más y empujar al grupo",
+      efectos: {"reputacion":5,"moral":4},
     },
     {
-      texto: "Cumplir el plan del DT",
-      efectos: {"atributos":{"pase":2},"reputacion":4},
+      texto: "Apoyar en silencio",
+      efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Cuidarte para no lesionarte",
-      efectos: {"riesgoLesion":-0.08,"moral":-1},
+      texto: "Decir que no es tu rol",
+      efectos: {"moral":-1,"reputacion":-2},
     },
     ],
   },
@@ -2677,20 +2677,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-107",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Competencia",
-    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
+    etiqueta: "Titularidad",
+    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
     opciones: [
     {
-      texto: "Subir el nivel en entrenamientos",
-      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
+      texto: "Competir en silencio",
+      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
     },
     {
-      texto: "Pedir charla con el DT",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Hablar claro con él",
+      efectos: {"moral":3,"reputacion":2},
     },
     {
-      texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      texto: "Pedir intervención del DT",
+      efectos: {"reputacion":1,"moral":-1},
     },
     ],
   },
@@ -2698,20 +2698,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-108",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Táctica",
-    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
+    etiqueta: "Partido",
+    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
     opciones: [
     {
-      texto: "Adaptarte al nuevo rol",
-      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
+      texto: "Ir a demostrar",
+      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
     },
     {
-      texto: "Pedir tu rol anterior",
-      efectos: {"moral":2,"reputacion":-1},
+      texto: "Cumplir el plan del DT",
+      efectos: {"atributos":{"pase":2},"reputacion":4},
     },
     {
-      texto: "Quejarte en el vestuario",
-      efectos: {"moral":-2,"reputacion":-4},
+      texto: "Cuidarte para no lesionarte",
+      efectos: {"riesgoLesion":-0.08,"moral":-1},
     },
     ],
   },
@@ -2719,20 +2719,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-109",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Te ofrecen renovar barato. ¿Qué decides?",
+    etiqueta: "Competencia",
+    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
     opciones: [
     {
-      texto: "Firmar por minutos",
-      efectos: {"moral":4,"reputacion":2},
+      texto: "Subir el nivel en entrenamientos",
+      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
     },
     {
-      texto: "Pedir más sueldo",
-      efectos: {"reputacion":1,"moral":1},
+      texto: "Pedir charla con el DT",
+      efectos: {"reputacion":2,"moral":1},
     },
     {
-      texto: "Rechazar y esperar",
-      efectos: {"moral":-2,"reputacion":3},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-4,"reputacion":-2},
     },
     ],
   },
@@ -2740,20 +2740,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-110",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Lesión",
-    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
+    etiqueta: "Táctica",
+    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
     opciones: [
     {
-      texto: "Cumplir la rehab al pie de la letra",
-      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
+      texto: "Adaptarte al nuevo rol",
+      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
     },
     {
-      texto: "Acelerar el retorno",
-      efectos: {"moral":3,"riesgoLesion":0.15},
+      texto: "Pedir tu rol anterior",
+      efectos: {"moral":2,"reputacion":-1},
     },
     {
-      texto: "Usar el tiempo para estudiar rivales",
-      efectos: {"atributos":{"pase":1},"moral":1},
+      texto: "Quejarte en el vestuario",
+      efectos: {"moral":-2,"reputacion":-4},
     },
     ],
   },
@@ -2761,20 +2761,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-111",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Prensa",
-    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
+    etiqueta: "Contrato",
+    texto: "Te ofrecen renovar barato. ¿Qué decides?",
     opciones: [
     {
-      texto: "Callar y responder en la cancha",
-      efectos: {"reputacion":3,"atributos":{"tiro":1}},
+      texto: "Firmar por minutos",
+      efectos: {"moral":4,"reputacion":2},
     },
     {
-      texto: "Salir a aclarar",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Pedir más sueldo",
+      efectos: {"reputacion":1,"moral":1},
     },
     {
-      texto: "Enojarte en redes",
-      efectos: {"reputacion":-5,"moral":3},
+      texto: "Rechazar y esperar",
+      efectos: {"moral":-2,"reputacion":3},
     },
     ],
   },
@@ -2782,20 +2782,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-112",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Liderazgo",
-    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
+    etiqueta: "Lesión",
+    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
     opciones: [
     {
-      texto: "Hablar más y empujar al grupo",
-      efectos: {"reputacion":5,"moral":4},
+      texto: "Cumplir la rehab al pie de la letra",
+      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
     },
     {
-      texto: "Apoyar en silencio",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Acelerar el retorno",
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.25},
     },
     {
-      texto: "Decir que no es tu rol",
-      efectos: {"moral":-1,"reputacion":-2},
+      texto: "Usar el tiempo para estudiar rivales",
+      efectos: {"atributos":{"pase":1},"moral":1},
     },
     ],
   },
@@ -2803,20 +2803,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-113",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Titularidad",
-    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
+    etiqueta: "Préstamo",
+    texto: "El club plantea un préstamo para que juegues. ¿Qué decides?",
     opciones: [
     {
-      texto: "Competir en silencio",
-      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"mismo_nivel","moral":5,"atributos":{"tiro":1,"ritmo":1}},
     },
     {
-      texto: "Hablar claro con él",
-      efectos: {"moral":3,"reputacion":2},
+      texto: "Pelear minutos acá",
+      efectos: {"moral":2,"atributos":{"fisico":2}},
     },
     {
-      texto: "Pedir intervención del DT",
-      efectos: {"reputacion":1,"moral":-1},
+      texto: "Pedir la salida definitiva",
+      efectos: {"buscarSalida":true,"reputacion":-2,"moral":-2},
     },
     ],
   },
@@ -2824,20 +2824,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-114",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Partido",
-    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
+    etiqueta: "Prensa",
+    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Ir a demostrar",
-      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+      texto: "Callar y responder en la cancha",
+      efectos: {"reputacion":3,"atributos":{"tiro":1}},
     },
     {
-      texto: "Cumplir el plan del DT",
-      efectos: {"atributos":{"pase":2},"reputacion":4},
+      texto: "Salir a aclarar",
+      efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Cuidarte para no lesionarte",
-      efectos: {"riesgoLesion":-0.08,"moral":-1},
+      texto: "Enojarte en redes",
+      efectos: {"reputacion":-5,"moral":3},
     },
     ],
   },
@@ -2845,20 +2845,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-115",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Competencia",
-    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
+    etiqueta: "Liderazgo",
+    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
     opciones: [
     {
-      texto: "Subir el nivel en entrenamientos",
-      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
+      texto: "Hablar más y empujar al grupo",
+      efectos: {"reputacion":5,"moral":4},
     },
     {
-      texto: "Pedir charla con el DT",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Apoyar en silencio",
+      efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      texto: "Decir que no es tu rol",
+      efectos: {"moral":-1,"reputacion":-2},
     },
     ],
   },
@@ -2866,20 +2866,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-116",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Táctica",
-    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
+    etiqueta: "Titularidad",
+    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
     opciones: [
     {
-      texto: "Adaptarte al nuevo rol",
-      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
+      texto: "Competir en silencio",
+      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
     },
     {
-      texto: "Pedir tu rol anterior",
-      efectos: {"moral":2,"reputacion":-1},
+      texto: "Hablar claro con él",
+      efectos: {"moral":3,"reputacion":2},
     },
     {
-      texto: "Quejarte en el vestuario",
-      efectos: {"moral":-2,"reputacion":-4},
+      texto: "Pedir intervención del DT",
+      efectos: {"reputacion":1,"moral":-1},
     },
     ],
   },
@@ -2887,20 +2887,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-117",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Te ofrecen renovar barato. ¿Qué decides?",
+    etiqueta: "Partido",
+    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
     opciones: [
     {
-      texto: "Firmar por minutos",
-      efectos: {"moral":4,"reputacion":2},
+      texto: "Ir a demostrar",
+      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
     },
     {
-      texto: "Pedir más sueldo",
-      efectos: {"reputacion":1,"moral":1},
+      texto: "Cumplir el plan del DT",
+      efectos: {"atributos":{"pase":2},"reputacion":4},
     },
     {
-      texto: "Rechazar y esperar",
-      efectos: {"moral":-2,"reputacion":3},
+      texto: "Cuidarte para no lesionarte",
+      efectos: {"riesgoLesion":-0.08,"moral":-1},
     },
     ],
   },
@@ -2908,20 +2908,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-118",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Lesión",
-    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
+    etiqueta: "Competencia",
+    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
     opciones: [
     {
-      texto: "Cumplir la rehab al pie de la letra",
-      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
+      texto: "Subir el nivel en entrenamientos",
+      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
     },
     {
-      texto: "Acelerar el retorno",
-      efectos: {"moral":3,"riesgoLesion":0.15},
+      texto: "Pedir charla con el DT",
+      efectos: {"reputacion":2,"moral":1},
     },
     {
-      texto: "Usar el tiempo para estudiar rivales",
-      efectos: {"atributos":{"pase":1},"moral":1},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-4,"reputacion":-2},
     },
     ],
   },
@@ -2929,20 +2929,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-119",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Prensa",
-    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
+    etiqueta: "Táctica",
+    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
     opciones: [
     {
-      texto: "Callar y responder en la cancha",
-      efectos: {"reputacion":3,"atributos":{"tiro":1}},
+      texto: "Adaptarte al nuevo rol",
+      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
     },
     {
-      texto: "Salir a aclarar",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Pedir tu rol anterior",
+      efectos: {"moral":2,"reputacion":-1},
     },
     {
-      texto: "Enojarte en redes",
-      efectos: {"reputacion":-5,"moral":3},
+      texto: "Quejarte en el vestuario",
+      efectos: {"moral":-2,"reputacion":-4},
     },
     ],
   },
@@ -2950,20 +2950,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-120",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Liderazgo",
-    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
+    etiqueta: "Contrato",
+    texto: "Te ofrecen renovar barato. ¿Qué decides?",
     opciones: [
     {
-      texto: "Hablar más y empujar al grupo",
-      efectos: {"reputacion":5,"moral":4},
+      texto: "Firmar por minutos",
+      efectos: {"moral":4,"reputacion":2},
     },
     {
-      texto: "Apoyar en silencio",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Pedir más sueldo",
+      efectos: {"reputacion":1,"moral":1},
     },
     {
-      texto: "Decir que no es tu rol",
-      efectos: {"moral":-1,"reputacion":-2},
+      texto: "Rechazar y esperar",
+      efectos: {"moral":-2,"reputacion":3},
     },
     ],
   },
@@ -2971,20 +2971,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-121",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Titularidad",
-    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
+    etiqueta: "Lesión",
+    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
     opciones: [
     {
-      texto: "Competir en silencio",
-      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
+      texto: "Cumplir la rehab al pie de la letra",
+      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
     },
     {
-      texto: "Hablar claro con él",
-      efectos: {"moral":3,"reputacion":2},
+      texto: "Acelerar el retorno",
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.25},
     },
     {
-      texto: "Pedir intervención del DT",
-      efectos: {"reputacion":1,"moral":-1},
+      texto: "Usar el tiempo para estudiar rivales",
+      efectos: {"atributos":{"pase":1},"moral":1},
     },
     ],
   },
@@ -2992,20 +2992,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-122",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Partido",
-    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
+    etiqueta: "Préstamo",
+    texto: "El club plantea un préstamo para que juegues. ¿Qué decides?",
     opciones: [
     {
-      texto: "Ir a demostrar",
-      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"mismo_nivel","moral":5,"atributos":{"tiro":1,"ritmo":1}},
     },
     {
-      texto: "Cumplir el plan del DT",
-      efectos: {"atributos":{"pase":2},"reputacion":4},
+      texto: "Pelear minutos acá",
+      efectos: {"moral":2,"atributos":{"fisico":2}},
     },
     {
-      texto: "Cuidarte para no lesionarte",
-      efectos: {"riesgoLesion":-0.08,"moral":-1},
+      texto: "Pedir la salida definitiva",
+      efectos: {"buscarSalida":true,"reputacion":-2,"moral":-2},
     },
     ],
   },
@@ -3013,20 +3013,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-123",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Competencia",
-    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
+    etiqueta: "Prensa",
+    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Subir el nivel en entrenamientos",
-      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
+      texto: "Callar y responder en la cancha",
+      efectos: {"reputacion":3,"atributos":{"tiro":1}},
     },
     {
-      texto: "Pedir charla con el DT",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Salir a aclarar",
+      efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      texto: "Enojarte en redes",
+      efectos: {"reputacion":-5,"moral":3},
     },
     ],
   },
@@ -3034,20 +3034,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-124",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Táctica",
-    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
+    etiqueta: "Liderazgo",
+    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
     opciones: [
     {
-      texto: "Adaptarte al nuevo rol",
-      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
+      texto: "Hablar más y empujar al grupo",
+      efectos: {"reputacion":5,"moral":4},
     },
     {
-      texto: "Pedir tu rol anterior",
-      efectos: {"moral":2,"reputacion":-1},
+      texto: "Apoyar en silencio",
+      efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Quejarte en el vestuario",
-      efectos: {"moral":-2,"reputacion":-4},
+      texto: "Decir que no es tu rol",
+      efectos: {"moral":-1,"reputacion":-2},
     },
     ],
   },
@@ -3055,20 +3055,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-125",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Te ofrecen renovar barato. ¿Qué decides?",
+    etiqueta: "Titularidad",
+    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
     opciones: [
     {
-      texto: "Firmar por minutos",
-      efectos: {"moral":4,"reputacion":2},
+      texto: "Competir en silencio",
+      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
     },
     {
-      texto: "Pedir más sueldo",
-      efectos: {"reputacion":1,"moral":1},
+      texto: "Hablar claro con él",
+      efectos: {"moral":3,"reputacion":2},
     },
     {
-      texto: "Rechazar y esperar",
-      efectos: {"moral":-2,"reputacion":3},
+      texto: "Pedir intervención del DT",
+      efectos: {"reputacion":1,"moral":-1},
     },
     ],
   },
@@ -3076,20 +3076,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-126",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Lesión",
-    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
+    etiqueta: "Partido",
+    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
     opciones: [
     {
-      texto: "Cumplir la rehab al pie de la letra",
-      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
+      texto: "Ir a demostrar",
+      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
     },
     {
-      texto: "Acelerar el retorno",
-      efectos: {"moral":3,"riesgoLesion":0.15},
+      texto: "Cumplir el plan del DT",
+      efectos: {"atributos":{"pase":2},"reputacion":4},
     },
     {
-      texto: "Usar el tiempo para estudiar rivales",
-      efectos: {"atributos":{"pase":1},"moral":1},
+      texto: "Cuidarte para no lesionarte",
+      efectos: {"riesgoLesion":-0.08,"moral":-1},
     },
     ],
   },
@@ -3097,20 +3097,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-127",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Prensa",
-    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
+    etiqueta: "Competencia",
+    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
     opciones: [
     {
-      texto: "Callar y responder en la cancha",
-      efectos: {"reputacion":3,"atributos":{"tiro":1}},
+      texto: "Subir el nivel en entrenamientos",
+      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
     },
     {
-      texto: "Salir a aclarar",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Pedir charla con el DT",
+      efectos: {"reputacion":2,"moral":1},
     },
     {
-      texto: "Enojarte en redes",
-      efectos: {"reputacion":-5,"moral":3},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-4,"reputacion":-2},
     },
     ],
   },
@@ -3118,20 +3118,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-128",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Liderazgo",
-    texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
+    etiqueta: "Táctica",
+    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
     opciones: [
     {
-      texto: "Hablar más y empujar al grupo",
-      efectos: {"reputacion":5,"moral":4},
+      texto: "Adaptarte al nuevo rol",
+      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
     },
     {
-      texto: "Apoyar en silencio",
-      efectos: {"reputacion":2,"moral":2},
+      texto: "Pedir tu rol anterior",
+      efectos: {"moral":2,"reputacion":-1},
     },
     {
-      texto: "Decir que no es tu rol",
-      efectos: {"moral":-1,"reputacion":-2},
+      texto: "Quejarte en el vestuario",
+      efectos: {"moral":-2,"reputacion":-4},
     },
     ],
   },
@@ -3139,20 +3139,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-129",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Titularidad",
-    texto: "Hay tensión por la titularidad con un compañero. ¿Qué haces?",
+    etiqueta: "Contrato",
+    texto: "Te ofrecen renovar barato. ¿Qué decides?",
     opciones: [
     {
-      texto: "Competir en silencio",
-      efectos: {"atributos":{"fisico":1,"ritmo":1},"reputacion":3},
+      texto: "Firmar por minutos",
+      efectos: {"moral":4,"reputacion":2},
     },
     {
-      texto: "Hablar claro con él",
-      efectos: {"moral":3,"reputacion":2},
+      texto: "Pedir más sueldo",
+      efectos: {"reputacion":1,"moral":1},
     },
     {
-      texto: "Pedir intervención del DT",
-      efectos: {"reputacion":1,"moral":-1},
+      texto: "Rechazar y esperar",
+      efectos: {"moral":-2,"reputacion":3},
     },
     ],
   },
@@ -3160,20 +3160,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-130",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Partido",
-    texto: "Un amistoso puede decidir tu rol. ¿Cómo lo juegas?",
+    etiqueta: "Lesión",
+    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
     opciones: [
     {
-      texto: "Ir a demostrar",
-      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+      texto: "Cumplir la rehab al pie de la letra",
+      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
     },
     {
-      texto: "Cumplir el plan del DT",
-      efectos: {"atributos":{"pase":2},"reputacion":4},
+      texto: "Acelerar el retorno",
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.25},
     },
     {
-      texto: "Cuidarte para no lesionarte",
-      efectos: {"riesgoLesion":-0.08,"moral":-1},
+      texto: "Usar el tiempo para estudiar rivales",
+      efectos: {"atributos":{"pase":1},"moral":1},
     },
     ],
   },
@@ -3181,20 +3181,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-131",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Competencia",
-    texto: "Entran tres delanteros en el mercado. ¿Cómo reaccionas?",
+    etiqueta: "Préstamo",
+    texto: "El club plantea un préstamo para que juegues. ¿Qué decides?",
     opciones: [
     {
-      texto: "Subir el nivel en entrenamientos",
-      efectos: {"atributos":{"tiro":2,"ritmo":1},"moral":3},
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"mismo_nivel","moral":5,"atributos":{"tiro":1,"ritmo":1}},
     },
     {
-      texto: "Pedir charla con el DT",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Pelear minutos acá",
+      efectos: {"moral":2,"atributos":{"fisico":2}},
     },
     {
-      texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      texto: "Pedir la salida definitiva",
+      efectos: {"buscarSalida":true,"reputacion":-2,"moral":-2},
     },
     ],
   },
@@ -3202,20 +3202,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-132",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Táctica",
-    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
+    etiqueta: "Prensa",
+    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Adaptarte al nuevo rol",
-      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
+      texto: "Callar y responder en la cancha",
+      efectos: {"reputacion":3,"atributos":{"tiro":1}},
     },
     {
-      texto: "Pedir tu rol anterior",
-      efectos: {"moral":2,"reputacion":-1},
+      texto: "Salir a aclarar",
+      efectos: {"reputacion":2,"moral":2},
     },
     {
-      texto: "Quejarte en el vestuario",
-      efectos: {"moral":-2,"reputacion":-4},
+      texto: "Enojarte en redes",
+      efectos: {"reputacion":-5,"moral":3},
     },
     ],
   },
@@ -3223,69 +3223,6 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "con-gen-auto-133",
     tramoCarrera: "consolidacion",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Te ofrecen renovar barato. ¿Qué decides?",
-    opciones: [
-    {
-      texto: "Firmar por minutos",
-      efectos: {"moral":4,"reputacion":2},
-    },
-    {
-      texto: "Pedir más sueldo",
-      efectos: {"reputacion":1,"moral":1},
-    },
-    {
-      texto: "Rechazar y esperar",
-      efectos: {"moral":-2,"reputacion":3},
-    },
-    ],
-  },
-  {
-    id: "con-gen-auto-134",
-    tramoCarrera: "consolidacion",
-    categoria: "generico",
-    etiqueta: "Lesión",
-    texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
-    opciones: [
-    {
-      texto: "Cumplir la rehab al pie de la letra",
-      efectos: {"riesgoLesion":-0.1,"atributos":{"fisico":1}},
-    },
-    {
-      texto: "Acelerar el retorno",
-      efectos: {"moral":3,"riesgoLesion":0.15},
-    },
-    {
-      texto: "Usar el tiempo para estudiar rivales",
-      efectos: {"atributos":{"pase":1},"moral":1},
-    },
-    ],
-  },
-  {
-    id: "con-gen-auto-135",
-    tramoCarrera: "consolidacion",
-    categoria: "generico",
-    etiqueta: "Prensa",
-    texto: "La prensa cuestiona tu nivel. ¿Cómo respondes?",
-    opciones: [
-    {
-      texto: "Callar y responder en la cancha",
-      efectos: {"reputacion":3,"atributos":{"tiro":1}},
-    },
-    {
-      texto: "Salir a aclarar",
-      efectos: {"reputacion":2,"moral":2},
-    },
-    {
-      texto: "Enojarte en redes",
-      efectos: {"reputacion":-5,"moral":3},
-    },
-    ],
-  },
-  {
-    id: "con-gen-auto-136",
-    tramoCarrera: "consolidacion",
-    categoria: "generico",
     etiqueta: "Liderazgo",
     texto: "El capitán te pide más voz en el vestuario. ¿Aceptas?",
     opciones: [
@@ -3304,7 +3241,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-137",
+    id: "con-gen-auto-134",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Titularidad",
@@ -3325,7 +3262,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-138",
+    id: "con-gen-auto-135",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Partido",
@@ -3346,7 +3283,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-139",
+    id: "con-gen-auto-136",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Competencia",
@@ -3362,12 +3299,12 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-4,"reputacion":-2},
     },
     ],
   },
   {
-    id: "con-gen-auto-140",
+    id: "con-gen-auto-137",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Táctica",
@@ -3388,7 +3325,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-141",
+    id: "con-gen-auto-138",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Contrato",
@@ -3409,7 +3346,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-142",
+    id: "con-gen-auto-139",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Lesión",
@@ -3421,7 +3358,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Acelerar el retorno",
-      efectos: {"moral":3,"riesgoLesion":0.15},
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.25},
     },
     {
       texto: "Usar el tiempo para estudiar rivales",
@@ -3430,7 +3367,28 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-143",
+    id: "con-gen-auto-140",
+    tramoCarrera: "consolidacion",
+    categoria: "generico",
+    etiqueta: "Préstamo",
+    texto: "El club plantea un préstamo para que juegues. ¿Qué decides?",
+    opciones: [
+    {
+      texto: "Aceptar el préstamo",
+      efectos: {"transferencia":"mismo_nivel","moral":5,"atributos":{"tiro":1,"ritmo":1}},
+    },
+    {
+      texto: "Pelear minutos acá",
+      efectos: {"moral":2,"atributos":{"fisico":2}},
+    },
+    {
+      texto: "Pedir la salida definitiva",
+      efectos: {"buscarSalida":true,"reputacion":-2,"moral":-2},
+    },
+    ],
+  },
+  {
+    id: "con-gen-auto-141",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Prensa",
@@ -3451,7 +3409,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-144",
+    id: "con-gen-auto-142",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Liderazgo",
@@ -3472,7 +3430,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-145",
+    id: "con-gen-auto-143",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Titularidad",
@@ -3493,7 +3451,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-146",
+    id: "con-gen-auto-144",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Partido",
@@ -3514,7 +3472,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "con-gen-auto-147",
+    id: "con-gen-auto-145",
     tramoCarrera: "consolidacion",
     categoria: "generico",
     etiqueta: "Competencia",
@@ -3530,7 +3488,49 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-4,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-4,"reputacion":-2},
+    },
+    ],
+  },
+  {
+    id: "con-gen-auto-146",
+    tramoCarrera: "consolidacion",
+    categoria: "generico",
+    etiqueta: "Táctica",
+    texto: "El DT cambia el esquema y tu rol cambia. ¿Qué haces?",
+    opciones: [
+    {
+      texto: "Adaptarte al nuevo rol",
+      efectos: {"atributos":{"pase":2,"defensa":1},"reputacion":3},
+    },
+    {
+      texto: "Pedir tu rol anterior",
+      efectos: {"moral":2,"reputacion":-1},
+    },
+    {
+      texto: "Quejarte en el vestuario",
+      efectos: {"moral":-2,"reputacion":-4},
+    },
+    ],
+  },
+  {
+    id: "con-gen-auto-147",
+    tramoCarrera: "consolidacion",
+    categoria: "generico",
+    etiqueta: "Contrato",
+    texto: "Te ofrecen renovar barato. ¿Qué decides?",
+    opciones: [
+    {
+      texto: "Firmar por minutos",
+      efectos: {"moral":4,"reputacion":2},
+    },
+    {
+      texto: "Pedir más sueldo",
+      efectos: {"reputacion":1,"moral":1},
+    },
+    {
+      texto: "Rechazar y esperar",
+      efectos: {"moral":-2,"reputacion":3},
     },
     ],
   },
@@ -3542,8 +3542,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Ir sí o sí",
-      efectos: {"reputacion":8,"moral":6},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"mayor","reputacion":8,"moral":6},
     },
     {
       texto: "Negociar con el club",
@@ -3627,7 +3627,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Apoyar la convocatoria",
-      efectos: {"reputacion":7,"moral":5},
+      efectos: {"convocatoria":"mayor","reputacion":7,"moral":5},
     },
     {
       texto: "Negociar fechas",
@@ -3643,20 +3643,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-153",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Viaje",
-    texto: "Viaje largo por Copa. ¿Cómo lo manejas?",
+    etiqueta: "Regreso",
+    texto: "Suena un regreso a Colombia. ¿Lo escuchas?",
     opciones: [
     {
-      texto: "Descansar y recuperar",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
+      texto: "Volver a Colombia",
+      efectos: {"transferencia":"colombia_primera","moral":6,"reputacion":3},
     },
     {
-      texto: "Mantener rutina normal",
-      efectos: {"moral":2,"atributos":{"ritmo":1}},
+      texto: "Quedarte en el exterior",
+      efectos: {"moral":2,"reputacion":2},
     },
     {
-      texto: "Forzar sesiones extras",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":0.08},
+      texto: "Volver al club de origen",
+      efectos: {"transferencia":"club_origen","moral":8,"reputacion":4},
     },
     ],
   },
@@ -3664,20 +3664,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-154",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Hinchada",
-    texto: "La hinchada te nombra ídolo. ¿Cómo lo manejas?",
+    etiqueta: "Viaje",
+    texto: "Viaje largo por Copa. ¿Cómo lo manejas?",
     opciones: [
     {
-      texto: "Agradecer y seguir trabajando",
-      efectos: {"reputacion":5,"moral":4},
+      texto: "Descansar y recuperar",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
     },
     {
-      texto: "Subir el perfil mediático",
-      efectos: {"reputacion":6,"moral":3},
+      texto: "Mantener rutina normal",
+      efectos: {"moral":2,"atributos":{"ritmo":1}},
     },
     {
-      texto: "Bajar exposición",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Forzar sesiones extras",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":0.08},
     },
     ],
   },
@@ -3685,20 +3685,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-155",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Pretemporada",
-    texto: "Pretemporada en altura. ¿Cómo la encaras?",
+    etiqueta: "Hinchada",
+    texto: "La hinchada te nombra ídolo. ¿Cómo lo manejas?",
     opciones: [
     {
-      texto: "Cumplir toda la carga",
-      efectos: {"atributos":{"fisico":2,"ritmo":1},"riesgoLesion":0.05},
+      texto: "Agradecer y seguir trabajando",
+      efectos: {"reputacion":5,"moral":4},
     },
     {
-      texto: "Dosificar con el fisio",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.06},
+      texto: "Subir el perfil mediático",
+      efectos: {"reputacion":6,"moral":3},
     },
     {
-      texto: "Quejarte de la exigencia",
-      efectos: {"moral":-2,"reputacion":-2},
+      texto: "Bajar exposición",
+      efectos: {"reputacion":2,"moral":1},
     },
     ],
   },
@@ -3706,20 +3706,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-156",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Selección",
-    texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
+    etiqueta: "Pretemporada",
+    texto: "Pretemporada en altura. ¿Cómo la encaras?",
     opciones: [
     {
-      texto: "Ir sí o sí",
-      efectos: {"reputacion":8,"moral":6},
+      texto: "Cumplir toda la carga",
+      efectos: {"atributos":{"fisico":2,"ritmo":1},"riesgoLesion":0.05},
     },
     {
-      texto: "Negociar con el club",
-      efectos: {"reputacion":4,"moral":3},
+      texto: "Dosificar con el fisio",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.06},
     },
     {
-      texto: "Quedarte a recuperar",
-      efectos: {"atributos":{"fisico":1},"reputacion":-2},
+      texto: "Quejarte de la exigencia",
+      efectos: {"moral":-2,"reputacion":-2},
     },
     ],
   },
@@ -3727,20 +3727,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-157",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Libertadores",
-    texto: "Libertadores: visita pesada de visitante. ¿Cómo llegas?",
+    etiqueta: "Selección",
+    texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Prepararte al detalle",
-      efectos: {"atributos":{"defensa":2,"fisico":1},"reputacion":3},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"mayor","reputacion":8,"moral":6},
     },
     {
-      texto: "Salir a pelear cada balón",
-      efectos: {"atributos":{"fisico":2},"moral":5},
+      texto: "Negociar con el club",
+      efectos: {"reputacion":4,"moral":3},
     },
     {
-      texto: "Cuidar el cuerpo",
-      efectos: {"riesgoLesion":-0.06,"moral":1},
+      texto: "Quedarte a recuperar",
+      efectos: {"atributos":{"fisico":1},"reputacion":-2},
     },
     ],
   },
@@ -3748,20 +3748,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-158",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Clásico",
-    texto: "Clásico y la ciudad se para. ¿Cómo lo vives?",
+    etiqueta: "Libertadores",
+    texto: "Libertadores: visita pesada de visitante. ¿Cómo llegas?",
     opciones: [
     {
-      texto: "Concentrarte en el plan",
-      efectos: {"atributos":{"pase":2},"reputacion":3},
+      texto: "Prepararte al detalle",
+      efectos: {"atributos":{"defensa":2,"fisico":1},"reputacion":3},
     },
     {
-      texto: "Buscar ser figura",
-      efectos: {"atributos":{"tiro":2},"moral":5},
+      texto: "Salir a pelear cada balón",
+      efectos: {"atributos":{"fisico":2},"moral":5},
     },
     {
-      texto: "Bajar exposición previa",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Cuidar el cuerpo",
+      efectos: {"riesgoLesion":-0.06,"moral":1},
     },
     ],
   },
@@ -3769,20 +3769,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-159",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Copa",
-    texto: "Sudamericana a eliminatoria. ¿Qué actitud tomas?",
+    etiqueta: "Clásico",
+    texto: "Clásico y la ciudad se para. ¿Cómo lo vives?",
     opciones: [
     {
-      texto: "Ir a definir la serie",
-      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+      texto: "Concentrarte en el plan",
+      efectos: {"atributos":{"pase":2},"reputacion":3},
     },
     {
-      texto: "No arriesgar en exceso",
-      efectos: {"atributos":{"defensa":2},"riesgoLesion":-0.04},
+      texto: "Buscar ser figura",
+      efectos: {"atributos":{"tiro":2},"moral":5},
     },
     {
-      texto: "Pedir rotación parcial",
-      efectos: {"moral":-1,"reputacion":1},
+      texto: "Bajar exposición previa",
+      efectos: {"reputacion":2,"moral":1},
     },
     ],
   },
@@ -3790,20 +3790,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-160",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Selección",
-    texto: "La Federación pide tu cesión. ¿Qué decides?",
+    etiqueta: "Copa",
+    texto: "Sudamericana a eliminatoria. ¿Qué actitud tomas?",
     opciones: [
     {
-      texto: "Apoyar la convocatoria",
-      efectos: {"reputacion":7,"moral":5},
+      texto: "Ir a definir la serie",
+      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
     },
     {
-      texto: "Negociar fechas",
-      efectos: {"reputacion":3,"moral":2},
+      texto: "No arriesgar en exceso",
+      efectos: {"atributos":{"defensa":2},"riesgoLesion":-0.04},
     },
     {
-      texto: "Priorizar el club",
-      efectos: {"reputacion":-3,"atributos":{"fisico":1}},
+      texto: "Pedir rotación parcial",
+      efectos: {"moral":-1,"reputacion":1},
     },
     ],
   },
@@ -3811,20 +3811,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-161",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Viaje",
-    texto: "Viaje largo por Copa. ¿Cómo lo manejas?",
+    etiqueta: "Selección",
+    texto: "La Federación pide tu cesión. ¿Qué decides?",
     opciones: [
     {
-      texto: "Descansar y recuperar",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
+      texto: "Apoyar la convocatoria",
+      efectos: {"convocatoria":"mayor","reputacion":7,"moral":5},
     },
     {
-      texto: "Mantener rutina normal",
-      efectos: {"moral":2,"atributos":{"ritmo":1}},
+      texto: "Negociar fechas",
+      efectos: {"reputacion":3,"moral":2},
     },
     {
-      texto: "Forzar sesiones extras",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":0.08},
+      texto: "Priorizar el club",
+      efectos: {"reputacion":-3,"atributos":{"fisico":1}},
     },
     ],
   },
@@ -3832,20 +3832,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-162",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Hinchada",
-    texto: "La hinchada te nombra ídolo. ¿Cómo lo manejas?",
+    etiqueta: "Regreso",
+    texto: "Suena un regreso a Colombia. ¿Lo escuchas?",
     opciones: [
     {
-      texto: "Agradecer y seguir trabajando",
-      efectos: {"reputacion":5,"moral":4},
+      texto: "Volver a Colombia",
+      efectos: {"transferencia":"colombia_primera","moral":6,"reputacion":3},
     },
     {
-      texto: "Subir el perfil mediático",
-      efectos: {"reputacion":6,"moral":3},
+      texto: "Quedarte en el exterior",
+      efectos: {"moral":2,"reputacion":2},
     },
     {
-      texto: "Bajar exposición",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Volver al club de origen",
+      efectos: {"transferencia":"club_origen","moral":8,"reputacion":4},
     },
     ],
   },
@@ -3853,20 +3853,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-163",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Pretemporada",
-    texto: "Pretemporada en altura. ¿Cómo la encaras?",
+    etiqueta: "Viaje",
+    texto: "Viaje largo por Copa. ¿Cómo lo manejas?",
     opciones: [
     {
-      texto: "Cumplir toda la carga",
-      efectos: {"atributos":{"fisico":2,"ritmo":1},"riesgoLesion":0.05},
+      texto: "Descansar y recuperar",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
     },
     {
-      texto: "Dosificar con el fisio",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.06},
+      texto: "Mantener rutina normal",
+      efectos: {"moral":2,"atributos":{"ritmo":1}},
     },
     {
-      texto: "Quejarte de la exigencia",
-      efectos: {"moral":-2,"reputacion":-2},
+      texto: "Forzar sesiones extras",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":0.08},
     },
     ],
   },
@@ -3874,20 +3874,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-164",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Selección",
-    texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
+    etiqueta: "Hinchada",
+    texto: "La hinchada te nombra ídolo. ¿Cómo lo manejas?",
     opciones: [
     {
-      texto: "Ir sí o sí",
-      efectos: {"reputacion":8,"moral":6},
+      texto: "Agradecer y seguir trabajando",
+      efectos: {"reputacion":5,"moral":4},
     },
     {
-      texto: "Negociar con el club",
-      efectos: {"reputacion":4,"moral":3},
+      texto: "Subir el perfil mediático",
+      efectos: {"reputacion":6,"moral":3},
     },
     {
-      texto: "Quedarte a recuperar",
-      efectos: {"atributos":{"fisico":1},"reputacion":-2},
+      texto: "Bajar exposición",
+      efectos: {"reputacion":2,"moral":1},
     },
     ],
   },
@@ -3895,20 +3895,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-165",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Libertadores",
-    texto: "Libertadores: visita pesada de visitante. ¿Cómo llegas?",
+    etiqueta: "Pretemporada",
+    texto: "Pretemporada en altura. ¿Cómo la encaras?",
     opciones: [
     {
-      texto: "Prepararte al detalle",
-      efectos: {"atributos":{"defensa":2,"fisico":1},"reputacion":3},
+      texto: "Cumplir toda la carga",
+      efectos: {"atributos":{"fisico":2,"ritmo":1},"riesgoLesion":0.05},
     },
     {
-      texto: "Salir a pelear cada balón",
-      efectos: {"atributos":{"fisico":2},"moral":5},
+      texto: "Dosificar con el fisio",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.06},
     },
     {
-      texto: "Cuidar el cuerpo",
-      efectos: {"riesgoLesion":-0.06,"moral":1},
+      texto: "Quejarte de la exigencia",
+      efectos: {"moral":-2,"reputacion":-2},
     },
     ],
   },
@@ -3916,20 +3916,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-166",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Clásico",
-    texto: "Clásico y la ciudad se para. ¿Cómo lo vives?",
+    etiqueta: "Selección",
+    texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Concentrarte en el plan",
-      efectos: {"atributos":{"pase":2},"reputacion":3},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"mayor","reputacion":8,"moral":6},
     },
     {
-      texto: "Buscar ser figura",
-      efectos: {"atributos":{"tiro":2},"moral":5},
+      texto: "Negociar con el club",
+      efectos: {"reputacion":4,"moral":3},
     },
     {
-      texto: "Bajar exposición previa",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Quedarte a recuperar",
+      efectos: {"atributos":{"fisico":1},"reputacion":-2},
     },
     ],
   },
@@ -3937,20 +3937,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-167",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Copa",
-    texto: "Sudamericana a eliminatoria. ¿Qué actitud tomas?",
+    etiqueta: "Libertadores",
+    texto: "Libertadores: visita pesada de visitante. ¿Cómo llegas?",
     opciones: [
     {
-      texto: "Ir a definir la serie",
-      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+      texto: "Prepararte al detalle",
+      efectos: {"atributos":{"defensa":2,"fisico":1},"reputacion":3},
     },
     {
-      texto: "No arriesgar en exceso",
-      efectos: {"atributos":{"defensa":2},"riesgoLesion":-0.04},
+      texto: "Salir a pelear cada balón",
+      efectos: {"atributos":{"fisico":2},"moral":5},
     },
     {
-      texto: "Pedir rotación parcial",
-      efectos: {"moral":-1,"reputacion":1},
+      texto: "Cuidar el cuerpo",
+      efectos: {"riesgoLesion":-0.06,"moral":1},
     },
     ],
   },
@@ -3958,132 +3958,6 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-168",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Selección",
-    texto: "La Federación pide tu cesión. ¿Qué decides?",
-    opciones: [
-    {
-      texto: "Apoyar la convocatoria",
-      efectos: {"reputacion":7,"moral":5},
-    },
-    {
-      texto: "Negociar fechas",
-      efectos: {"reputacion":3,"moral":2},
-    },
-    {
-      texto: "Priorizar el club",
-      efectos: {"reputacion":-3,"atributos":{"fisico":1}},
-    },
-    ],
-  },
-  {
-    id: "pri-col-auto-169",
-    tramoCarrera: "prime",
-    categoria: "colombia_especifico",
-    etiqueta: "Viaje",
-    texto: "Viaje largo por Copa. ¿Cómo lo manejas?",
-    opciones: [
-    {
-      texto: "Descansar y recuperar",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
-    },
-    {
-      texto: "Mantener rutina normal",
-      efectos: {"moral":2,"atributos":{"ritmo":1}},
-    },
-    {
-      texto: "Forzar sesiones extras",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":0.08},
-    },
-    ],
-  },
-  {
-    id: "pri-col-auto-170",
-    tramoCarrera: "prime",
-    categoria: "colombia_especifico",
-    etiqueta: "Hinchada",
-    texto: "La hinchada te nombra ídolo. ¿Cómo lo manejas?",
-    opciones: [
-    {
-      texto: "Agradecer y seguir trabajando",
-      efectos: {"reputacion":5,"moral":4},
-    },
-    {
-      texto: "Subir el perfil mediático",
-      efectos: {"reputacion":6,"moral":3},
-    },
-    {
-      texto: "Bajar exposición",
-      efectos: {"reputacion":2,"moral":1},
-    },
-    ],
-  },
-  {
-    id: "pri-col-auto-171",
-    tramoCarrera: "prime",
-    categoria: "colombia_especifico",
-    etiqueta: "Pretemporada",
-    texto: "Pretemporada en altura. ¿Cómo la encaras?",
-    opciones: [
-    {
-      texto: "Cumplir toda la carga",
-      efectos: {"atributos":{"fisico":2,"ritmo":1},"riesgoLesion":0.05},
-    },
-    {
-      texto: "Dosificar con el fisio",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.06},
-    },
-    {
-      texto: "Quejarte de la exigencia",
-      efectos: {"moral":-2,"reputacion":-2},
-    },
-    ],
-  },
-  {
-    id: "pri-col-auto-172",
-    tramoCarrera: "prime",
-    categoria: "colombia_especifico",
-    etiqueta: "Selección",
-    texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
-    opciones: [
-    {
-      texto: "Ir sí o sí",
-      efectos: {"reputacion":8,"moral":6},
-    },
-    {
-      texto: "Negociar con el club",
-      efectos: {"reputacion":4,"moral":3},
-    },
-    {
-      texto: "Quedarte a recuperar",
-      efectos: {"atributos":{"fisico":1},"reputacion":-2},
-    },
-    ],
-  },
-  {
-    id: "pri-col-auto-173",
-    tramoCarrera: "prime",
-    categoria: "colombia_especifico",
-    etiqueta: "Libertadores",
-    texto: "Libertadores: visita pesada de visitante. ¿Cómo llegas?",
-    opciones: [
-    {
-      texto: "Prepararte al detalle",
-      efectos: {"atributos":{"defensa":2,"fisico":1},"reputacion":3},
-    },
-    {
-      texto: "Salir a pelear cada balón",
-      efectos: {"atributos":{"fisico":2},"moral":5},
-    },
-    {
-      texto: "Cuidar el cuerpo",
-      efectos: {"riesgoLesion":-0.06,"moral":1},
-    },
-    ],
-  },
-  {
-    id: "pri-col-auto-174",
-    tramoCarrera: "prime",
-    categoria: "colombia_especifico",
     etiqueta: "Clásico",
     texto: "Clásico y la ciudad se para. ¿Cómo lo vives?",
     opciones: [
@@ -4102,7 +3976,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-col-auto-175",
+    id: "pri-col-auto-169",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Copa",
@@ -4123,7 +3997,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-col-auto-176",
+    id: "pri-col-auto-170",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Selección",
@@ -4131,7 +4005,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Apoyar la convocatoria",
-      efectos: {"reputacion":7,"moral":5},
+      efectos: {"convocatoria":"mayor","reputacion":7,"moral":5},
     },
     {
       texto: "Negociar fechas",
@@ -4144,7 +4018,28 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-col-auto-177",
+    id: "pri-col-auto-171",
+    tramoCarrera: "prime",
+    categoria: "colombia_especifico",
+    etiqueta: "Regreso",
+    texto: "Suena un regreso a Colombia. ¿Lo escuchas?",
+    opciones: [
+    {
+      texto: "Volver a Colombia",
+      efectos: {"transferencia":"colombia_primera","moral":6,"reputacion":3},
+    },
+    {
+      texto: "Quedarte en el exterior",
+      efectos: {"moral":2,"reputacion":2},
+    },
+    {
+      texto: "Volver al club de origen",
+      efectos: {"transferencia":"club_origen","moral":8,"reputacion":4},
+    },
+    ],
+  },
+  {
+    id: "pri-col-auto-172",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Viaje",
@@ -4165,7 +4060,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-col-auto-178",
+    id: "pri-col-auto-173",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Hinchada",
@@ -4186,7 +4081,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-col-auto-179",
+    id: "pri-col-auto-174",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Pretemporada",
@@ -4207,15 +4102,15 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-col-auto-180",
+    id: "pri-col-auto-175",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Selección",
     texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Ir sí o sí",
-      efectos: {"reputacion":8,"moral":6},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"mayor","reputacion":8,"moral":6},
     },
     {
       texto: "Negociar con el club",
@@ -4228,7 +4123,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-col-auto-181",
+    id: "pri-col-auto-176",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Libertadores",
@@ -4249,7 +4144,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-col-auto-182",
+    id: "pri-col-auto-177",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Clásico",
@@ -4265,6 +4160,111 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Bajar exposición previa",
+      efectos: {"reputacion":2,"moral":1},
+    },
+    ],
+  },
+  {
+    id: "pri-col-auto-178",
+    tramoCarrera: "prime",
+    categoria: "colombia_especifico",
+    etiqueta: "Copa",
+    texto: "Sudamericana a eliminatoria. ¿Qué actitud tomas?",
+    opciones: [
+    {
+      texto: "Ir a definir la serie",
+      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+    },
+    {
+      texto: "No arriesgar en exceso",
+      efectos: {"atributos":{"defensa":2},"riesgoLesion":-0.04},
+    },
+    {
+      texto: "Pedir rotación parcial",
+      efectos: {"moral":-1,"reputacion":1},
+    },
+    ],
+  },
+  {
+    id: "pri-col-auto-179",
+    tramoCarrera: "prime",
+    categoria: "colombia_especifico",
+    etiqueta: "Selección",
+    texto: "La Federación pide tu cesión. ¿Qué decides?",
+    opciones: [
+    {
+      texto: "Apoyar la convocatoria",
+      efectos: {"convocatoria":"mayor","reputacion":7,"moral":5},
+    },
+    {
+      texto: "Negociar fechas",
+      efectos: {"reputacion":3,"moral":2},
+    },
+    {
+      texto: "Priorizar el club",
+      efectos: {"reputacion":-3,"atributos":{"fisico":1}},
+    },
+    ],
+  },
+  {
+    id: "pri-col-auto-180",
+    tramoCarrera: "prime",
+    categoria: "colombia_especifico",
+    etiqueta: "Regreso",
+    texto: "Suena un regreso a Colombia. ¿Lo escuchas?",
+    opciones: [
+    {
+      texto: "Volver a Colombia",
+      efectos: {"transferencia":"colombia_primera","moral":6,"reputacion":3},
+    },
+    {
+      texto: "Quedarte en el exterior",
+      efectos: {"moral":2,"reputacion":2},
+    },
+    {
+      texto: "Volver al club de origen",
+      efectos: {"transferencia":"club_origen","moral":8,"reputacion":4},
+    },
+    ],
+  },
+  {
+    id: "pri-col-auto-181",
+    tramoCarrera: "prime",
+    categoria: "colombia_especifico",
+    etiqueta: "Viaje",
+    texto: "Viaje largo por Copa. ¿Cómo lo manejas?",
+    opciones: [
+    {
+      texto: "Descansar y recuperar",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
+    },
+    {
+      texto: "Mantener rutina normal",
+      efectos: {"moral":2,"atributos":{"ritmo":1}},
+    },
+    {
+      texto: "Forzar sesiones extras",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":0.08},
+    },
+    ],
+  },
+  {
+    id: "pri-col-auto-182",
+    tramoCarrera: "prime",
+    categoria: "colombia_especifico",
+    etiqueta: "Hinchada",
+    texto: "La hinchada te nombra ídolo. ¿Cómo lo manejas?",
+    opciones: [
+    {
+      texto: "Agradecer y seguir trabajando",
+      efectos: {"reputacion":5,"moral":4},
+    },
+    {
+      texto: "Subir el perfil mediático",
+      efectos: {"reputacion":6,"moral":3},
+    },
+    {
+      texto: "Bajar exposición",
       efectos: {"reputacion":2,"moral":1},
     },
     ],
@@ -4273,20 +4273,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-183",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Copa",
-    texto: "Sudamericana a eliminatoria. ¿Qué actitud tomas?",
+    etiqueta: "Pretemporada",
+    texto: "Pretemporada en altura. ¿Cómo la encaras?",
     opciones: [
     {
-      texto: "Ir a definir la serie",
-      efectos: {"atributos":{"tiro":2},"moral":5,"reputacion":3},
+      texto: "Cumplir toda la carga",
+      efectos: {"atributos":{"fisico":2,"ritmo":1},"riesgoLesion":0.05},
     },
     {
-      texto: "No arriesgar en exceso",
-      efectos: {"atributos":{"defensa":2},"riesgoLesion":-0.04},
+      texto: "Dosificar con el fisio",
+      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.06},
     },
     {
-      texto: "Pedir rotación parcial",
-      efectos: {"moral":-1,"reputacion":1},
+      texto: "Quejarte de la exigencia",
+      efectos: {"moral":-2,"reputacion":-2},
     },
     ],
   },
@@ -4295,19 +4295,19 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
     etiqueta: "Selección",
-    texto: "La Federación pide tu cesión. ¿Qué decides?",
+    texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Apoyar la convocatoria",
-      efectos: {"reputacion":7,"moral":5},
+      texto: "Ir a la Selección",
+      efectos: {"convocatoria":"mayor","reputacion":8,"moral":6},
     },
     {
-      texto: "Negociar fechas",
-      efectos: {"reputacion":3,"moral":2},
+      texto: "Negociar con el club",
+      efectos: {"reputacion":4,"moral":3},
     },
     {
-      texto: "Priorizar el club",
-      efectos: {"reputacion":-3,"atributos":{"fisico":1}},
+      texto: "Quedarte a recuperar",
+      efectos: {"atributos":{"fisico":1},"reputacion":-2},
     },
     ],
   },
@@ -4315,20 +4315,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-col-auto-185",
     tramoCarrera: "prime",
     categoria: "colombia_especifico",
-    etiqueta: "Viaje",
-    texto: "Viaje largo por Copa. ¿Cómo lo manejas?",
+    etiqueta: "Libertadores",
+    texto: "Libertadores: visita pesada de visitante. ¿Cómo llegas?",
     opciones: [
     {
-      texto: "Descansar y recuperar",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":-0.05},
+      texto: "Prepararte al detalle",
+      efectos: {"atributos":{"defensa":2,"fisico":1},"reputacion":3},
     },
     {
-      texto: "Mantener rutina normal",
-      efectos: {"moral":2,"atributos":{"ritmo":1}},
+      texto: "Salir a pelear cada balón",
+      efectos: {"atributos":{"fisico":2},"moral":5},
     },
     {
-      texto: "Forzar sesiones extras",
-      efectos: {"atributos":{"fisico":1},"riesgoLesion":0.08},
+      texto: "Cuidar el cuerpo",
+      efectos: {"riesgoLesion":-0.06,"moral":1},
     },
     ],
   },
@@ -4341,7 +4341,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Aceptar y buscar destino",
-      efectos: {"moral":3,"reputacion":4},
+      efectos: {"transferencia":"ascenso","moral":3,"reputacion":4},
     },
     {
       texto: "Pedir quedarte",
@@ -4391,7 +4391,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
@@ -4411,8 +4411,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"moral":2,"riesgoLesion":0.08},
     },
     {
-      texto: "Jugar el partido clave igual",
-      efectos: {"moral":5,"riesgoLesion":0.2},
+      texto: "Jugar lesionado",
+      efectos: {"moral":5,"forzarLesion":"leve","riesgoLesion":0.2},
     },
     ],
   },
@@ -4446,7 +4446,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Bajarla para facilitar la salida",
-      efectos: {"moral":3,"reputacion":2},
+      efectos: {"buscarSalida":true,"moral":3,"reputacion":2},
     },
     {
       texto: "Mantenerla firme",
@@ -4496,7 +4496,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Rechazar y pedir salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
@@ -4504,12 +4504,33 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-194",
     tramoCarrera: "prime",
     categoria: "generico",
+    etiqueta: "Europa",
+    texto: "Llega una oferta concreta de Europa. ¿La tomas?",
+    opciones: [
+    {
+      texto: "Aceptar la oferta de Europa",
+      efectos: {"transferencia":"grande_europa","moral":8,"reputacion":6},
+    },
+    {
+      texto: "Pedir más salario",
+      efectos: {"reputacion":3,"moral":2},
+    },
+    {
+      texto: "Rechazar y quedarte",
+      efectos: {"moral":1,"reputacion":2},
+    },
+    ],
+  },
+  {
+    id: "pri-gen-auto-195",
+    tramoCarrera: "prime",
+    categoria: "generico",
     etiqueta: "Transferencia",
     texto: "El club quiere venderte. ¿Cómo lo tomas?",
     opciones: [
     {
       texto: "Aceptar y buscar destino",
-      efectos: {"moral":3,"reputacion":4},
+      efectos: {"transferencia":"ascenso","moral":3,"reputacion":4},
     },
     {
       texto: "Pedir quedarte",
@@ -4522,7 +4543,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-195",
+    id: "pri-gen-auto-196",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Liderazgo",
@@ -4543,7 +4564,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-196",
+    id: "pri-gen-auto-197",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Competencia",
@@ -4559,12 +4580,12 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
   {
-    id: "pri-gen-auto-197",
+    id: "pri-gen-auto-198",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Lesión",
@@ -4579,13 +4600,13 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"moral":2,"riesgoLesion":0.08},
     },
     {
-      texto: "Jugar el partido clave igual",
-      efectos: {"moral":5,"riesgoLesion":0.2},
+      texto: "Jugar lesionado",
+      efectos: {"moral":5,"forzarLesion":"leve","riesgoLesion":0.2},
     },
     ],
   },
   {
-    id: "pri-gen-auto-198",
+    id: "pri-gen-auto-199",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Vestuario",
@@ -4606,7 +4627,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-199",
+    id: "pri-gen-auto-200",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Contrato",
@@ -4614,7 +4635,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Bajarla para facilitar la salida",
-      efectos: {"moral":3,"reputacion":2},
+      efectos: {"buscarSalida":true,"moral":3,"reputacion":2},
     },
     {
       texto: "Mantenerla firme",
@@ -4627,7 +4648,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-200",
+    id: "pri-gen-auto-201",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Partido",
@@ -4648,7 +4669,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-201",
+    id: "pri-gen-auto-202",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Contrato",
@@ -4664,12 +4685,33 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Rechazar y pedir salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
   {
-    id: "pri-gen-auto-202",
+    id: "pri-gen-auto-203",
+    tramoCarrera: "prime",
+    categoria: "generico",
+    etiqueta: "Europa",
+    texto: "Llega una oferta concreta de Europa. ¿La tomas?",
+    opciones: [
+    {
+      texto: "Aceptar la oferta de Europa",
+      efectos: {"transferencia":"grande_europa","moral":8,"reputacion":6},
+    },
+    {
+      texto: "Pedir más salario",
+      efectos: {"reputacion":3,"moral":2},
+    },
+    {
+      texto: "Rechazar y quedarte",
+      efectos: {"moral":1,"reputacion":2},
+    },
+    ],
+  },
+  {
+    id: "pri-gen-auto-204",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Transferencia",
@@ -4677,7 +4719,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Aceptar y buscar destino",
-      efectos: {"moral":3,"reputacion":4},
+      efectos: {"transferencia":"ascenso","moral":3,"reputacion":4},
     },
     {
       texto: "Pedir quedarte",
@@ -4690,7 +4732,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-203",
+    id: "pri-gen-auto-205",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Liderazgo",
@@ -4711,7 +4753,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-204",
+    id: "pri-gen-auto-206",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Competencia",
@@ -4727,12 +4769,12 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
   {
-    id: "pri-gen-auto-205",
+    id: "pri-gen-auto-207",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Lesión",
@@ -4747,13 +4789,13 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"moral":2,"riesgoLesion":0.08},
     },
     {
-      texto: "Jugar el partido clave igual",
-      efectos: {"moral":5,"riesgoLesion":0.2},
+      texto: "Jugar lesionado",
+      efectos: {"moral":5,"forzarLesion":"leve","riesgoLesion":0.2},
     },
     ],
   },
   {
-    id: "pri-gen-auto-206",
+    id: "pri-gen-auto-208",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Vestuario",
@@ -4770,48 +4812,6 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     {
       texto: "Delegar en otros",
       efectos: {"moral":-1,"reputacion":-2},
-    },
-    ],
-  },
-  {
-    id: "pri-gen-auto-207",
-    tramoCarrera: "prime",
-    categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Hay pelea por tu cláusula. ¿Qué postura tomas?",
-    opciones: [
-    {
-      texto: "Bajarla para facilitar la salida",
-      efectos: {"moral":3,"reputacion":2},
-    },
-    {
-      texto: "Mantenerla firme",
-      efectos: {"reputacion":4,"moral":1},
-    },
-    {
-      texto: "Dejar todo en manos del agente",
-      efectos: {"reputacion":1,"moral":-1},
-    },
-    ],
-  },
-  {
-    id: "pri-gen-auto-208",
-    tramoCarrera: "prime",
-    categoria: "generico",
-    etiqueta: "Partido",
-    texto: "Un rival te marca muy duro. ¿Cómo respondes?",
-    opciones: [
-    {
-      texto: "No entrar al juego y jugar limpio",
-      efectos: {"reputacion":4,"atributos":{"pase":1}},
-    },
-    {
-      texto: "Devolver con intensidad",
-      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.06},
-    },
-    {
-      texto: "Pedir protección al árbitro",
-      efectos: {"moral":1,"reputacion":1},
     },
     ],
   },
@@ -4820,19 +4820,19 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Contrato",
-    texto: "Te piden bajar el sueldo. ¿Qué haces?",
+    texto: "Hay pelea por tu cláusula. ¿Qué postura tomas?",
     opciones: [
     {
-      texto: "Aceptar por el proyecto",
-      efectos: {"moral":2,"reputacion":4},
+      texto: "Bajarla para facilitar la salida",
+      efectos: {"buscarSalida":true,"moral":3,"reputacion":2},
     },
     {
-      texto: "Negociar a mitad de camino",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Mantenerla firme",
+      efectos: {"reputacion":4,"moral":1},
     },
     {
-      texto: "Rechazar y pedir salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      texto: "Dejar todo en manos del agente",
+      efectos: {"reputacion":1,"moral":-1},
     },
     ],
   },
@@ -4840,20 +4840,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-210",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Transferencia",
-    texto: "El club quiere venderte. ¿Cómo lo tomas?",
+    etiqueta: "Partido",
+    texto: "Un rival te marca muy duro. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Aceptar y buscar destino",
-      efectos: {"moral":3,"reputacion":4},
+      texto: "No entrar al juego y jugar limpio",
+      efectos: {"reputacion":4,"atributos":{"pase":1}},
     },
     {
-      texto: "Pedir quedarte",
-      efectos: {"moral":2,"reputacion":1},
+      texto: "Devolver con intensidad",
+      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.06},
     },
     {
-      texto: "Exigir una cláusula mejor",
-      efectos: {"reputacion":2,"moral":-1},
+      texto: "Pedir protección al árbitro",
+      efectos: {"moral":1,"reputacion":1},
     },
     ],
   },
@@ -4861,20 +4861,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-211",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Liderazgo",
-    texto: "Te ofrecen la capitanía. ¿La Aceptas?",
+    etiqueta: "Contrato",
+    texto: "Te piden bajar el sueldo. ¿Qué haces?",
     opciones: [
     {
-      texto: "Aceptar el brazalete",
-      efectos: {"reputacion":8,"moral":6},
+      texto: "Aceptar por el proyecto",
+      efectos: {"moral":2,"reputacion":4},
     },
     {
-      texto: "Aceptar sin hacer ruido",
-      efectos: {"reputacion":4,"moral":3},
+      texto: "Negociar a mitad de camino",
+      efectos: {"reputacion":2,"moral":1},
     },
     {
-      texto: "Rechazar el cargo",
-      efectos: {"moral":-2,"reputacion":-2},
+      texto: "Rechazar y pedir salida",
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
@@ -4882,20 +4882,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-212",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Competencia",
-    texto: "Llega un 9 estrella a tu puesto. ¿Qué haces?",
+    etiqueta: "Europa",
+    texto: "Llega una oferta concreta de Europa. ¿La tomas?",
     opciones: [
     {
-      texto: "Competir de frente",
-      efectos: {"atributos":{"tiro":2,"fisico":1},"moral":4},
+      texto: "Aceptar la oferta de Europa",
+      efectos: {"transferencia":"grande_europa","moral":8,"reputacion":6},
     },
     {
-      texto: "Aprender de él",
-      efectos: {"atributos":{"pase":2},"reputacion":3},
+      texto: "Pedir más salario",
+      efectos: {"reputacion":3,"moral":2},
     },
     {
-      texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      texto: "Rechazar y quedarte",
+      efectos: {"moral":1,"reputacion":2},
     },
     ],
   },
@@ -4903,20 +4903,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-213",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Lesión",
-    texto: "Asoma una lesión seria. ¿Qué priorizas?",
+    etiqueta: "Transferencia",
+    texto: "El club quiere venderte. ¿Cómo lo tomas?",
     opciones: [
     {
-      texto: "Parar y tratarte bien",
-      efectos: {"riesgoLesion":-0.12,"moral":-3},
+      texto: "Aceptar y buscar destino",
+      efectos: {"transferencia":"ascenso","moral":3,"reputacion":4},
     },
     {
-      texto: "Seguir con carga controlada",
-      efectos: {"moral":2,"riesgoLesion":0.08},
+      texto: "Pedir quedarte",
+      efectos: {"moral":2,"reputacion":1},
     },
     {
-      texto: "Jugar el partido clave igual",
-      efectos: {"moral":5,"riesgoLesion":0.2},
+      texto: "Exigir una cláusula mejor",
+      efectos: {"reputacion":2,"moral":-1},
     },
     ],
   },
@@ -4924,20 +4924,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-214",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Vestuario",
-    texto: "El DT te pide liderar el vestuario. ¿Cómo lo haces?",
+    etiqueta: "Liderazgo",
+    texto: "Te ofrecen la capitanía. ¿La Aceptas?",
     opciones: [
     {
-      texto: "Hablar claro y exigir",
-      efectos: {"reputacion":6,"moral":4},
+      texto: "Aceptar el brazalete",
+      efectos: {"reputacion":8,"moral":6},
     },
     {
-      texto: "Liderar con el ejemplo",
-      efectos: {"reputacion":5,"atributos":{"fisico":1}},
+      texto: "Aceptar sin hacer ruido",
+      efectos: {"reputacion":4,"moral":3},
     },
     {
-      texto: "Delegar en otros",
-      efectos: {"moral":-1,"reputacion":-2},
+      texto: "Rechazar el cargo",
+      efectos: {"moral":-2,"reputacion":-2},
     },
     ],
   },
@@ -4945,20 +4945,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-215",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Hay pelea por tu cláusula. ¿Qué postura tomas?",
+    etiqueta: "Competencia",
+    texto: "Llega un 9 estrella a tu puesto. ¿Qué haces?",
     opciones: [
     {
-      texto: "Bajarla para facilitar la salida",
-      efectos: {"moral":3,"reputacion":2},
+      texto: "Competir de frente",
+      efectos: {"atributos":{"tiro":2,"fisico":1},"moral":4},
     },
     {
-      texto: "Mantenerla firme",
-      efectos: {"reputacion":4,"moral":1},
+      texto: "Aprender de él",
+      efectos: {"atributos":{"pase":2},"reputacion":3},
     },
     {
-      texto: "Dejar todo en manos del agente",
-      efectos: {"reputacion":1,"moral":-1},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
@@ -4966,20 +4966,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-216",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Partido",
-    texto: "Un rival te marca muy duro. ¿Cómo respondes?",
+    etiqueta: "Lesión",
+    texto: "Asoma una lesión seria. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "No entrar al juego y jugar limpio",
-      efectos: {"reputacion":4,"atributos":{"pase":1}},
+      texto: "Parar y tratarte bien",
+      efectos: {"riesgoLesion":-0.12,"moral":-3},
     },
     {
-      texto: "Devolver con intensidad",
-      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.06},
+      texto: "Seguir con carga controlada",
+      efectos: {"moral":2,"riesgoLesion":0.08},
     },
     {
-      texto: "Pedir protección al árbitro",
-      efectos: {"moral":1,"reputacion":1},
+      texto: "Jugar lesionado",
+      efectos: {"moral":5,"forzarLesion":"leve","riesgoLesion":0.2},
     },
     ],
   },
@@ -4987,20 +4987,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-217",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Te piden bajar el sueldo. ¿Qué haces?",
+    etiqueta: "Vestuario",
+    texto: "El DT te pide liderar el vestuario. ¿Cómo lo haces?",
     opciones: [
     {
-      texto: "Aceptar por el proyecto",
-      efectos: {"moral":2,"reputacion":4},
+      texto: "Hablar claro y exigir",
+      efectos: {"reputacion":6,"moral":4},
     },
     {
-      texto: "Negociar a mitad de camino",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Liderar con el ejemplo",
+      efectos: {"reputacion":5,"atributos":{"fisico":1}},
     },
     {
-      texto: "Rechazar y pedir salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      texto: "Delegar en otros",
+      efectos: {"moral":-1,"reputacion":-2},
     },
     ],
   },
@@ -5008,20 +5008,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-218",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Transferencia",
-    texto: "El club quiere venderte. ¿Cómo lo tomas?",
+    etiqueta: "Contrato",
+    texto: "Hay pelea por tu cláusula. ¿Qué postura tomas?",
     opciones: [
     {
-      texto: "Aceptar y buscar destino",
-      efectos: {"moral":3,"reputacion":4},
+      texto: "Bajarla para facilitar la salida",
+      efectos: {"buscarSalida":true,"moral":3,"reputacion":2},
     },
     {
-      texto: "Pedir quedarte",
-      efectos: {"moral":2,"reputacion":1},
+      texto: "Mantenerla firme",
+      efectos: {"reputacion":4,"moral":1},
     },
     {
-      texto: "Exigir una cláusula mejor",
-      efectos: {"reputacion":2,"moral":-1},
+      texto: "Dejar todo en manos del agente",
+      efectos: {"reputacion":1,"moral":-1},
     },
     ],
   },
@@ -5029,20 +5029,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-219",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Liderazgo",
-    texto: "Te ofrecen la capitanía. ¿La Aceptas?",
+    etiqueta: "Partido",
+    texto: "Un rival te marca muy duro. ¿Cómo respondes?",
     opciones: [
     {
-      texto: "Aceptar el brazalete",
-      efectos: {"reputacion":8,"moral":6},
+      texto: "No entrar al juego y jugar limpio",
+      efectos: {"reputacion":4,"atributos":{"pase":1}},
     },
     {
-      texto: "Aceptar sin hacer ruido",
-      efectos: {"reputacion":4,"moral":3},
+      texto: "Devolver con intensidad",
+      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.06},
     },
     {
-      texto: "Rechazar el cargo",
-      efectos: {"moral":-2,"reputacion":-2},
+      texto: "Pedir protección al árbitro",
+      efectos: {"moral":1,"reputacion":1},
     },
     ],
   },
@@ -5050,20 +5050,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-220",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Competencia",
-    texto: "Llega un 9 estrella a tu puesto. ¿Qué haces?",
+    etiqueta: "Contrato",
+    texto: "Te piden bajar el sueldo. ¿Qué haces?",
     opciones: [
     {
-      texto: "Competir de frente",
-      efectos: {"atributos":{"tiro":2,"fisico":1},"moral":4},
+      texto: "Aceptar por el proyecto",
+      efectos: {"moral":2,"reputacion":4},
     },
     {
-      texto: "Aprender de él",
-      efectos: {"atributos":{"pase":2},"reputacion":3},
+      texto: "Negociar a mitad de camino",
+      efectos: {"reputacion":2,"moral":1},
     },
     {
-      texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      texto: "Rechazar y pedir salida",
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
@@ -5071,20 +5071,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-221",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Lesión",
-    texto: "Asoma una lesión seria. ¿Qué priorizas?",
+    etiqueta: "Europa",
+    texto: "Llega una oferta concreta de Europa. ¿La tomas?",
     opciones: [
     {
-      texto: "Parar y tratarte bien",
-      efectos: {"riesgoLesion":-0.12,"moral":-3},
+      texto: "Aceptar la oferta de Europa",
+      efectos: {"transferencia":"grande_europa","moral":8,"reputacion":6},
     },
     {
-      texto: "Seguir con carga controlada",
-      efectos: {"moral":2,"riesgoLesion":0.08},
+      texto: "Pedir más salario",
+      efectos: {"reputacion":3,"moral":2},
     },
     {
-      texto: "Jugar el partido clave igual",
-      efectos: {"moral":5,"riesgoLesion":0.2},
+      texto: "Rechazar y quedarte",
+      efectos: {"moral":1,"reputacion":2},
     },
     ],
   },
@@ -5092,20 +5092,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-222",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Vestuario",
-    texto: "El DT te pide liderar el vestuario. ¿Cómo lo haces?",
+    etiqueta: "Transferencia",
+    texto: "El club quiere venderte. ¿Cómo lo tomas?",
     opciones: [
     {
-      texto: "Hablar claro y exigir",
-      efectos: {"reputacion":6,"moral":4},
+      texto: "Aceptar y buscar destino",
+      efectos: {"transferencia":"ascenso","moral":3,"reputacion":4},
     },
     {
-      texto: "Liderar con el ejemplo",
-      efectos: {"reputacion":5,"atributos":{"fisico":1}},
+      texto: "Pedir quedarte",
+      efectos: {"moral":2,"reputacion":1},
     },
     {
-      texto: "Delegar en otros",
-      efectos: {"moral":-1,"reputacion":-2},
+      texto: "Exigir una cláusula mejor",
+      efectos: {"reputacion":2,"moral":-1},
     },
     ],
   },
@@ -5113,20 +5113,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-223",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Hay pelea por tu cláusula. ¿Qué postura tomas?",
+    etiqueta: "Liderazgo",
+    texto: "Te ofrecen la capitanía. ¿La Aceptas?",
     opciones: [
     {
-      texto: "Bajarla para facilitar la salida",
-      efectos: {"moral":3,"reputacion":2},
+      texto: "Aceptar el brazalete",
+      efectos: {"reputacion":8,"moral":6},
     },
     {
-      texto: "Mantenerla firme",
-      efectos: {"reputacion":4,"moral":1},
+      texto: "Aceptar sin hacer ruido",
+      efectos: {"reputacion":4,"moral":3},
     },
     {
-      texto: "Dejar todo en manos del agente",
-      efectos: {"reputacion":1,"moral":-1},
+      texto: "Rechazar el cargo",
+      efectos: {"moral":-2,"reputacion":-2},
     },
     ],
   },
@@ -5134,20 +5134,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-224",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Partido",
-    texto: "Un rival te marca muy duro. ¿Cómo respondes?",
+    etiqueta: "Competencia",
+    texto: "Llega un 9 estrella a tu puesto. ¿Qué haces?",
     opciones: [
     {
-      texto: "No entrar al juego y jugar limpio",
-      efectos: {"reputacion":4,"atributos":{"pase":1}},
+      texto: "Competir de frente",
+      efectos: {"atributos":{"tiro":2,"fisico":1},"moral":4},
     },
     {
-      texto: "Devolver con intensidad",
-      efectos: {"atributos":{"fisico":2},"moral":3,"riesgoLesion":0.06},
+      texto: "Aprender de él",
+      efectos: {"atributos":{"pase":2},"reputacion":3},
     },
     {
-      texto: "Pedir protección al árbitro",
-      efectos: {"moral":1,"reputacion":1},
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
@@ -5155,20 +5155,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-225",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Te piden bajar el sueldo. ¿Qué haces?",
+    etiqueta: "Lesión",
+    texto: "Asoma una lesión seria. ¿Qué priorizas?",
     opciones: [
     {
-      texto: "Aceptar por el proyecto",
-      efectos: {"moral":2,"reputacion":4},
+      texto: "Parar y tratarte bien",
+      efectos: {"riesgoLesion":-0.12,"moral":-3},
     },
     {
-      texto: "Negociar a mitad de camino",
-      efectos: {"reputacion":2,"moral":1},
+      texto: "Seguir con carga controlada",
+      efectos: {"moral":2,"riesgoLesion":0.08},
     },
     {
-      texto: "Rechazar y pedir salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      texto: "Jugar lesionado",
+      efectos: {"moral":5,"forzarLesion":"leve","riesgoLesion":0.2},
     },
     ],
   },
@@ -5176,20 +5176,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-226",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Transferencia",
-    texto: "El club quiere venderte. ¿Cómo lo tomas?",
+    etiqueta: "Vestuario",
+    texto: "El DT te pide liderar el vestuario. ¿Cómo lo haces?",
     opciones: [
     {
-      texto: "Aceptar y buscar destino",
-      efectos: {"moral":3,"reputacion":4},
+      texto: "Hablar claro y exigir",
+      efectos: {"reputacion":6,"moral":4},
     },
     {
-      texto: "Pedir quedarte",
-      efectos: {"moral":2,"reputacion":1},
+      texto: "Liderar con el ejemplo",
+      efectos: {"reputacion":5,"atributos":{"fisico":1}},
     },
     {
-      texto: "Exigir una cláusula mejor",
-      efectos: {"reputacion":2,"moral":-1},
+      texto: "Delegar en otros",
+      efectos: {"moral":-1,"reputacion":-2},
     },
     ],
   },
@@ -5197,20 +5197,20 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-227",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Liderazgo",
-    texto: "Te ofrecen la capitanía. ¿La Aceptas?",
+    etiqueta: "Contrato",
+    texto: "Hay pelea por tu cláusula. ¿Qué postura tomas?",
     opciones: [
     {
-      texto: "Aceptar el brazalete",
-      efectos: {"reputacion":8,"moral":6},
+      texto: "Bajarla para facilitar la salida",
+      efectos: {"buscarSalida":true,"moral":3,"reputacion":2},
     },
     {
-      texto: "Aceptar sin hacer ruido",
-      efectos: {"reputacion":4,"moral":3},
+      texto: "Mantenerla firme",
+      efectos: {"reputacion":4,"moral":1},
     },
     {
-      texto: "Rechazar el cargo",
-      efectos: {"moral":-2,"reputacion":-2},
+      texto: "Dejar todo en manos del agente",
+      efectos: {"reputacion":1,"moral":-1},
     },
     ],
   },
@@ -5218,90 +5218,6 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     id: "pri-gen-auto-228",
     tramoCarrera: "prime",
     categoria: "generico",
-    etiqueta: "Competencia",
-    texto: "Llega un 9 estrella a tu puesto. ¿Qué haces?",
-    opciones: [
-    {
-      texto: "Competir de frente",
-      efectos: {"atributos":{"tiro":2,"fisico":1},"moral":4},
-    },
-    {
-      texto: "Aprender de él",
-      efectos: {"atributos":{"pase":2},"reputacion":3},
-    },
-    {
-      texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-1},
-    },
-    ],
-  },
-  {
-    id: "pri-gen-auto-229",
-    tramoCarrera: "prime",
-    categoria: "generico",
-    etiqueta: "Lesión",
-    texto: "Asoma una lesión seria. ¿Qué priorizas?",
-    opciones: [
-    {
-      texto: "Parar y tratarte bien",
-      efectos: {"riesgoLesion":-0.12,"moral":-3},
-    },
-    {
-      texto: "Seguir con carga controlada",
-      efectos: {"moral":2,"riesgoLesion":0.08},
-    },
-    {
-      texto: "Jugar el partido clave igual",
-      efectos: {"moral":5,"riesgoLesion":0.2},
-    },
-    ],
-  },
-  {
-    id: "pri-gen-auto-230",
-    tramoCarrera: "prime",
-    categoria: "generico",
-    etiqueta: "Vestuario",
-    texto: "El DT te pide liderar el vestuario. ¿Cómo lo haces?",
-    opciones: [
-    {
-      texto: "Hablar claro y exigir",
-      efectos: {"reputacion":6,"moral":4},
-    },
-    {
-      texto: "Liderar con el ejemplo",
-      efectos: {"reputacion":5,"atributos":{"fisico":1}},
-    },
-    {
-      texto: "Delegar en otros",
-      efectos: {"moral":-1,"reputacion":-2},
-    },
-    ],
-  },
-  {
-    id: "pri-gen-auto-231",
-    tramoCarrera: "prime",
-    categoria: "generico",
-    etiqueta: "Contrato",
-    texto: "Hay pelea por tu cláusula. ¿Qué postura tomas?",
-    opciones: [
-    {
-      texto: "Bajarla para facilitar la salida",
-      efectos: {"moral":3,"reputacion":2},
-    },
-    {
-      texto: "Mantenerla firme",
-      efectos: {"reputacion":4,"moral":1},
-    },
-    {
-      texto: "Dejar todo en manos del agente",
-      efectos: {"reputacion":1,"moral":-1},
-    },
-    ],
-  },
-  {
-    id: "pri-gen-auto-232",
-    tramoCarrera: "prime",
-    categoria: "generico",
     etiqueta: "Partido",
     texto: "Un rival te marca muy duro. ¿Cómo respondes?",
     opciones: [
@@ -5320,7 +5236,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-233",
+    id: "pri-gen-auto-229",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Contrato",
@@ -5336,12 +5252,33 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Rechazar y pedir salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
   {
-    id: "pri-gen-auto-234",
+    id: "pri-gen-auto-230",
+    tramoCarrera: "prime",
+    categoria: "generico",
+    etiqueta: "Europa",
+    texto: "Llega una oferta concreta de Europa. ¿La tomas?",
+    opciones: [
+    {
+      texto: "Aceptar la oferta de Europa",
+      efectos: {"transferencia":"grande_europa","moral":8,"reputacion":6},
+    },
+    {
+      texto: "Pedir más salario",
+      efectos: {"reputacion":3,"moral":2},
+    },
+    {
+      texto: "Rechazar y quedarte",
+      efectos: {"moral":1,"reputacion":2},
+    },
+    ],
+  },
+  {
+    id: "pri-gen-auto-231",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Transferencia",
@@ -5349,7 +5286,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Aceptar y buscar destino",
-      efectos: {"moral":3,"reputacion":4},
+      efectos: {"transferencia":"ascenso","moral":3,"reputacion":4},
     },
     {
       texto: "Pedir quedarte",
@@ -5362,7 +5299,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-235",
+    id: "pri-gen-auto-232",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Liderazgo",
@@ -5383,7 +5320,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-236",
+    id: "pri-gen-auto-233",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Competencia",
@@ -5399,12 +5336,12 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
   {
-    id: "pri-gen-auto-237",
+    id: "pri-gen-auto-234",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Lesión",
@@ -5419,13 +5356,13 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"moral":2,"riesgoLesion":0.08},
     },
     {
-      texto: "Jugar el partido clave igual",
-      efectos: {"moral":5,"riesgoLesion":0.2},
+      texto: "Jugar lesionado",
+      efectos: {"moral":5,"forzarLesion":"leve","riesgoLesion":0.2},
     },
     ],
   },
   {
-    id: "pri-gen-auto-238",
+    id: "pri-gen-auto-235",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Vestuario",
@@ -5446,7 +5383,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-239",
+    id: "pri-gen-auto-236",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Contrato",
@@ -5454,7 +5391,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Bajarla para facilitar la salida",
-      efectos: {"moral":3,"reputacion":2},
+      efectos: {"buscarSalida":true,"moral":3,"reputacion":2},
     },
     {
       texto: "Mantenerla firme",
@@ -5467,7 +5404,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-240",
+    id: "pri-gen-auto-237",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Partido",
@@ -5488,7 +5425,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     ],
   },
   {
-    id: "pri-gen-auto-241",
+    id: "pri-gen-auto-238",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Contrato",
@@ -5504,12 +5441,33 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Rechazar y pedir salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
   {
-    id: "pri-gen-auto-242",
+    id: "pri-gen-auto-239",
+    tramoCarrera: "prime",
+    categoria: "generico",
+    etiqueta: "Europa",
+    texto: "Llega una oferta concreta de Europa. ¿La tomas?",
+    opciones: [
+    {
+      texto: "Aceptar la oferta de Europa",
+      efectos: {"transferencia":"grande_europa","moral":8,"reputacion":6},
+    },
+    {
+      texto: "Pedir más salario",
+      efectos: {"reputacion":3,"moral":2},
+    },
+    {
+      texto: "Rechazar y quedarte",
+      efectos: {"moral":1,"reputacion":2},
+    },
+    ],
+  },
+  {
+    id: "pri-gen-auto-240",
     tramoCarrera: "prime",
     categoria: "generico",
     etiqueta: "Transferencia",
@@ -5517,7 +5475,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     opciones: [
     {
       texto: "Aceptar y buscar destino",
-      efectos: {"moral":3,"reputacion":4},
+      efectos: {"transferencia":"ascenso","moral":3,"reputacion":4},
     },
     {
       texto: "Pedir quedarte",
@@ -5526,6 +5484,48 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     {
       texto: "Exigir una cláusula mejor",
       efectos: {"reputacion":2,"moral":-1},
+    },
+    ],
+  },
+  {
+    id: "pri-gen-auto-241",
+    tramoCarrera: "prime",
+    categoria: "generico",
+    etiqueta: "Liderazgo",
+    texto: "Te ofrecen la capitanía. ¿La Aceptas?",
+    opciones: [
+    {
+      texto: "Aceptar el brazalete",
+      efectos: {"reputacion":8,"moral":6},
+    },
+    {
+      texto: "Aceptar sin hacer ruido",
+      efectos: {"reputacion":4,"moral":3},
+    },
+    {
+      texto: "Rechazar el cargo",
+      efectos: {"moral":-2,"reputacion":-2},
+    },
+    ],
+  },
+  {
+    id: "pri-gen-auto-242",
+    tramoCarrera: "prime",
+    categoria: "generico",
+    etiqueta: "Competencia",
+    texto: "Llega un 9 estrella a tu puesto. ¿Qué haces?",
+    opciones: [
+    {
+      texto: "Competir de frente",
+      efectos: {"atributos":{"tiro":2,"fisico":1},"moral":4},
+    },
+    {
+      texto: "Aprender de él",
+      efectos: {"atributos":{"pase":2},"reputacion":3},
+    },
+    {
+      texto: "Pedir la salida",
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
@@ -5579,8 +5579,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Te ofrecen ir a un Ascenso. ¿Lo consideras?",
     opciones: [
     {
-      texto: "Aceptar por minutos",
-      efectos: {"moral":4,"reputacion":1},
+      texto: "Aceptar el Ascenso",
+      efectos: {"transferencia":"liga_menos_exigente","moral":4,"reputacion":1},
     },
     {
       texto: "Rechazar y buscar Primera",
@@ -5667,8 +5667,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"riesgoLesion":-0.08,"reputacion":1},
     },
     {
-      texto: "Jugar igual",
-      efectos: {"moral":3,"riesgoLesion":0.1},
+      texto: "Jugar lesionado",
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.12},
     },
     {
       texto: "Entrar desde el banco",
@@ -5747,8 +5747,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Te ofrecen ir a un Ascenso. ¿Lo consideras?",
     opciones: [
     {
-      texto: "Aceptar por minutos",
-      efectos: {"moral":4,"reputacion":1},
+      texto: "Aceptar el Ascenso",
+      efectos: {"transferencia":"liga_menos_exigente","moral":4,"reputacion":1},
     },
     {
       texto: "Rechazar y buscar Primera",
@@ -5835,8 +5835,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"riesgoLesion":-0.08,"reputacion":1},
     },
     {
-      texto: "Jugar igual",
-      efectos: {"moral":3,"riesgoLesion":0.1},
+      texto: "Jugar lesionado",
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.12},
     },
     {
       texto: "Entrar desde el banco",
@@ -5861,7 +5861,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
@@ -5903,7 +5903,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
@@ -5915,8 +5915,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Llega oferta de un club menor. ¿La tomas?",
     opciones: [
     {
-      texto: "Aceptar por minutos",
-      efectos: {"moral":4,"reputacion":1},
+      texto: "Aceptar el club menor",
+      efectos: {"transferencia":"liga_menos_exigente","moral":4,"reputacion":1},
     },
     {
       texto: "Rechazar y pelear acá",
@@ -5982,8 +5982,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"riesgoLesion":-0.1,"moral":-1},
     },
     {
-      texto: "Jugar con manejo de dolor",
-      efectos: {"moral":3,"riesgoLesion":0.12},
+      texto: "Jugar lesionado",
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.15,"riesgoFinCarrera":0.04},
     },
     {
       texto: "Bajar minutos a propósito",
@@ -6029,7 +6029,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
@@ -6071,7 +6071,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
@@ -6083,8 +6083,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Llega oferta de un club menor. ¿La tomas?",
     opciones: [
     {
-      texto: "Aceptar por minutos",
-      efectos: {"moral":4,"reputacion":1},
+      texto: "Aceptar el club menor",
+      efectos: {"transferencia":"liga_menos_exigente","moral":4,"reputacion":1},
     },
     {
       texto: "Rechazar y pelear acá",
@@ -6150,8 +6150,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
       efectos: {"riesgoLesion":-0.1,"moral":-1},
     },
     {
-      texto: "Jugar con manejo de dolor",
-      efectos: {"moral":3,"riesgoLesion":0.12},
+      texto: "Jugar lesionado",
+      efectos: {"moral":3,"forzarLesion":"leve","riesgoLesion":0.15,"riesgoFinCarrera":0.04},
     },
     {
       texto: "Bajar minutos a propósito",
@@ -6197,7 +6197,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir la salida",
-      efectos: {"moral":-3,"reputacion":-2},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-2},
     },
     ],
   },
@@ -6239,7 +6239,7 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     },
     {
       texto: "Pedir salida",
-      efectos: {"moral":-3,"reputacion":-1},
+      efectos: {"buscarSalida":true,"moral":-3,"reputacion":-1},
     },
     ],
   },
@@ -6251,8 +6251,8 @@ export const EVENTOS_CARRERA: EventoDecision[] = [
     texto: "Llega oferta de un club menor. ¿La tomas?",
     opciones: [
     {
-      texto: "Aceptar por minutos",
-      efectos: {"moral":4,"reputacion":1},
+      texto: "Aceptar el club menor",
+      efectos: {"transferencia":"liga_menos_exigente","moral":4,"reputacion":1},
     },
     {
       texto: "Rechazar y pelear acá",

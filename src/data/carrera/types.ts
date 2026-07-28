@@ -104,6 +104,12 @@ export interface EfectosDecision {
     | "ascenso"
     | "mismo_nivel"
     | "liga_menos_exigente";
+  /** Fuerza convocatoria a ese nivel (el momento lo promete). */
+  convocatoria?: NivelSeleccion;
+  /** Lesión segura al elegir (no solo probabilidad). */
+  forzarLesion?: "leve" | "grave";
+  /** Pide salida: no muda ya, pero empuja oferta al cierre del periodo. */
+  buscarSalida?: boolean;
 }
 
 export interface OpcionEvento {

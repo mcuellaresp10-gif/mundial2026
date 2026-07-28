@@ -47,7 +47,7 @@ const HANDCRAFTED = [
     texto: "Tienes una molestia muscular. El fisio recomienda parar. ¿Qué haces?",
     opciones: [
       { texto: "Parar dos semanas", efectos: { riesgoLesion: -0.1, moral: -3, atributos: { fisico: 1 } } },
-      { texto: "Jugar igual", efectos: { riesgoLesion: 0.2, moral: 4, atributos: { fisico: -2 } } },
+      { texto: "Jugar lesionado", efectos: { forzarLesion: "leve", riesgoLesion: 0.2, moral: 4, atributos: { fisico: -2 } } },
       { texto: "Bajar minutos y cargar gym", efectos: { atributos: { fisico: 2, ritmo: -1 }, riesgoLesion: 0.05 } },
     ],
   },
@@ -120,7 +120,7 @@ const HANDCRAFTED = [
     opciones: [
       { texto: "Aceptar y trabajar más", efectos: { atributos: { fisico: 1, pase: 1 }, moral: -2, reputacion: 2 } },
       { texto: "Pedir explicaciones", efectos: { moral: 3, reputacion: -1 } },
-      { texto: "Pedir la salida", efectos: { reputacion: -4, moral: -5 } },
+      { texto: "Pedir la salida", efectos: { buscarSalida: true, reputacion: -4, moral: -5 } },
     ],
   },
   {
@@ -130,7 +130,7 @@ const HANDCRAFTED = [
     etiqueta: "Préstamo",
     texto: "Llega una oferta de préstamo para sumar minutos. ¿Qué haces?",
     opciones: [
-      { texto: "Aceptar el préstamo", efectos: { moral: 6, reputacion: 3, atributos: { ritmo: 1, tiro: 1 } } },
+      { texto: "Aceptar el préstamo", efectos: { transferencia: "mismo_nivel", moral: 6, reputacion: 3, atributos: { ritmo: 1, tiro: 1 } } },
       { texto: "Pelear el puesto acá", efectos: { moral: 2, atributos: { fisico: 2 }, reputacion: 1 } },
       { texto: "Rechazar y negociar otra cosa", efectos: { reputacion: 4, moral: -2 } },
     ],
@@ -202,9 +202,9 @@ const HANDCRAFTED = [
     etiqueta: "Lesión",
     texto: "Hay una molestia grave y riesgo de meses fuera. ¿Qué camino eliges?",
     opciones: [
-      { texto: "Operarte ya", efectos: { riesgoLesion: -0.15, moral: -6, atributos: { fisico: -2 }, riesgoFinCarrera: 0.02 } },
+      { texto: "Operarte ya", efectos: { forzarLesion: "grave", riesgoLesion: -0.15, moral: -6, atributos: { fisico: -2 }, riesgoFinCarrera: 0.02 } },
       { texto: "Tratamiento conservador", efectos: { riesgoLesion: 0.1, moral: -2, atributos: { fisico: -1 } } },
-      { texto: "Acelerar el retorno", efectos: { moral: 5, riesgoLesion: 0.25, atributos: { ritmo: -1 }, riesgoFinCarrera: 0.05 } },
+      { texto: "Acelerar el retorno", efectos: { moral: 5, forzarLesion: "leve", riesgoLesion: 0.25, atributos: { ritmo: -1 }, riesgoFinCarrera: 0.05 } },
     ],
   },
   {
@@ -214,7 +214,7 @@ const HANDCRAFTED = [
     etiqueta: "Selección",
     texto: "Te convocan a la Selección, pero el club duda. ¿Qué priorizas?",
     opciones: [
-      { texto: "Ir sí o sí", efectos: { reputacion: 10, moral: 8, atributos: { tiro: 1 } } },
+      { texto: "Ir a la Selección", efectos: { convocatoria: "mayor", reputacion: 10, moral: 8, atributos: { tiro: 1 } } },
       { texto: "Negociar minutos con el club", efectos: { reputacion: 6, moral: 4 } },
       { texto: "Priorizar el club", efectos: { reputacion: -4, moral: -3, atributos: { fisico: 1 } } },
     ],
@@ -228,7 +228,7 @@ const HANDCRAFTED = [
     opciones: [
       { texto: "Llegar al 100%", efectos: { atributos: { fisico: 1, ritmo: 1 }, moral: 5, reputacion: 4 } },
       { texto: "Rotar y cuidar el cuerpo", efectos: { riesgoLesion: -0.08, moral: 1, reputacion: 1 } },
-      { texto: "Jugar aunque estés molesto", efectos: { moral: 6, riesgoLesion: 0.18, atributos: { fisico: -2 } } },
+      { texto: "Jugar lesionado", efectos: { moral: 6, forzarLesion: "leve", riesgoLesion: 0.18, atributos: { fisico: -2 } } },
     ],
   },
   {
@@ -240,7 +240,7 @@ const HANDCRAFTED = [
     opciones: [
       { texto: "Mentorear al joven", efectos: { reputacion: 6, moral: 2, atributos: { pase: 1 } } },
       { texto: "Pelear el puesto", efectos: { moral: 4, atributos: { fisico: 1 }, riesgoLesion: 0.08 } },
-      { texto: "Pedir la salida", efectos: { moral: -4, reputacion: -2 } },
+      { texto: "Pedir la salida", efectos: { buscarSalida: true, moral: -4, reputacion: -2 } },
     ],
   },
   {
@@ -332,9 +332,18 @@ const PLANTILLAS = {
         etiqueta: "Vestuario",
         texto: "Una pelea en el vestuario te involucra. ¿Qué haces?",
         opciones: [
-          { texto: "Mediar entre los dos", efectos: { reputacion: 5, moral: 2 } },
-          { texto: "Tomar partido por un lado", efectos: { moral: 3, reputacion: -2 } },
+          { texto: "Hablar claro con el DT", efectos: { reputacion: 4, moral: 2 } },
+          { texto: "Pedir la salida", efectos: { buscarSalida: true, moral: -3, reputacion: -3 } },
           { texto: "Salirte y no meterte", efectos: { reputacion: 1, moral: -1 } },
+        ],
+      },
+      {
+        etiqueta: "Transferencia",
+        texto: "Un rival de Primera ofrece un préstamo corto. ¿Qué haces?",
+        opciones: [
+          { texto: "Aceptar el préstamo", efectos: { transferencia: "colombia_rival", moral: 5, atributos: { ritmo: 1 } } },
+          { texto: "Quedarte a pelear el puesto", efectos: { moral: 2, atributos: { fisico: 1 } } },
+          { texto: "Pedir ficha profesional ya", efectos: { reputacion: 3, moral: 2 } },
         ],
       },
       {
@@ -430,7 +439,7 @@ const PLANTILLAS = {
         opciones: [
           { texto: "Subir el nivel en entrenamientos", efectos: { atributos: { tiro: 2, ritmo: 1 }, moral: 3 } },
           { texto: "Pedir charla con el DT", efectos: { reputacion: 2, moral: 1 } },
-          { texto: "Pedir la salida", efectos: { moral: -4, reputacion: -2 } },
+          { texto: "Pedir la salida", efectos: { buscarSalida: true, moral: -4, reputacion: -2 } },
         ],
       },
       {
@@ -456,8 +465,17 @@ const PLANTILLAS = {
         texto: "Una lesión corta te frena dos o tres semanas. ¿Cómo la manejas?",
         opciones: [
           { texto: "Cumplir la rehab al pie de la letra", efectos: { riesgoLesion: -0.1, atributos: { fisico: 1 } } },
-          { texto: "Acelerar el retorno", efectos: { moral: 3, riesgoLesion: 0.15 } },
+          { texto: "Acelerar el retorno", efectos: { moral: 3, forzarLesion: "leve", riesgoLesion: 0.2 } },
           { texto: "Usar el tiempo para estudiar rivales", efectos: { atributos: { pase: 1 }, moral: 1 } },
+        ],
+      },
+      {
+        etiqueta: "Préstamo",
+        texto: "El club plantea un préstamo para que juegues. ¿Qué decides?",
+        opciones: [
+          { texto: "Aceptar el préstamo", efectos: { transferencia: "mismo_nivel", moral: 5, atributos: { tiro: 1, ritmo: 1 } } },
+          { texto: "Pelear minutos acá", efectos: { moral: 2, atributos: { fisico: 2 } } },
+          { texto: "Pedir la salida definitiva", efectos: { buscarSalida: true, reputacion: -2, moral: -2 } },
         ],
       },
       {
@@ -529,7 +547,7 @@ const PLANTILLAS = {
         etiqueta: "Selección",
         texto: "Fecha FIFA y el club duda en cedarte. ¿Qué priorizas?",
         opciones: [
-          { texto: "Insistir en ir", efectos: { reputacion: 6, moral: 5 } },
+          { texto: "Ir a la Selección", efectos: { convocatoria: "sub20", reputacion: 6, moral: 5 } },
           { texto: "Negociar una solución", efectos: { reputacion: 3, moral: 2 } },
           { texto: "Quedarte con el club", efectos: { reputacion: -2, atributos: { fisico: 1 } } },
         ],
@@ -541,6 +559,15 @@ const PLANTILLAS = {
           { texto: "Salir a ganar sí o sí", efectos: { atributos: { tiro: 1, ritmo: 1 }, moral: 5 } },
           { texto: "Cumplir el plan", efectos: { atributos: { pase: 2 }, reputacion: 3 } },
           { texto: "Cuidar el cuerpo", efectos: { riesgoLesion: -0.06, moral: 1 } },
+        ],
+      },
+      {
+        etiqueta: "Transferencia",
+        texto: "Suena un fichaje a un rival colombiano. ¿Qué haces?",
+        opciones: [
+          { texto: "Aceptar y fichar", efectos: { transferencia: "colombia_rival", moral: 4, reputacion: 2 } },
+          { texto: "Pedir quedarte", efectos: { moral: 2, reputacion: 1 } },
+          { texto: "Usarlo para negociar", efectos: { reputacion: 3, moral: 1 } },
         ],
       },
       {
@@ -578,7 +605,7 @@ const PLANTILLAS = {
         etiqueta: "Transferencia",
         texto: "El club quiere venderte. ¿Cómo lo tomas?",
         opciones: [
-          { texto: "Aceptar y buscar destino", efectos: { moral: 3, reputacion: 4 } },
+          { texto: "Aceptar y buscar destino", efectos: { transferencia: "ascenso", moral: 3, reputacion: 4 } },
           { texto: "Pedir quedarte", efectos: { moral: 2, reputacion: 1 } },
           { texto: "Exigir una cláusula mejor", efectos: { reputacion: 2, moral: -1 } },
         ],
@@ -598,7 +625,7 @@ const PLANTILLAS = {
         opciones: [
           { texto: "Competir de frente", efectos: { atributos: { tiro: 2, fisico: 1 }, moral: 4 } },
           { texto: "Aprender de él", efectos: { atributos: { pase: 2 }, reputacion: 3 } },
-          { texto: "Pedir la salida", efectos: { moral: -3, reputacion: -1 } },
+          { texto: "Pedir la salida", efectos: { buscarSalida: true, moral: -3, reputacion: -1 } },
         ],
       },
       {
@@ -607,7 +634,7 @@ const PLANTILLAS = {
         opciones: [
           { texto: "Parar y tratarte bien", efectos: { riesgoLesion: -0.12, moral: -3 } },
           { texto: "Seguir con carga controlada", efectos: { moral: 2, riesgoLesion: 0.08 } },
-          { texto: "Jugar el partido clave igual", efectos: { moral: 5, riesgoLesion: 0.2 } },
+          { texto: "Jugar lesionado", efectos: { moral: 5, forzarLesion: "leve", riesgoLesion: 0.2 } },
         ],
       },
       {
@@ -623,7 +650,7 @@ const PLANTILLAS = {
         etiqueta: "Contrato",
         texto: "Hay pelea por tu cláusula. ¿Qué postura tomas?",
         opciones: [
-          { texto: "Bajarla para facilitar la salida", efectos: { moral: 3, reputacion: 2 } },
+          { texto: "Bajarla para facilitar la salida", efectos: { buscarSalida: true, moral: 3, reputacion: 2 } },
           { texto: "Mantenerla firme", efectos: { reputacion: 4, moral: 1 } },
           { texto: "Dejar todo en manos del agente", efectos: { reputacion: 1, moral: -1 } },
         ],
@@ -643,7 +670,16 @@ const PLANTILLAS = {
         opciones: [
           { texto: "Aceptar por el proyecto", efectos: { moral: 2, reputacion: 4 } },
           { texto: "Negociar a mitad de camino", efectos: { reputacion: 2, moral: 1 } },
-          { texto: "Rechazar y pedir salida", efectos: { moral: -3, reputacion: -2 } },
+          { texto: "Rechazar y pedir salida", efectos: { buscarSalida: true, moral: -3, reputacion: -2 } },
+        ],
+      },
+      {
+        etiqueta: "Europa",
+        texto: "Llega una oferta concreta de Europa. ¿La tomas?",
+        opciones: [
+          { texto: "Aceptar la oferta de Europa", efectos: { transferencia: "grande_europa", moral: 8, reputacion: 6 } },
+          { texto: "Pedir más salario", efectos: { reputacion: 3, moral: 2 } },
+          { texto: "Rechazar y quedarte", efectos: { moral: 1, reputacion: 2 } },
         ],
       },
     ],
@@ -652,7 +688,7 @@ const PLANTILLAS = {
         etiqueta: "Selección",
         texto: "Hay convocatoria a la Selección. ¿Qué priorizas?",
         opciones: [
-          { texto: "Ir sí o sí", efectos: { reputacion: 8, moral: 6 } },
+          { texto: "Ir a la Selección", efectos: { convocatoria: "mayor", reputacion: 8, moral: 6 } },
           { texto: "Negociar con el club", efectos: { reputacion: 4, moral: 3 } },
           { texto: "Quedarte a recuperar", efectos: { atributos: { fisico: 1 }, reputacion: -2 } },
         ],
@@ -688,9 +724,18 @@ const PLANTILLAS = {
         etiqueta: "Selección",
         texto: "La Federación pide tu cesión. ¿Qué decides?",
         opciones: [
-          { texto: "Apoyar la convocatoria", efectos: { reputacion: 7, moral: 5 } },
+          { texto: "Apoyar la convocatoria", efectos: { convocatoria: "mayor", reputacion: 7, moral: 5 } },
           { texto: "Negociar fechas", efectos: { reputacion: 3, moral: 2 } },
           { texto: "Priorizar el club", efectos: { reputacion: -3, atributos: { fisico: 1 } } },
+        ],
+      },
+      {
+        etiqueta: "Regreso",
+        texto: "Suena un regreso a Colombia. ¿Lo escuchas?",
+        opciones: [
+          { texto: "Volver a Colombia", efectos: { transferencia: "colombia_primera", moral: 6, reputacion: 3 } },
+          { texto: "Quedarte en el exterior", efectos: { moral: 2, reputacion: 2 } },
+          { texto: "Volver al club de origen", efectos: { transferencia: "club_origen", moral: 8, reputacion: 4 } },
         ],
       },
       {
@@ -730,7 +775,7 @@ const PLANTILLAS = {
         opciones: [
           { texto: "Aceptar y aportar desde el banco", efectos: { reputacion: 4, moral: 1 } },
           { texto: "Pedir minutos al DT", efectos: { moral: 3, reputacion: -1 } },
-          { texto: "Pedir la salida", efectos: { moral: -3, reputacion: -2 } },
+          { texto: "Pedir la salida", efectos: { buscarSalida: true, moral: -3, reputacion: -2 } },
         ],
       },
       {
@@ -748,14 +793,14 @@ const PLANTILLAS = {
         opciones: [
           { texto: "Mentorearlo", efectos: { reputacion: 6, moral: 2 } },
           { texto: "Pelear el puesto", efectos: { atributos: { fisico: 1 }, moral: 3 } },
-          { texto: "Pedir salida", efectos: { moral: -3, reputacion: -1 } },
+          { texto: "Pedir salida", efectos: { buscarSalida: true, moral: -3, reputacion: -1 } },
         ],
       },
       {
         etiqueta: "Oferta",
         texto: "Llega oferta de un club menor. ¿La tomas?",
         opciones: [
-          { texto: "Aceptar por minutos", efectos: { moral: 4, reputacion: 1 } },
+          { texto: "Aceptar el club menor", efectos: { transferencia: "liga_menos_exigente", moral: 4, reputacion: 1 } },
           { texto: "Rechazar y pelear acá", efectos: { moral: 2, reputacion: 2 } },
           { texto: "Usarla para negociar", efectos: { reputacion: 3, moral: 1 } },
         ],
@@ -783,7 +828,7 @@ const PLANTILLAS = {
         texto: "Hay dudas por una molestia crónica. ¿Qué priorizas?",
         opciones: [
           { texto: "Tratarte con calma", efectos: { riesgoLesion: -0.1, moral: -1 } },
-          { texto: "Jugar con manejo de dolor", efectos: { moral: 3, riesgoLesion: 0.12 } },
+          { texto: "Jugar lesionado", efectos: { moral: 3, forzarLesion: "leve", riesgoLesion: 0.15, riesgoFinCarrera: 0.04 } },
           { texto: "Bajar minutos a propósito", efectos: { riesgoLesion: -0.08, reputacion: 1 } },
         ],
       },
@@ -820,7 +865,7 @@ const PLANTILLAS = {
         etiqueta: "Oferta",
         texto: "Te ofrecen ir a un Ascenso. ¿Lo consideras?",
         opciones: [
-          { texto: "Aceptar por minutos", efectos: { moral: 4, reputacion: 1 } },
+          { texto: "Aceptar el Ascenso", efectos: { transferencia: "liga_menos_exigente", moral: 4, reputacion: 1 } },
           { texto: "Rechazar y buscar Primera", efectos: { reputacion: 2, moral: 1 } },
           { texto: "Usarlo para negociar acá", efectos: { reputacion: 3 } },
         ],
@@ -857,7 +902,7 @@ const PLANTILLAS = {
         texto: "Viaje corto, pero el cuerpo va lento. ¿Qué haces?",
         opciones: [
           { texto: "Pedir rotación", efectos: { riesgoLesion: -0.08, reputacion: 1 } },
-          { texto: "Jugar igual", efectos: { moral: 3, riesgoLesion: 0.1 } },
+          { texto: "Jugar lesionado", efectos: { moral: 3, forzarLesion: "leve", riesgoLesion: 0.12 } },
           { texto: "Entrar desde el banco", efectos: { moral: 1, atributos: { fisico: 1 } } },
         ],
       },
@@ -878,6 +923,64 @@ function pick(arr, i) {
   return arr[i % arr.length];
 }
 
+/**
+ * Si el texto promete un hecho de carrera, el efecto debe materializarlo.
+ * @param {Opt} op
+ * @param {string} tramo
+ */
+function wireOption(op, tramo) {
+  const t = String(op.texto).toLowerCase();
+  /** @type {Record<string, unknown>} */
+  const ef = { ...op.efectos };
+  if (ef.atributos && typeof ef.atributos === "object") {
+    ef.atributos = { .../** @type {object} */ (ef.atributos) };
+  }
+
+  if (/pr[eé]stamo/.test(t) && !ef.transferencia) {
+    ef.transferencia = tramo === "cantera" ? "colombia_rival" : "mismo_nivel";
+  }
+  if (
+    /(buscar destino|aceptar la oferta de|aceptar y fichar|\bfichar\b)/.test(t) &&
+    !ef.transferencia &&
+    !ef.buscarSalida
+  ) {
+    ef.transferencia = tramo === "veteran" ? "liga_menos_exigente" : "ascenso";
+  }
+  if (
+    /(club menor|aceptar el ascenso|volver a colombia|club de origen)/.test(t) &&
+    !ef.transferencia
+  ) {
+    if (/club de origen/.test(t)) ef.transferencia = "club_origen";
+    else if (/volver a colombia/.test(t)) ef.transferencia = "colombia_primera";
+    else ef.transferencia = "liga_menos_exigente";
+  }
+  if (/pedir la salida|pedir salida/.test(t)) {
+    ef.buscarSalida = true;
+  }
+  if (/selecci[oó]n|convocat/.test(t) && !ef.convocatoria) {
+    ef.convocatoria =
+      tramo === "cantera" || tramo === "consolidacion" ? "sub20" : "mayor";
+  }
+  if (/jugar lesionado/.test(t) && !ef.forzarLesion) {
+    ef.forzarLesion = "leve";
+    ef.riesgoLesion = Math.max(/** @type {number} */ (ef.riesgoLesion ?? 0), 0.2);
+  }
+  if (/operarte/.test(t) && !ef.forzarLesion) {
+    ef.forzarLesion = "grave";
+  }
+  if (/acelerar (el )?retorno/.test(t)) {
+    ef.riesgoLesion = Math.max(/** @type {number} */ (ef.riesgoLesion ?? 0), 0.25);
+  }
+  return { ...op, efectos: ef };
+}
+
+function wireEvent(e) {
+  return {
+    ...e,
+    opciones: e.opciones.map((o) => wireOption(o, e.tramoCarrera)),
+  };
+}
+
 function fillQuota(tramo, categoria, need, startIdx) {
   /** @type {Ev[]} */
   const out = [];
@@ -885,14 +988,16 @@ function fillQuota(tramo, categoria, need, startIdx) {
   for (let i = 0; i < need; i++) {
     const n = startIdx + i + 1;
     const plantilla = pick(pool, i);
-    out.push({
-      id: `${tramo.slice(0, 3)}-${categoria.slice(0, 3)}-auto-${String(n).padStart(3, "0")}`,
-      tramoCarrera: tramo,
-      categoria,
-      etiqueta: plantilla.etiqueta,
-      texto: plantilla.texto,
-      opciones: structuredClone(plantilla.opciones),
-    });
+    out.push(
+      wireEvent({
+        id: `${tramo.slice(0, 3)}-${categoria.slice(0, 3)}-auto-${String(n).padStart(3, "0")}`,
+        tramoCarrera: tramo,
+        categoria,
+        etiqueta: plantilla.etiqueta,
+        texto: plantilla.texto,
+        opciones: structuredClone(plantilla.opciones),
+      })
+    );
   }
   return out;
 }
@@ -903,7 +1008,7 @@ function countBy(events, tramo, cat) {
 
 function buildAll() {
   /** @type {Ev[]} */
-  let events = [...HANDCRAFTED];
+  let events = HANDCRAFTED.map(wireEvent);
 
   const targets = {
     cantera: { total: 60, colombia: 24 },

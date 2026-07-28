@@ -358,27 +358,34 @@ export function evaluarOfertaTransferencia(
   reputacion: number,
   rendimiento: number = 0.55,
   rng: () => number = Math.random,
-  esProfesional: boolean = true
+  esProfesional: boolean = true,
+  /** Empujado por decisión «pedir la salida». */
+  buscarSalida: boolean = false
 ): OfertaTransferencia | null {
   const liga = getLigaById(ligaActualId);
   if (!liga) return null;
+
+  const boostSalida = buscarSalida ? 0.28 : 0;
+  const rachaEff = rachaAlto + (buscarSalida ? 1 : 0);
 
   if (liga.nivel === "colombia_primera") {
     const eligibleAbroad =
       esProfesional &&
       edad >= 18 &&
       edad <= 29 &&
-      reputacion >= 8 &&
-      (rachaAlto >= RACHA_TRANSFERENCIA ||
-        (rendimiento >= 0.7 && reputacion >= 18 && rachaAlto >= 1));
+      reputacion >= (buscarSalida ? 4 : 8) &&
+      (rachaEff >= RACHA_TRANSFERENCIA ||
+        (rendimiento >= 0.7 && reputacion >= 18 && rachaEff >= 1) ||
+        buscarSalida);
 
     if (eligibleAbroad) {
       const pAbroad = Math.min(
-        0.62,
+        0.85,
         0.18 +
-          Math.min(0.3, rachaAlto * 0.14) +
+          Math.min(0.3, rachaEff * 0.14) +
           Math.max(0, (rendimiento - 0.6) * 0.5) +
-          (reputacion >= 25 ? 0.06 : 0)
+          (reputacion >= 25 ? 0.06 : 0) +
+          boostSalida
       );
       if (rng() < pAbroad) {
         return pickRandomClub("intermedia", clubActualId, rng);
@@ -386,13 +393,14 @@ export function evaluarOfertaTransferencia(
     }
 
     // Fichaje doméstico a otro club BetPlay
-    if (edad >= 17 && edad <= 33 && rendimiento >= 0.5 && reputacion >= 0) {
+    if (edad >= 17 && edad <= 33 && (rendimiento >= 0.5 || buscarSalida) && reputacion >= 0) {
       const pDom = Math.min(
-        0.4,
+        0.75,
         0.12 +
           Math.max(0, (rendimiento - 0.5) * 0.45) +
           (reputacion >= 14 ? 0.07 : 0) +
-          (rachaAlto >= 1 ? 0.05 : 0)
+          (rachaEff >= 1 ? 0.05 : 0) +
+          boostSalida
       );
       if (rng() < pDom) {
         return pickRandomClub("colombia_primera", clubActualId, rng);
@@ -408,25 +416,27 @@ export function evaluarOfertaTransferencia(
     if (
       edad >= 20 &&
       edad <= 31 &&
-      reputacion >= 14 &&
-      (rachaAlto >= RACHA_TRANSFERENCIA ||
-        (rendimiento >= 0.72 && reputacion >= 22 && rachaAlto >= 1))
+      reputacion >= (buscarSalida ? 8 : 14) &&
+      (rachaEff >= RACHA_TRANSFERENCIA ||
+        (rendimiento >= 0.72 && reputacion >= 22 && rachaEff >= 1) ||
+        buscarSalida)
     ) {
       const pEu = Math.min(
-        0.55,
+        0.75,
         0.14 +
-          Math.min(0.24, rachaAlto * 0.12) +
-          Math.max(0, (rendimiento - 0.62) * 0.45)
+          Math.min(0.24, rachaEff * 0.12) +
+          Math.max(0, (rendimiento - 0.62) * 0.45) +
+          boostSalida
       );
       if (rng() < pEu) {
         return pickRandomClub("grande_europa", clubActualId, rng);
       }
     }
 
-    if (edad >= 19 && edad <= 33 && rendimiento >= 0.55 && reputacion >= 5) {
+    if (edad >= 19 && edad <= 33 && (rendimiento >= 0.55 || buscarSalida) && reputacion >= 5) {
       const pLat = Math.min(
-        0.28,
-        0.08 + Math.max(0, (rendimiento - 0.55) * 0.35)
+        0.55,
+        0.08 + Math.max(0, (rendimiento - 0.55) * 0.35) + boostSalida
       );
       if (rng() < pLat) {
         return pickRandomClub("intermedia", clubActualId, rng);
@@ -436,14 +446,17 @@ export function evaluarOfertaTransferencia(
   }
 
   if (liga.nivel === "grande_europa") {
-    if (edad >= 21 && edad <= 33 && rendimiento >= 0.6 && reputacion >= 12) {
+    if (edad >= 21 && edad <= 33 && (rendimiento >= 0.6 || buscarSalida) && reputacion >= 8) {
       const p = Math.min(
-        0.28,
-        0.06 + Math.max(0, (rendimiento - 0.6) * 0.32)
+        0.55,
+        0.06 + Math.max(0, (rendimiento - 0.6) * 0.32) + boostSalida
       );
       if (rng() < p) {
         return pickRandomClub("grande_europa", clubActualId, rng);
       }
+    }
+    if (buscarSalida && rng() < 0.45) {
+      return pickRandomClub("intermedia", clubActualId, rng);
     }
   }
 
@@ -889,6 +902,8 @@ export function resolverDecisiones(
   lesion: Lesion | null;
   notas: string[];
   transferenciaPorDecision: OfertaTransferencia | null;
+  convocatoriaForzada: NivelSeleccion | null;
+  buscarSalida: boolean;
 } {
   let attrs = { ...jugador.atributos };
   let reputacion = jugador.reputacion;
@@ -901,6 +916,9 @@ export function resolverDecisiones(
   const lesiones = [...jugador.historialLesiones];
   let lesion: Lesion | null = null;
   let transferenciaPorDecision: OfertaTransferencia | null = null;
+  let convocatoriaForzada: NivelSeleccion | null = null;
+  let buscarSalida = false;
+  let forzarLesion: "leve" | "grave" | null = null;
 
   for (const d of decisiones) {
     const ev = eventos.find((e) => e.id === d.eventoId);
@@ -912,6 +930,21 @@ export function resolverDecisiones(
     moral = clipScore(moral + (op.efectos.moral ?? 0));
     riesgoLesionAcum += op.efectos.riesgoLesion ?? 0;
     riesgoFinCarrera = Math.max(riesgoFinCarrera, op.efectos.riesgoFinCarrera ?? 0);
+
+    if (op.efectos.buscarSalida) {
+      buscarSalida = true;
+      notas.push(
+        `Pediste la salida («${op.texto}»): el mercado te mira más de cerca.`
+      );
+    }
+
+    if (op.efectos.convocatoria) {
+      convocatoriaForzada = op.efectos.convocatoria;
+    }
+
+    if (op.efectos.forzarLesion) {
+      forzarLesion = op.efectos.forzarLesion;
+    }
 
     if (op.efectos.transferencia) {
       const jugadorTemp: Jugador = {
@@ -933,15 +966,14 @@ export function resolverDecisiones(
         transferenciaPorDecision = oferta;
         moral = clipScore(moral + 4);
         notas.push(
-          `Por tu decisión («${op.texto}»), fichás por ${oferta.clubNombre} (${oferta.ligaNombre}).`
+          `Por tu decisión («${op.texto}»), fichas por ${oferta.clubNombre} (${oferta.ligaNombre}).`
         );
       }
     }
   }
 
-  const pLesion = riesgoLesionGrave(attrs.fisico ?? 50, riesgoLesionAcum);
-  if (rng() < pLesion) {
-    const grave = rng() < 0.22 + riesgoFinCarrera;
+  if (forzarLesion) {
+    const grave = forzarLesion === "grave";
     lesion = {
       temporadaEdad: jugador.edad,
       descripcion: grave ? "Lesión grave" : "Lesión muscular",
@@ -953,8 +985,34 @@ export function resolverDecisiones(
       fisico: grave ? -4 : -1,
     });
     moral = clipScore(moral - (grave ? 15 : 6));
-    notas.push(grave ? "Sufrís una lesión grave esta temporada." : "Una lesión te frena unas semanas.");
+    notas.push(
+      grave
+        ? "La decisión te costó una lesión grave esta temporada."
+        : "La decisión te dejó una lesión muscular."
+    );
     if (grave) riesgoFinCarrera = Math.max(riesgoFinCarrera, 0.2);
+  } else {
+    const pLesion = riesgoLesionGrave(attrs.fisico ?? 50, riesgoLesionAcum);
+    if (rng() < pLesion) {
+      const grave = rng() < 0.22 + riesgoFinCarrera;
+      lesion = {
+        temporadaEdad: jugador.edad,
+        descripcion: grave ? "Lesión grave" : "Lesión muscular",
+        grave,
+      };
+      lesiones.push(lesion);
+      attrs = aplicarEfectosAtributos(attrs, {
+        ritmo: grave ? -4 : -2,
+        fisico: grave ? -4 : -1,
+      });
+      moral = clipScore(moral - (grave ? 15 : 6));
+      notas.push(
+        grave
+          ? "Sufriste una lesión grave esta temporada."
+          : "Una lesión te frena unas semanas."
+      );
+      if (grave) riesgoFinCarrera = Math.max(riesgoFinCarrera, 0.2);
+    }
   }
 
   return {
@@ -972,6 +1030,8 @@ export function resolverDecisiones(
     lesion,
     notas,
     transferenciaPorDecision,
+    convocatoriaForzada,
+    buscarSalida,
   };
 }
 
@@ -1388,7 +1448,18 @@ export function cerrarTemporada(
     jugador.reputacion,
     jugador.convocatoriaSeleccion
   );
-  jugador = { ...jugador, convocatoriaSeleccion: selec.nivel };
+  if (resolved.convocatoriaForzada) {
+    const nivel = resolved.convocatoriaForzada;
+    const label =
+      nivel === "mayor" ? "Selección mayor" : nivel === "sub23" ? "Sub-23" : "Sub-20";
+    jugador = { ...jugador, convocatoriaSeleccion: nivel };
+    notasExtra.push(
+      `Por tu decisión quedaste en el radar de la ${label} de Colombia.`
+    );
+  } else {
+    jugador = { ...jugador, convocatoriaSeleccion: selec.nivel };
+    if (selec.narrativa) notasExtra.push(selec.narrativa);
+  }
 
   let rachaAlto = estado.rachaAltoRendimiento;
   if (añosBuenos >= 2) rachaAlto += 2;
@@ -1413,8 +1484,15 @@ export function cerrarTemporada(
         jugador.reputacion,
         rendimiento,
         rng,
-        jugador.esProfesional
+        jugador.esProfesional,
+        resolved.buscarSalida
       );
+
+  if (oferta && resolved.buscarSalida) {
+    notasExtra.push(
+      `Tras pedir la salida, llegó una oferta de ${oferta.clubNombre} (${oferta.ligaNombre}).`
+    );
+  }
 
   const motivoAnticipado = evaluarFinCarreraAnticipado({
     reputacion: jugador.reputacion,
@@ -1430,11 +1508,7 @@ export function cerrarTemporada(
   );
   const clubTemporada = getClubById(j0.clubActualId);
   const liga = ligaTemporada ?? getLigaById(j0.ligaActualId);
-  const notas = [
-    ...notasExtra,
-    ...resolved.notas,
-    ...(selec.narrativa ? [selec.narrativa] : []),
-  ];
+  const notas = [...notasExtra, ...resolved.notas];
   if (!jugador.esProfesional) {
     notas.push("Sigues en la cantera / juveniles; el ascenso a Primera aún no llegó.");
   }
@@ -1471,6 +1545,11 @@ export function cerrarTemporada(
     oferta,
   });
 
+  const nivelSeleccionFinal = resolved.convocatoriaForzada ?? selec.nivel;
+  const narrativaSeleccionFinal = resolved.convocatoriaForzada
+    ? `Convocado a la ${resolved.convocatoriaForzada === "mayor" ? "Selección mayor" : "Sub-20"} por tu decisión.`
+    : selec.narrativa;
+
   const resultado: ResultadoTemporada = {
     edadInicio,
     edad: edadFin,
@@ -1491,8 +1570,8 @@ export function cerrarTemporada(
     rendimientoPromedio: rendimiento,
     eventosResolvidos,
     resumenAnio,
-    convocatoriaSeleccion: selec.nivel,
-    narrativaSeleccion: selec.narrativa,
+    convocatoriaSeleccion: nivelSeleccionFinal,
+    narrativaSeleccion: narrativaSeleccionFinal,
     ofertaTransferencia: oferta,
     aceptoTransferencia: false,
     lesion: resolved.lesion,

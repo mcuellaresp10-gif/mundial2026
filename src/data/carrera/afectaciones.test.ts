@@ -24,4 +24,17 @@ describe("construirAfectacion", () => {
     assert.match(text, /crack/);
     assert.match(text, /\+5 reputación/);
   });
+
+  it("chips de consecuencias de carrera", () => {
+    const text = construirAfectacion("X", "Y", {
+      transferencia: "ascenso",
+      convocatoria: "mayor",
+      forzarLesion: "leve",
+      buscarSalida: true,
+    });
+    assert.match(text, /cambio de club/);
+    assert.match(text, /busca salida/);
+    assert.match(text, /convocado mayor/);
+    assert.match(text, /lesión/);
+  });
 });

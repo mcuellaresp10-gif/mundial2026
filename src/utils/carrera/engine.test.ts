@@ -358,7 +358,137 @@ describe("resolverDecisiones con transferencia", () => {
     assert.equal(r.jugador.clubActualId, "santa-fe");
     assert.equal(r.jugador.ligaActualId, "liga-betplay");
     assert.ok(r.transferenciaPorDecision);
-    assert.ok(r.notas.some((n) => n.includes("fichás")));
+    assert.ok(r.notas.some((n) => n.includes("fichas")));
+  });
+
+  it("forzarLesion aplica lesión sin depender del RNG", () => {
+    const j = crearJugador({
+      apellido: "Les",
+      posicion: "delantero",
+      piernaHabil: "derecha",
+      nacionalidad: "Colombia",
+      clubOrigenId: "millonarios",
+    });
+    const evento = {
+      id: "ev-lesion",
+      tramoCarrera: "prime" as const,
+      categoria: "generico" as const,
+      texto: "Molestia",
+      opciones: [
+        {
+          texto: "Jugar lesionado",
+          efectos: { forzarLesion: "grave" as const, moral: 2 },
+        },
+      ],
+    };
+    const r = resolverDecisiones(
+      { ...j, esProfesional: true },
+      [{ eventoId: evento.id, opcionIndex: 0 }],
+      [evento],
+      () => 0.99
+    );
+    assert.ok(r.lesion);
+    assert.equal(r.lesion!.grave, true);
+  });
+
+  it("convocatoria forzada queda en el resultado de decisiones", () => {
+    const j = crearJugador({
+      apellido: "Sel",
+      posicion: "extremo",
+      piernaHabil: "izquierda",
+      nacionalidad: "Colombia",
+      clubOrigenId: "junior",
+    });
+    const evento = {
+      id: "ev-selec",
+      tramoCarrera: "prime" as const,
+      categoria: "colombia_especifico" as const,
+      texto: "Fecha FIFA",
+      opciones: [
+        {
+          texto: "Ir a la Selección",
+          efectos: { convocatoria: "mayor" as const, reputacion: 5 },
+        },
+      ],
+    };
+    const r = resolverDecisiones(
+      { ...j, esProfesional: true, edad: 26 },
+      [{ eventoId: evento.id, opcionIndex: 0 }],
+      [evento],
+      () => 0.5
+    );
+    assert.equal(r.convocatoriaForzada, "mayor");
+  });
+
+  it("buscarSalida marca el flag para oferta al cierre", () => {
+    const j = crearJugador({
+      apellido: "Out",
+      posicion: "mediocampista",
+      piernaHabil: "derecha",
+      nacionalidad: "Colombia",
+      clubOrigenId: "junior",
+    });
+    const evento = {
+      id: "ev-salida",
+      tramoCarrera: "consolidacion" as const,
+      categoria: "generico" as const,
+      texto: "Banco",
+      opciones: [
+        {
+          texto: "Pedir la salida",
+          efectos: { buscarSalida: true, moral: -3 },
+        },
+      ],
+    };
+    const r = resolverDecisiones(
+      { ...j, esProfesional: true, edad: 23 },
+      [{ eventoId: evento.id, opcionIndex: 0 }],
+      [evento],
+      () => 0.5
+    );
+    assert.equal(r.buscarSalida, true);
+  });
+});
+
+describe("evaluarOfertaTransferencia con buscarSalida", () => {
+  it("con buscarSalida aparece oferta más a menudo", () => {
+    const samples = 40;
+    let con = 0;
+    let sin = 0;
+    for (let i = 0; i < samples; i++) {
+      const rng = () => (i + 1) / (samples + 1);
+      if (
+        evaluarOfertaTransferencia(
+          "liga-betplay",
+          "millonarios",
+          24,
+          0,
+          5,
+          0.45,
+          rng,
+          true,
+          true
+        )
+      ) {
+        con += 1;
+      }
+      if (
+        evaluarOfertaTransferencia(
+          "liga-betplay",
+          "millonarios",
+          24,
+          0,
+          5,
+          0.45,
+          rng,
+          true,
+          false
+        )
+      ) {
+        sin += 1;
+      }
+    }
+    assert.ok(con > sin, `con=${con} sin=${sin}`);
   });
 });
 

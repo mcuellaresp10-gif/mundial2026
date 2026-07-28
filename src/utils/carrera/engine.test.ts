@@ -507,6 +507,15 @@ describe("aplicarCrecimientoPorRendimiento", () => {
     assert.ok(down.fisico! < base.fisico);
   });
 
+  it("en cantera una campaña decente ya suma (no exige 0.72)", () => {
+    const base = { ...ATRIBUTOS_INICIALES.extremo };
+    const up = aplicarCrecimientoPorRendimiento(base, 0.55, false, 16);
+    assert.ok(up.ritmo! > base.ritmo);
+    assert.equal(up.ritmo! - base.ritmo!, 1);
+    const strong = aplicarCrecimientoPorRendimiento(base, 0.65, false, 17);
+    assert.ok(strong.ritmo! - base.ritmo! >= 2);
+  });
+
   it("en el ocaso no sube la media aunque el rendimiento sea alto", () => {
     const base = {
       ritmo: 90,
@@ -521,6 +530,19 @@ describe("aplicarCrecimientoPorRendimiento", () => {
     assert.ok(late.fisico! <= base.fisico);
     const mid = aplicarCrecimientoPorRendimiento(base, 0.8, false, 35);
     assert.ok(mid.ritmo! <= base.ritmo);
+  });
+
+  it("cerca de élite el soft ceiling limita a +1", () => {
+    const base = {
+      ritmo: 84,
+      tiro: 84,
+      pase: 82,
+      regate: 84,
+      defensa: 40,
+      fisico: 82,
+    };
+    const up = aplicarCrecimientoPorRendimiento(base, 0.95, false, 26);
+    assert.ok(up.ritmo! <= base.ritmo + 1);
   });
 });
 

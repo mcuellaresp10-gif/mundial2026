@@ -1317,8 +1317,9 @@ export function calcularDeltasAtributos(
 }
 
 /**
- * Ajusta atributos base según rendimiento de la temporada.
- * Buena campaña sube; mala baja. En el ocaso el cuerpo ya no absorbe subidas.
+ * Ajusta atributos según rendimiento de la temporada.
+ * Juventud: campañas correctas sí empujan la media (sin regalar +3 siempre).
+ * Elite/ocaso: más difícil seguir subiendo; el declive anual actúa aparte.
  */
 export function aplicarCrecimientoPorRendimiento(
   attrs: Atributos,
@@ -1326,26 +1327,27 @@ export function aplicarCrecimientoPorRendimiento(
   lesionGrave: boolean,
   edad = 20
 ): Atributos {
-  let delta = 0;
-  if (rendimiento >= 0.85) delta = 3;
-  else if (rendimiento >= 0.72) delta = 2;
-  else if (rendimiento >= 0.58) delta = 1;
-  else if (rendimiento >= 0.45) delta = 0;
-  else if (rendimiento >= 0.34) delta = -1;
-  else if (rendimiento >= 0.24) delta = -2;
-  else delta = -3;
+  let delta = bandaCrecimientoPorEdad(rendimiento, edad);
 
   if (lesionGrave && delta > 0) delta = 0;
   if (lesionGrave && delta === 0) delta = -1;
 
-  // Tope de crecimiento por edad (el declive anual actúa aparte).
+  // Tope extra en ocaso (además de umbrales más duros arriba).
   if (edad >= 37) {
-    // Ocaso: aun con gran campaña, como mucho se mantiene; lo normal es bajar.
     delta = Math.min(delta, rendimiento >= 0.88 ? 0 : -1);
   } else if (edad >= 35) {
     delta = Math.min(delta, 0);
   } else if (edad >= 33) {
     delta = Math.min(delta, 1);
+  }
+
+  // Soft ceiling: pasar de crack a élite cuesta más (mira el bloque ofensivo/físico).
+  const foco = [attrs.ritmo, attrs.tiro, attrs.pase, attrs.regate, attrs.fisico];
+  const mediaFoco = foco.reduce((a, b) => a + b, 0) / foco.length;
+  if (delta > 0 && mediaFoco >= 88) {
+    delta = rendimiento >= 0.9 ? 1 : 0;
+  } else if (delta > 1 && mediaFoco >= 82) {
+    delta = 1;
   }
 
   const core: (keyof Atributos)[] = [
@@ -1367,6 +1369,51 @@ export function aplicarCrecimientoPorRendimiento(
     next.reflejos = clipAtributo(next.reflejos + delta);
   }
   return next;
+}
+
+/**
+ * Bandas de crecimiento: más generosas en cantera/formación,
+ * exigentes en prime, restrictivas en ocaso.
+ */
+export function bandaCrecimientoPorEdad(
+  rendimiento: number,
+  edad: number
+): number {
+  if (edad <= 18) {
+    // Cantera: una campaña decente ya deja huella.
+    if (rendimiento >= 0.78) return 3;
+    if (rendimiento >= 0.6) return 2;
+    if (rendimiento >= 0.48) return 1;
+    if (rendimiento >= 0.38) return 0;
+    if (rendimiento >= 0.28) return -1;
+    return -2;
+  }
+  if (edad <= 22) {
+    // Consolidación temprana.
+    if (rendimiento >= 0.82) return 3;
+    if (rendimiento >= 0.66) return 2;
+    if (rendimiento >= 0.52) return 1;
+    if (rendimiento >= 0.42) return 0;
+    if (rendimiento >= 0.3) return -1;
+    return -2;
+  }
+  if (edad <= 28) {
+    // Prime: +2 alcanzable con buena temporada; +3 pide excelencia.
+    if (rendimiento >= 0.84) return 3;
+    if (rendimiento >= 0.68) return 2;
+    if (rendimiento >= 0.55) return 1;
+    if (rendimiento >= 0.45) return 0;
+    if (rendimiento >= 0.34) return -1;
+    if (rendimiento >= 0.24) return -2;
+    return -3;
+  }
+  // 29–32: sigue el cuerpo, pero ya no explota.
+  if (rendimiento >= 0.86) return 2;
+  if (rendimiento >= 0.72) return 1;
+  if (rendimiento >= 0.5) return 0;
+  if (rendimiento >= 0.38) return -1;
+  if (rendimiento >= 0.28) return -2;
+  return -3;
 }
 
 /** Reputación/moral reaccionan al rendimiento de la campaña. */

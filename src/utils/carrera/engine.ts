@@ -1,7 +1,8 @@
 import { construirAfectacion } from "@/data/carrera/afectaciones";
-import { ATRIBUTOS_INICIALES, PESOS_RENDIMIENTO, clipAtributo, clipScore } from "@/data/carrera/atributos";
+import { ATRIBUTOS_INICIALES, PESOS_RENDIMIENTO, calcularMedia, clipAtributo, clipScore } from "@/data/carrera/atributos";
 import {
   getClubById,
+  getClubesBetPlay,
   getClubesByLiga,
   getClubesByNivel,
   getLigaById,
@@ -21,21 +22,50 @@ import type {
   NivelLiga,
   NivelSeleccion,
   OfertaTransferencia,
+  PartidoClave,
   Posicion,
+  PrimeCarrera,
   ResultadoTemporada,
   ResumenCarrera,
+  StatsEtapaCarrera,
+  TitulosPorClub,
   TramoCarrera,
 } from "@/data/carrera/types";
 
 export const EDAD_INICIO = 15;
 export const EDAD_RETIRO_OPCION = 38;
 export const EDAD_RETIRO_FORZADO = 42;
+/** Cada periodo de carrera cubre 2 años de fútbol (stats sumadas). */
+export const ANIOS_POR_PERIODO = 2;
 /** Temporada “buena” para racha de transferencia. */
-export const UMBRAL_RENDIMIENTO_TRANSFERENCIA = 0.68;
+export const UMBRAL_RENDIMIENTO_TRANSFERENCIA = 0.62;
 /** Temporadas buenas consecutivas para saltos de liga serios. */
-export const RACHA_TRANSFERENCIA = 2;
+export const RACHA_TRANSFERENCIA = 1;
 export const UMBRAL_RACHA_BAJA = -60;
-export const BASE_RIESGO_LESION_GRAVE = 0.045;
+export const BASE_RIESGO_LESION_GRAVE = 0.028;
+
+export function statsEtapaVacias(): StatsEtapaCarrera {
+  return {
+    partidos: 0,
+    goles: 0,
+    asistencias: 0,
+    titulos: [],
+    premiosIndividuales: [],
+  };
+}
+
+export function sumarStatsEtapa(
+  a: StatsEtapaCarrera,
+  b: StatsEtapaCarrera
+): StatsEtapaCarrera {
+  return {
+    partidos: a.partidos + b.partidos,
+    goles: a.goles + b.goles,
+    asistencias: a.asistencias + b.asistencias,
+    titulos: [...a.titulos, ...b.titulos],
+    premiosIndividuales: [...a.premiosIndividuales, ...b.premiosIndividuales],
+  };
+}
 
 export function tramoDesdeEdad(edad: number): TramoCarrera {
   if (edad <= 18) return "cantera";
@@ -68,18 +98,18 @@ export function evaluarAscensoProfesional(input: {
   // A más tardar a los 19
   if (input.edad >= 19) return true;
 
-  if (input.edad >= 18 && input.rendimiento >= 0.62) {
+  if (input.edad >= 18 && input.rendimiento >= 0.55) {
     const p = Math.min(
-      0.55,
-      0.18 +
-        (input.rendimiento - 0.62) * 0.7 +
-        (input.reputacion >= 20 ? 0.1 : 0)
+      0.65,
+      0.28 +
+        (input.rendimiento - 0.55) * 0.75 +
+        (input.reputacion >= 15 ? 0.1 : 0)
     );
     return rng() < p;
   }
 
-  if (input.edad >= 17 && input.rendimiento >= 0.72) {
-    const p = Math.min(0.35, 0.1 + (input.rendimiento - 0.72) * 0.6);
+  if (input.edad >= 17 && input.rendimiento >= 0.65) {
+    const p = Math.min(0.45, 0.16 + (input.rendimiento - 0.65) * 0.65);
     return rng() < p;
   }
 
@@ -131,7 +161,7 @@ export function estadoInicial(jugador: Jugador): EstadoCarrera {
 
 /**
  * Rendimiento de temporada a partir de atributos.
- * Dificultad media-alta: attrs de cantera (~50) suelen dar ~45–65%.
+ * Cantera (~50 attrs) suele dar ~50–70% con la curva actual.
  */
 export function calcularRendimiento(
   atributos: Atributos,
@@ -149,10 +179,9 @@ export function calcularRendimiento(
     wSum += w;
   }
   const base = wSum > 0 ? sum / wSum / 100 : 0.5;
-  // Ligero suavizado (sin el boost fuerte anterior)
-  const eased = Math.min(0.9, base * 1.05 + 0.02);
-  const factor = 0.82 + rng() * 0.32; // [0.82, 1.14]
-  return Math.max(0.18, Math.min(1.12, eased * factor));
+  const eased = Math.min(0.92, base * 1.08 + 0.04);
+  const factor = 0.88 + rng() * 0.28; // [0.88, 1.16]
+  return Math.max(0.2, Math.min(1.12, eased * factor));
 }
 
 export function aplicarEfectosAtributos(
@@ -184,8 +213,61 @@ export function seleccionarEventosTemporada(
     const j = Math.floor(rng() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  const n = Math.min(count, shuffled.length, 3);
+  const n = Math.min(count, shuffled.length, 2);
   return shuffled.slice(0, Math.max(1, n));
+}
+
+/** Un partido emblemático del periodo según rendimiento. */
+export function generarPartidoClave(input: {
+  clubId: string;
+  ligaId: string;
+  rendimiento: number;
+  lesionGrave: boolean;
+  debutProfesional: boolean;
+  rng?: () => number;
+}): PartidoClave {
+  const rng = input.rng ?? Math.random;
+  const propios = getClubesByLiga(input.ligaId).filter((c) => c.id !== input.clubId);
+  const pool =
+    propios.length > 0 ? propios : getClubesBetPlay().filter((c) => c.id !== input.clubId);
+  const rival =
+    pool.length > 0
+      ? pool[Math.floor(rng() * pool.length)]!.nombre
+      : "el rival";
+
+  const condicion: "local" | "visitante" = rng() < 0.55 ? "local" : "visitante";
+  let golesFavor = 0;
+  let golesContra = 0;
+  let nota = "";
+
+  if (input.lesionGrave) {
+    golesFavor = Math.floor(rng() * 2);
+    golesContra = 1 + Math.floor(rng() * 2);
+    nota = "Saliste lesionado; el partido se te complicó.";
+  } else if (input.debutProfesional) {
+    golesFavor = 1 + Math.floor(rng() * 2);
+    golesContra = Math.floor(rng() * 2);
+    nota = "Debut en Primera: entraste y aportaste.";
+  } else if (input.rendimiento >= 0.78) {
+    golesFavor = 2 + Math.floor(rng() * 2);
+    golesContra = Math.floor(rng() * 2);
+    nota = "Partidazo: decidiste el encuentro.";
+  } else if (input.rendimiento >= 0.6) {
+    golesFavor = 1 + Math.floor(rng() * 2);
+    golesContra = Math.floor(rng() * 2);
+    if (golesFavor === golesContra) golesFavor += 1;
+    nota = "Buen partido; la hinchada lo celebró.";
+  } else if (input.rendimiento >= 0.45) {
+    golesFavor = Math.floor(rng() * 2);
+    golesContra = Math.floor(rng() * 2);
+    nota = "Empate trabado; poco brillo individual.";
+  } else {
+    golesFavor = Math.floor(rng() * 2);
+    golesContra = 1 + Math.floor(rng() * 3);
+    nota = "Noche negra: el rival te pasó por encima.";
+  }
+
+  return { rival, golesFavor, golesContra, condicion, nota };
 }
 
 export function evaluarConvocatoria(
@@ -284,19 +366,19 @@ export function evaluarOfertaTransferencia(
   if (liga.nivel === "colombia_primera") {
     const eligibleAbroad =
       esProfesional &&
-      edad >= 19 &&
-      edad <= 28 &&
-      reputacion >= 12 &&
+      edad >= 18 &&
+      edad <= 29 &&
+      reputacion >= 8 &&
       (rachaAlto >= RACHA_TRANSFERENCIA ||
-        (rendimiento >= 0.78 && reputacion >= 25 && rachaAlto >= 1));
+        (rendimiento >= 0.7 && reputacion >= 18 && rachaAlto >= 1));
 
     if (eligibleAbroad) {
       const pAbroad = Math.min(
-        0.55,
-        0.12 +
-          Math.min(0.28, rachaAlto * 0.12) +
-          Math.max(0, (rendimiento - 0.68) * 0.45) +
-          (reputacion >= 30 ? 0.05 : 0)
+        0.62,
+        0.18 +
+          Math.min(0.3, rachaAlto * 0.14) +
+          Math.max(0, (rendimiento - 0.6) * 0.5) +
+          (reputacion >= 25 ? 0.06 : 0)
       );
       if (rng() < pAbroad) {
         return pickRandomClub("intermedia", clubActualId, rng);
@@ -304,13 +386,13 @@ export function evaluarOfertaTransferencia(
     }
 
     // Fichaje doméstico a otro club BetPlay
-    if (edad >= 17 && edad <= 32 && rendimiento >= 0.58 && reputacion >= 0) {
+    if (edad >= 17 && edad <= 33 && rendimiento >= 0.5 && reputacion >= 0) {
       const pDom = Math.min(
-        0.32,
-        0.08 +
-          Math.max(0, (rendimiento - 0.58) * 0.4) +
-          (reputacion >= 18 ? 0.06 : 0) +
-          (rachaAlto >= 2 ? 0.05 : 0)
+        0.4,
+        0.12 +
+          Math.max(0, (rendimiento - 0.5) * 0.45) +
+          (reputacion >= 14 ? 0.07 : 0) +
+          (rachaAlto >= 1 ? 0.05 : 0)
       );
       if (rng() < pDom) {
         return pickRandomClub("colombia_primera", clubActualId, rng);
@@ -324,27 +406,27 @@ export function evaluarOfertaTransferencia(
 
   if (liga.nivel === "intermedia") {
     if (
-      edad >= 21 &&
-      edad <= 30 &&
-      reputacion >= 18 &&
+      edad >= 20 &&
+      edad <= 31 &&
+      reputacion >= 14 &&
       (rachaAlto >= RACHA_TRANSFERENCIA ||
-        (rendimiento >= 0.8 && reputacion >= 30 && rachaAlto >= 1))
+        (rendimiento >= 0.72 && reputacion >= 22 && rachaAlto >= 1))
     ) {
       const pEu = Math.min(
-        0.48,
-        0.1 +
-          Math.min(0.22, rachaAlto * 0.1) +
-          Math.max(0, (rendimiento - 0.7) * 0.4)
+        0.55,
+        0.14 +
+          Math.min(0.24, rachaAlto * 0.12) +
+          Math.max(0, (rendimiento - 0.62) * 0.45)
       );
       if (rng() < pEu) {
         return pickRandomClub("grande_europa", clubActualId, rng);
       }
     }
 
-    if (edad >= 20 && edad <= 32 && rendimiento >= 0.62 && reputacion >= 8) {
+    if (edad >= 19 && edad <= 33 && rendimiento >= 0.55 && reputacion >= 5) {
       const pLat = Math.min(
-        0.22,
-        0.05 + Math.max(0, (rendimiento - 0.62) * 0.3)
+        0.28,
+        0.08 + Math.max(0, (rendimiento - 0.55) * 0.35)
       );
       if (rng() < pLat) {
         return pickRandomClub("intermedia", clubActualId, rng);
@@ -354,10 +436,10 @@ export function evaluarOfertaTransferencia(
   }
 
   if (liga.nivel === "grande_europa") {
-    if (edad >= 22 && edad <= 32 && rendimiento >= 0.68 && reputacion >= 15) {
+    if (edad >= 21 && edad <= 33 && rendimiento >= 0.6 && reputacion >= 12) {
       const p = Math.min(
-        0.22,
-        0.04 + Math.max(0, (rendimiento - 0.68) * 0.28)
+        0.28,
+        0.06 + Math.max(0, (rendimiento - 0.6) * 0.32)
       );
       if (rng() < p) {
         return pickRandomClub("grande_europa", clubActualId, rng);
@@ -476,20 +558,20 @@ export function evaluarTrofeosYPremios(input: {
 
   // —— Domestic / youth ——
   if (!esProfesional || edad <= 18) {
-    const pJuv = Math.min(0.32, 0.06 + Math.max(0, rendimiento - 0.5) * 0.45);
+    const pJuv = Math.min(0.4, 0.1 + Math.max(0, rendimiento - 0.45) * 0.5);
     if (rng() < pJuv) titulos.push("Título juvenil / reserva");
   }
 
   if (esProfesional || edad >= 17) {
-    const excess = rendimiento - 0.58;
-    const pLiga = excess <= 0 ? 0.02 : Math.min(0.32, 0.04 + excess * 0.55);
+    const excess = rendimiento - 0.5;
+    const pLiga = excess <= 0 ? 0.04 : Math.min(0.4, 0.08 + excess * 0.6);
     if (rng() < pLiga) {
       titulos.push(edad <= 19 ? "Título de liga (primera/juvenil)" : "Título de liga");
     }
 
-    const excessCopa = rendimiento - 0.55;
+    const excessCopa = rendimiento - 0.48;
     const pCopa =
-      excessCopa <= 0 ? 0.015 : Math.min(0.24, 0.03 + excessCopa * 0.4);
+      excessCopa <= 0 ? 0.03 : Math.min(0.3, 0.05 + excessCopa * 0.45);
     if (rng() < pCopa) {
       if (ligaId === "liga-betplay") titulos.push("Copa Colombia");
       else if (ligaId === "liga-mx") titulos.push("Copa MX / Campeón de Campeones");
@@ -501,78 +583,78 @@ export function evaluarTrofeosYPremios(input: {
   // —— International cups by region ——
   if (esProfesional && edad >= 18) {
     if (nivelLiga === "grande_europa") {
-      if (rendimiento >= 0.8) {
+      if (rendimiento >= 0.72) {
         const pUcl = Math.min(
-          0.14,
-          0.015 +
-            (rendimiento - 0.8) * 0.25 +
-            (reputacion >= 45 ? 0.03 : 0) +
-            (contrib >= 25 ? 0.02 : 0)
+          0.18,
+          0.025 +
+            (rendimiento - 0.72) * 0.3 +
+            (reputacion >= 40 ? 0.03 : 0) +
+            (contrib >= 22 ? 0.02 : 0)
         );
         if (rng() < pUcl) titulos.push("UEFA Champions League");
       }
-      if (!titulos.includes("UEFA Champions League") && rendimiento >= 0.72) {
+      if (!titulos.includes("UEFA Champions League") && rendimiento >= 0.64) {
         const pUel = Math.min(
-          0.2,
-          0.04 + (rendimiento - 0.72) * 0.3 + (reputacion >= 30 ? 0.02 : 0)
+          0.26,
+          0.06 + (rendimiento - 0.64) * 0.35 + (reputacion >= 25 ? 0.03 : 0)
         );
         if (rng() < pUel) titulos.push("UEFA Europa League");
       }
       if (
         !titulos.includes("UEFA Champions League") &&
         !titulos.includes("UEFA Europa League") &&
-        rendimiento >= 0.68 &&
-        rng() < 0.03 + (rendimiento - 0.68) * 0.15
+        rendimiento >= 0.6 &&
+        rng() < 0.05 + (rendimiento - 0.6) * 0.18
       ) {
         titulos.push("UEFA Conference League");
       }
     } else if (ligaId === "mls") {
-      if (rendimiento >= 0.72) {
-        const p = Math.min(0.16, 0.03 + (rendimiento - 0.72) * 0.3);
+      if (rendimiento >= 0.65) {
+        const p = Math.min(0.2, 0.05 + (rendimiento - 0.65) * 0.35);
         if (rng() < p) titulos.push("Concacaf Champions Cup");
       }
       if (
         !titulos.includes("Concacaf Champions Cup") &&
-        rendimiento >= 0.65 &&
-        rng() < 0.05 + (rendimiento - 0.65) * 0.22
+        rendimiento >= 0.58 &&
+        rng() < 0.07 + (rendimiento - 0.58) * 0.25
       ) {
         titulos.push("Leagues Cup");
       }
     } else if (esLigaAmericana(ligaId, nivelLiga)) {
-      if (rendimiento >= 0.76) {
+      if (rendimiento >= 0.68) {
         const pLib = Math.min(
-          0.15,
-          0.02 +
-            (rendimiento - 0.76) * 0.28 +
-            (reputacion >= 35 ? 0.03 : 0) +
-            (nivelLiga === "intermedia" ? 0.02 : 0)
+          0.2,
+          0.035 +
+            (rendimiento - 0.68) * 0.32 +
+            (reputacion >= 28 ? 0.03 : 0) +
+            (nivelLiga === "intermedia" ? 0.025 : 0)
         );
         if (rng() < pLib) titulos.push("Copa Libertadores");
       }
-      if (!titulos.includes("Copa Libertadores") && rendimiento >= 0.66) {
+      if (!titulos.includes("Copa Libertadores") && rendimiento >= 0.58) {
         const pSud = Math.min(
-          0.22,
-          0.04 + (rendimiento - 0.66) * 0.32 + (reputacion >= 20 ? 0.02 : 0)
+          0.28,
+          0.06 + (rendimiento - 0.58) * 0.35 + (reputacion >= 15 ? 0.03 : 0)
         );
         if (rng() < pSud) titulos.push("Copa Sudamericana");
       }
       if (
         (titulos.includes("Copa Libertadores") ||
           titulos.includes("Copa Sudamericana")) &&
-        rendimiento >= 0.8 &&
-        rng() < 0.06
+        rendimiento >= 0.72 &&
+        rng() < 0.08
       ) {
         titulos.push("Recopa Sudamericana");
       }
     }
-  } else if (!esProfesional && rendimiento >= 0.7 && rng() < 0.06) {
+  } else if (!esProfesional && rendimiento >= 0.62 && rng() < 0.1) {
     titulos.push("Torneo internacional juvenil");
   }
 
   // —— Individual awards ——
   if (esProfesional) {
-    if (rendimiento >= 0.84) {
-      const pMvp = Math.min(0.18, 0.03 + (rendimiento - 0.84) * 0.4);
+    if (rendimiento >= 0.76) {
+      const pMvp = Math.min(0.24, 0.05 + (rendimiento - 0.76) * 0.45);
       if (rng() < pMvp) {
         if (ligaId === "liga-betplay") premios.push("Mejor jugador de la Liga BetPlay");
         else if (nivelLiga === "grande_europa")
@@ -583,10 +665,10 @@ export function evaluarTrofeosYPremios(input: {
 
     if (
       (posicion === "delantero" || posicion === "extremo") &&
-      goles >= 16 &&
-      rendimiento >= 0.7
+      goles >= 12 &&
+      rendimiento >= 0.62
     ) {
-      const pBota = Math.min(0.22, 0.03 + (goles - 16) * 0.015);
+      const pBota = Math.min(0.28, 0.05 + (goles - 12) * 0.015);
       if (rng() < pBota) {
         premios.push(
           nivelLiga === "grande_europa"
@@ -596,22 +678,22 @@ export function evaluarTrofeosYPremios(input: {
       }
     }
 
-    if (posicion === "arquero" && rendimiento >= 0.82 && rng() < 0.08) {
+    if (posicion === "arquero" && rendimiento >= 0.74 && rng() < 0.12) {
       premios.push("Guante de oro");
     }
 
-    if (goles >= 6 && rendimiento >= 0.68) {
-      const pPuskas = Math.min(0.06, 0.01 + goles * 0.002 + (rendimiento - 0.68) * 0.05);
+    if (goles >= 5 && rendimiento >= 0.6) {
+      const pPuskas = Math.min(0.08, 0.015 + goles * 0.002 + (rendimiento - 0.6) * 0.06);
       if (rng() < pPuskas) premios.push("Premio Puskas");
     }
 
-    if (edad <= 21 && rendimiento >= 0.8) {
+    if (edad <= 21 && rendimiento >= 0.72) {
       const pGb = Math.min(
-        0.1,
-        0.015 +
-          (rendimiento - 0.8) * 0.2 +
-          (nivelLiga === "grande_europa" ? 0.04 : 0.01) +
-          (reputacion >= 30 ? 0.02 : 0)
+        0.14,
+        0.025 +
+          (rendimiento - 0.72) * 0.25 +
+          (nivelLiga === "grande_europa" ? 0.05 : 0.015) +
+          (reputacion >= 25 ? 0.025 : 0)
       );
       if (rng() < pGb) premios.push("Golden Boy");
     }
@@ -619,39 +701,39 @@ export function evaluarTrofeosYPremios(input: {
     if (
       esLigaAmericana(ligaId, nivelLiga) &&
       ligaId !== "mls" &&
-      edad >= 20 &&
-      rendimiento >= 0.84
+      edad >= 19 &&
+      rendimiento >= 0.76
     ) {
       const pRey = Math.min(
-        0.1,
-        0.015 +
-          (rendimiento - 0.84) * 0.25 +
-          (reputacion >= 35 ? 0.03 : 0) +
-          (contrib >= 22 ? 0.02 : 0)
+        0.14,
+        0.025 +
+          (rendimiento - 0.76) * 0.3 +
+          (reputacion >= 28 ? 0.03 : 0) +
+          (contrib >= 18 ? 0.025 : 0)
       );
       if (rng() < pRey) premios.push("Mejor jugador de América (Rey de América)");
     }
 
-    if (edad >= 22 && edad <= 33 && rendimiento >= 0.9 && reputacion >= 45) {
+    if (edad >= 21 && edad <= 34 && rendimiento >= 0.84 && reputacion >= 38) {
       const pBallon = Math.min(
-        0.05,
-        0.004 +
-          (rendimiento - 0.9) * 0.12 +
-          (nivelLiga === "grande_europa" ? 0.02 : 0.005) +
-          (contrib >= 32 ? 0.015 : 0) +
+        0.07,
+        0.008 +
+          (rendimiento - 0.84) * 0.14 +
+          (nivelLiga === "grande_europa" ? 0.025 : 0.008) +
+          (contrib >= 26 ? 0.018 : 0) +
           (titulos.some((t) =>
             t.includes("Champions") || t.includes("Libertadores")
           )
-            ? 0.015
+            ? 0.018
             : 0)
       );
       if (rng() < pBallon) premios.push("Balón de Oro");
     }
 
     if (
-      rendimiento >= 0.93 &&
-      reputacion >= 55 &&
-      rng() < 0.012 + (nivelLiga === "grande_europa" ? 0.01 : 0)
+      rendimiento >= 0.88 &&
+      reputacion >= 48 &&
+      rng() < 0.02 + (nivelLiga === "grande_europa" ? 0.015 : 0)
     ) {
       premios.push("The Best FIFA");
     }
@@ -661,12 +743,53 @@ export function evaluarTrofeosYPremios(input: {
 }
 
 export function declivePorEdad(attrs: Atributos, edad: number): Atributos {
-  if (edad < 33) return attrs;
-  const factor = edad >= 38 ? -2 : -1;
+  if (edad < 32) return attrs;
+
+  // Curva de ocaso: primero piernas/físico; luego técnica y resto.
+  let ritmo = 0;
+  let fisico = 0;
+  let regate = 0;
+  let tiro = 0;
+  let pase = 0;
+  let defensa = 0;
+  let reflejos = 0;
+  let atajadas = 0;
+
+  if (edad >= 38) {
+    ritmo = -3;
+    fisico = -3;
+    regate = -2;
+    tiro = -1;
+    pase = -1;
+    defensa = -1;
+    reflejos = -2;
+    atajadas = -1;
+  } else if (edad >= 36) {
+    ritmo = -2;
+    fisico = -2;
+    regate = -1;
+    tiro = -1;
+    reflejos = -1;
+  } else if (edad >= 34) {
+    ritmo = -2;
+    fisico = -1;
+    regate = -1;
+    reflejos = -1;
+  } else {
+    // 32–33: primer desgaste
+    ritmo = -1;
+    fisico = -1;
+  }
+
   return aplicarEfectosAtributos(attrs, {
-    ritmo: factor,
-    fisico: factor,
-    reflejos: factor,
+    ritmo,
+    fisico,
+    regate,
+    tiro,
+    pase,
+    defensa,
+    reflejos,
+    atajadas,
   });
 }
 
@@ -818,7 +941,7 @@ export function resolverDecisiones(
 
   const pLesion = riesgoLesionGrave(attrs.fisico ?? 50, riesgoLesionAcum);
   if (rng() < pLesion) {
-    const grave = rng() < 0.35 + riesgoFinCarrera;
+    const grave = rng() < 0.22 + riesgoFinCarrera;
     lesion = {
       temporadaEdad: jugador.edad,
       descripcion: grave ? "Lesión grave" : "Lesión muscular",
@@ -877,9 +1000,10 @@ export function snapshotDecisiones(
   });
 }
 
-/** Relato en prosa del año a partir de decisiones, stats y hechos. */
+/** Relato en prosa del periodo (2 años) a partir de decisiones, stats y hechos. */
 export function construirResumenAnio(input: {
   apellido: string;
+  edadInicio: number;
   edad: number;
   clubNombre: string;
   ligaNombre: string;
@@ -896,9 +1020,13 @@ export function construirResumenAnio(input: {
 }): string {
   const partes: string[] = [];
   const rendPct = Math.round(input.rendimiento * 100);
+  const rangoEdad =
+    input.edadInicio === input.edad
+      ? `${input.edad} años`
+      : `${input.edadInicio}–${input.edad} años`;
 
   partes.push(
-    `A los ${input.edad} años, ${input.apellido} vistió la camiseta de ${input.clubNombre} (${input.ligaNombre}). Disputó ${input.partidos} partidos, con ${input.goles} goles y ${input.asistencias} asistencias (rendimiento ${rendPct}%).`
+    `En el periodo de ${rangoEdad}, ${input.apellido} vistió la camiseta de ${input.clubNombre} (${input.ligaNombre}). Sumó ${input.partidos} partidos, ${input.goles} goles y ${input.asistencias} asistencias (rendimiento medio ${rendPct}%).`
   );
 
   if (input.decisiones.length > 0) {
@@ -906,7 +1034,7 @@ export function construirResumenAnio(input: {
       (d, i) =>
         `${i + 1}) Ante «${acortar(d.situacion, 90)}», eligió: «${d.decision}».`
     );
-    partes.push(`Decisiones del año: ${lineas.join(" ")}`);
+    partes.push(`Decisiones del periodo: ${lineas.join(" ")}`);
   }
 
   if (input.titulos.length > 0) {
@@ -920,7 +1048,7 @@ export function construirResumenAnio(input: {
   if (input.lesion) {
     partes.push(
       input.lesion.grave
-        ? "Una lesión grave marcó la temporada y redujo su participación."
+        ? "Una lesión grave marcó el periodo y redujo su participación."
         : "Una lesión menor le hizo perder algunos partidos."
     );
   }
@@ -931,7 +1059,7 @@ export function construirResumenAnio(input: {
 
   if (input.oferta) {
     partes.push(
-      `Al cierre del año llegó una oferta de ${input.oferta.clubNombre} (${input.oferta.ligaNombre}).`
+      `Al cierre del periodo llegó una oferta de ${input.oferta.clubNombre} (${input.oferta.ligaNombre}).`
     );
   }
 
@@ -965,24 +1093,35 @@ export function calcularDeltasAtributos(
 
 /**
  * Ajusta atributos base según rendimiento de la temporada.
- * Buena campaña sube ritmo/tiro/pase/regate/defensa/físico; mala los baja.
+ * Buena campaña sube; mala baja. En el ocaso el cuerpo ya no absorbe subidas.
  */
 export function aplicarCrecimientoPorRendimiento(
   attrs: Atributos,
   rendimiento: number,
-  lesionGrave: boolean
+  lesionGrave: boolean,
+  edad = 20
 ): Atributos {
   let delta = 0;
-  if (rendimiento >= 0.92) delta = 3;
-  else if (rendimiento >= 0.82) delta = 2;
-  else if (rendimiento >= 0.72) delta = 1;
-  else if (rendimiento >= 0.58) delta = 0;
-  else if (rendimiento >= 0.45) delta = -1;
-  else if (rendimiento >= 0.32) delta = -2;
+  if (rendimiento >= 0.85) delta = 3;
+  else if (rendimiento >= 0.72) delta = 2;
+  else if (rendimiento >= 0.58) delta = 1;
+  else if (rendimiento >= 0.45) delta = 0;
+  else if (rendimiento >= 0.34) delta = -1;
+  else if (rendimiento >= 0.24) delta = -2;
   else delta = -3;
 
   if (lesionGrave && delta > 0) delta = 0;
   if (lesionGrave && delta === 0) delta = -1;
+
+  // Tope de crecimiento por edad (el declive anual actúa aparte).
+  if (edad >= 37) {
+    // Ocaso: aun con gran campaña, como mucho se mantiene; lo normal es bajar.
+    delta = Math.min(delta, rendimiento >= 0.88 ? 0 : -1);
+  } else if (edad >= 35) {
+    delta = Math.min(delta, 0);
+  } else if (edad >= 33) {
+    delta = Math.min(delta, 1);
+  }
 
   const core: (keyof Atributos)[] = [
     "ritmo",
@@ -1040,102 +1179,151 @@ export function ajustarReputacionMoralPorRendimiento(
   };
 }
 
-/** Cierra la temporada tras decisiones; deja oferta pendiente si aplica. */
+/** Cierra un periodo de 2 años tras las decisiones; deja oferta pendiente si aplica. */
 export function cerrarTemporada(
   estado: EstadoCarrera,
   rng: () => number = Math.random
 ): EstadoCarrera {
   const { jugador: j0, decisionesTemporada, eventosPendientes } = estado;
+  const edadInicio = j0.edad;
+  const edadFin = Math.min(edadInicio + ANIOS_POR_PERIODO - 1, EDAD_RETIRO_FORZADO);
   const attrsAntes: Atributos = { ...j0.atributos };
   const repAntes = j0.reputacion;
   const moralAntes = j0.moral;
 
   const resolved = resolverDecisiones(j0, decisionesTemporada, eventosPendientes, rng);
   let jugador = resolved.jugador;
-
-  const rendimiento = calcularRendimiento(jugador.atributos, jugador.posicion, rng);
-  const stats = statsDesdeRendimiento(rendimiento, jugador.posicion, jugador.edad, rng);
   const lesionGrave = resolved.lesion?.grave === true;
-
-  if (lesionGrave) {
-    stats.partidos = Math.max(2, Math.floor(stats.partidos * 0.45));
-    stats.goles = Math.floor(stats.goles * 0.5);
-    stats.asistencias = Math.floor(stats.asistencias * 0.5);
-  }
-
-  const debutProfesional = evaluarAscensoProfesional({
-    yaProfesional: j0.esProfesional,
-    edad: jugador.edad,
-    rendimiento,
-    reputacion: jugador.reputacion,
-    rng,
-  });
-
-  // Mientras seguís en juveniles: menos minutos de Primera
-  if (!j0.esProfesional && !debutProfesional) {
-    stats.partidos = Math.max(4, Math.floor(stats.partidos * 0.4));
-    stats.goles = Math.floor(stats.goles * 0.45);
-    stats.asistencias = Math.floor(stats.asistencias * 0.45);
-  } else if (debutProfesional) {
-    stats.partidos = Math.max(stats.partidos, 10 + Math.floor(rng() * 12));
-  }
-
-  // Crecimiento/declive por rendimiento de la temporada (además de decisiones).
-  jugador = {
-    ...jugador,
-    atributos: aplicarCrecimientoPorRendimiento(
-      jugador.atributos,
-      rendimiento,
-      lesionGrave
-    ),
-  };
-  const rm = ajustarReputacionMoralPorRendimiento(
-    jugador.reputacion,
-    jugador.moral,
-    rendimiento,
-    lesionGrave
-  );
-  jugador = { ...jugador, reputacion: rm.reputacion, moral: rm.moral };
-
   const notasExtra: string[] = [];
-  if (debutProfesional) {
-    const clubDebut =
-      getClubById(jugador.clubActualId)?.nombre ??
-      getClubById(j0.clubActualId)?.nombre ??
-      "tu club";
-    jugador = {
-      ...jugador,
-      esProfesional: true,
-      edadDebutProfesional: jugador.edad,
-      reputacion: clipScore(jugador.reputacion + 8),
-      moral: clipScore(jugador.moral + 12),
-      atributos: aplicarEfectosAtributos(jugador.atributos, {
-        ritmo: 1,
-        fisico: 1,
-      }),
-    };
-    notasExtra.push(
-      `¡Ascenso a profesional! ${clubDebut} te incorpora al plantel de Primera. Debutás a los ${jugador.edad} años.`
-    );
-  }
 
-  // Trofeos de la temporada se evalúan en el club donde jugaste el año
+  let partidosTot = 0;
+  let golesTot = 0;
+  let asistenciasTot = 0;
+  const titulos: string[] = [];
+  const premios: string[] = [];
+  const cantera = statsEtapaVacias();
+  const profesional = statsEtapaVacias();
+  const rendimientos: number[] = [];
+  let debutProfesional = false;
+  let añosBuenos = 0;
+
   const ligaTemporada = getLigaById(j0.ligaActualId);
   const nivelLiga: NivelLiga = ligaTemporada?.nivel ?? "colombia_primera";
-  const { titulos, premios } = evaluarTrofeosYPremios({
-    rendimiento,
-    posicion: jugador.posicion,
-    edad: jugador.edad,
-    ligaId: j0.ligaActualId,
-    nivelLiga,
-    esProfesional: jugador.esProfesional,
-    reputacion: jugador.reputacion,
-    goles: stats.goles,
-    asistencias: stats.asistencias,
-    rng,
-  });
 
-  // Prestigio por copas y premios
+  for (let edadAnio = edadInicio; edadAnio <= edadFin; edadAnio++) {
+    // Declive de edad cada año del periodo (no solo al cumplir años a mitad).
+    jugador = {
+      ...jugador,
+      edad: edadAnio,
+      atributos: declivePorEdad(jugador.atributos, edadAnio),
+    };
+
+    const rendimiento = calcularRendimiento(jugador.atributos, jugador.posicion, rng);
+    rendimientos.push(rendimiento);
+    if (rendimiento > UMBRAL_RENDIMIENTO_TRANSFERENCIA) añosBuenos += 1;
+
+    const stats = statsDesdeRendimiento(
+      rendimiento,
+      jugador.posicion,
+      edadAnio,
+      rng
+    );
+
+    if (lesionGrave) {
+      stats.partidos = Math.max(2, Math.floor(stats.partidos * 0.45));
+      stats.goles = Math.floor(stats.goles * 0.5);
+      stats.asistencias = Math.floor(stats.asistencias * 0.5);
+    }
+
+    const subePro = evaluarAscensoProfesional({
+      yaProfesional: jugador.esProfesional,
+      edad: edadAnio,
+      rendimiento,
+      reputacion: jugador.reputacion,
+      rng,
+    });
+
+    const cuentaComoProfesional = jugador.esProfesional || subePro;
+
+    if (!jugador.esProfesional && !subePro) {
+      stats.partidos = Math.max(4, Math.floor(stats.partidos * 0.4));
+      stats.goles = Math.floor(stats.goles * 0.45);
+      stats.asistencias = Math.floor(stats.asistencias * 0.45);
+    } else if (subePro) {
+      stats.partidos = Math.max(stats.partidos, 10 + Math.floor(rng() * 12));
+      const clubDebut =
+        getClubById(jugador.clubActualId)?.nombre ??
+        getClubById(j0.clubActualId)?.nombre ??
+        "tu club";
+      jugador = {
+        ...jugador,
+        esProfesional: true,
+        edadDebutProfesional: edadAnio,
+        reputacion: clipScore(jugador.reputacion + 8),
+        moral: clipScore(jugador.moral + 12),
+        atributos: aplicarEfectosAtributos(jugador.atributos, {
+          ritmo: 1,
+          fisico: 1,
+        }),
+      };
+      debutProfesional = true;
+      notasExtra.push(
+        `¡Ascenso a profesional! ${clubDebut} te incorpora al plantel de Primera. Debutas a los ${edadAnio} años.`
+      );
+    }
+
+    partidosTot += stats.partidos;
+    golesTot += stats.goles;
+    asistenciasTot += stats.asistencias;
+
+    const yearTrophies = evaluarTrofeosYPremios({
+      rendimiento,
+      posicion: jugador.posicion,
+      edad: edadAnio,
+      ligaId: j0.ligaActualId,
+      nivelLiga,
+      esProfesional: jugador.esProfesional,
+      reputacion: jugador.reputacion,
+      goles: stats.goles,
+      asistencias: stats.asistencias,
+      rng,
+    });
+    titulos.push(...yearTrophies.titulos);
+    premios.push(...yearTrophies.premios);
+
+    const bucket = cuentaComoProfesional ? profesional : cantera;
+    bucket.partidos += stats.partidos;
+    bucket.goles += stats.goles;
+    bucket.asistencias += stats.asistencias;
+    bucket.titulos.push(...yearTrophies.titulos);
+    bucket.premiosIndividuales.push(...yearTrophies.premios);
+
+    jugador = {
+      ...jugador,
+      atributos: aplicarCrecimientoPorRendimiento(
+        jugador.atributos,
+        rendimiento,
+        lesionGrave,
+        edadAnio
+      ),
+    };
+    const rm = ajustarReputacionMoralPorRendimiento(
+      jugador.reputacion,
+      jugador.moral,
+      rendimiento,
+      lesionGrave && edadAnio === edadInicio
+    );
+    jugador = { ...jugador, reputacion: rm.reputacion, moral: rm.moral };
+  }
+
+  jugador = { ...jugador, edad: edadFin };
+
+  const rendimiento =
+    rendimientos.length > 0
+      ? rendimientos.reduce((a, b) => a + b, 0) / rendimientos.length
+      : 0.5;
+
+  // Prestigio por copas y premios del periodo
   let bonusRep = 0;
   let bonusMoral = 0;
   for (const t of titulos) {
@@ -1203,8 +1391,9 @@ export function cerrarTemporada(
   jugador = { ...jugador, convocatoriaSeleccion: selec.nivel };
 
   let rachaAlto = estado.rachaAltoRendimiento;
-  if (rendimiento > UMBRAL_RENDIMIENTO_TRANSFERENCIA) rachaAlto += 1;
-  else if (rendimiento >= 0.55) rachaAlto = Math.max(0, rachaAlto - 1);
+  if (añosBuenos >= 2) rachaAlto += 2;
+  else if (añosBuenos === 1) rachaAlto += 1;
+  else if (rendimiento >= 0.5) rachaAlto = Math.max(0, rachaAlto - 1);
   else rachaAlto = 0;
 
   let rachaBaja = estado.rachaBaja;
@@ -1247,22 +1436,32 @@ export function cerrarTemporada(
     ...(selec.narrativa ? [selec.narrativa] : []),
   ];
   if (!jugador.esProfesional) {
-    notas.push("Seguís en la cantera / juveniles; el ascenso a Primera aún no llegó.");
+    notas.push("Sigues en la cantera / juveniles; el ascenso a Primera aún no llegó.");
   }
-  if (rendimiento >= 0.78) {
-    notas.push("La campaña sólida también empujó tus atributos físicos/técnicos.");
-  } else if (rendimiento <= 0.45) {
-    notas.push("El bajo rendimiento de la temporada te restó ritmo y condición.");
+  if (rendimiento >= 0.72) {
+    notas.push("El buen periodo también empujó tus atributos físicos/técnicos.");
+  } else if (rendimiento <= 0.42) {
+    notas.push("El bajo rendimiento del periodo te restó ritmo y condición.");
   }
+
+  const partidoClave = generarPartidoClave({
+    clubId: j0.clubActualId,
+    ligaId: j0.ligaActualId,
+    rendimiento,
+    lesionGrave,
+    debutProfesional,
+    rng,
+  });
 
   const resumenAnio = construirResumenAnio({
     apellido: jugador.apellido,
-    edad: jugador.edad,
+    edadInicio,
+    edad: edadFin,
     clubNombre: clubTemporada?.nombre ?? "su club",
     ligaNombre: liga?.nombre ?? "su liga",
-    partidos: stats.partidos,
-    goles: stats.goles,
-    asistencias: stats.asistencias,
+    partidos: partidosTot,
+    goles: golesTot,
+    asistencias: asistenciasTot,
     titulos,
     premios,
     rendimiento,
@@ -1273,14 +1472,22 @@ export function cerrarTemporada(
   });
 
   const resultado: ResultadoTemporada = {
-    edad: jugador.edad,
+    edadInicio,
+    edad: edadFin,
     clubId: j0.clubActualId,
     ligaId: j0.ligaActualId,
-    partidosJugados: stats.partidos,
-    goles: stats.goles,
-    asistencias: stats.asistencias,
+    partidosJugados: partidosTot,
+    goles: golesTot,
+    asistencias: asistenciasTot,
     titulos,
     premiosIndividuales: premios,
+    cantera: { ...cantera, titulos: [...cantera.titulos], premiosIndividuales: [...cantera.premiosIndividuales] },
+    profesional: {
+      ...profesional,
+      titulos: [...profesional.titulos],
+      premiosIndividuales: [...profesional.premiosIndividuales],
+    },
+    partidoClave,
     rendimientoPromedio: rendimiento,
     eventosResolvidos,
     resumenAnio,
@@ -1419,7 +1626,7 @@ export function avanzarAnio(
   const eventosPendientes = seleccionarEventosTemporada(
     jugador.edad,
     estado.eventosVistos,
-    1 + Math.floor(rng() * 3),
+    1 + Math.floor(rng() * 2),
     rng
   );
 
@@ -1440,7 +1647,7 @@ export function iniciarPrimeraTemporada(
   const eventosPendientes = seleccionarEventosTemporada(
     estado.jugador.edad,
     estado.eventosVistos,
-    1 + Math.floor(rng() * 3),
+    1 + Math.floor(rng() * 2),
     rng
   );
   return {
@@ -1492,6 +1699,14 @@ export function construirResumen(estado: EstadoCarrera): ResumenCarrera {
   const asistencias = historial.reduce((s, t) => s + t.asistencias, 0);
   const titulos = historial.flatMap((t) => t.titulos);
   const premiosIndividuales = historial.flatMap((t) => t.premiosIndividuales ?? []);
+  const cantera = historial.reduce(
+    (acc, t) => sumarStatsEtapa(acc, t.cantera ?? statsEtapaVacias()),
+    statsEtapaVacias()
+  );
+  const profesional = historial.reduce(
+    (acc, t) => sumarStatsEtapa(acc, t.profesional ?? statsEtapaVacias()),
+    statsEtapaVacias()
+  );
   const clubIds = [...new Set(historial.map((t) => t.clubId))];
   const clubes = clubIds.map((id) => getClubById(id)?.nombre ?? id);
 
@@ -1505,13 +1720,20 @@ export function construirResumen(estado: EstadoCarrera): ResumenCarrera {
     }
   }
 
+  const titulosPorClub = agruparTitulosPorClub(historial);
+  const prime = calcularPrimeCarrera(historial, estado.jugador.posicion);
+
   const base = {
     partidos,
     goles,
     asistencias,
     titulos,
     premiosIndividuales,
+    cantera,
+    profesional,
     clubes,
+    titulosPorClub,
+    prime,
     maxLigaNivel,
     edadRetiro: estado.jugador.edad,
     motivoRetiro: estado.motivoRetiro ?? "edad",
@@ -1521,4 +1743,62 @@ export function construirResumen(estado: EstadoCarrera): ResumenCarrera {
     ...base,
     comparacion: compararEstilo(estado.jugador, base),
   };
+}
+
+/** Mejor OVR del historial (periodo con mayor media). */
+export function calcularPrimeCarrera(
+  historial: ResultadoTemporada[],
+  posicion: Posicion
+): PrimeCarrera | null {
+  let best: PrimeCarrera | null = null;
+  for (const t of historial) {
+    if (!t.atributos) continue;
+    const media = calcularMedia(t.atributos, posicion);
+    if (best && media < best.media) continue;
+    // Empate: quedarse con el más joven (primer peak).
+    if (best && media === best.media && t.edad >= best.edad) continue;
+    best = {
+      media,
+      edad: t.edad,
+      edadInicio: t.edadInicio,
+      clubId: t.clubId,
+      clubNombre: getClubById(t.clubId)?.nombre ?? t.clubId,
+      atributos: { ...t.atributos },
+      reputacion: t.reputacion,
+      moral: t.moral,
+    };
+  }
+  return best;
+}
+
+/** Títulos por club en orden de aparición en la carrera. */
+export function agruparTitulosPorClub(
+  historial: ResultadoTemporada[]
+): TitulosPorClub[] {
+  const order: string[] = [];
+  const map = new Map<string, Map<string, number>>();
+
+  for (const t of historial) {
+    if (!t.titulos?.length) continue;
+    if (!map.has(t.clubId)) {
+      map.set(t.clubId, new Map());
+      order.push(t.clubId);
+    }
+    const bag = map.get(t.clubId)!;
+    for (const nombre of t.titulos) {
+      bag.set(nombre, (bag.get(nombre) ?? 0) + 1);
+    }
+  }
+
+  return order.map((clubId) => {
+    const bag = map.get(clubId)!;
+    return {
+      clubId,
+      clubNombre: getClubById(clubId)?.nombre ?? clubId,
+      titulos: [...bag.entries()].map(([nombre, cantidad]) => ({
+        nombre,
+        cantidad,
+      })),
+    };
+  });
 }

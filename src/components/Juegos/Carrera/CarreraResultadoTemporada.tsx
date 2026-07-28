@@ -1,23 +1,14 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Minus } from "lucide-react";
+import { useState } from "react";
+import { ArrowDown, ArrowUp, ChevronDown, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { POSICION_LABELS, calcularMedia, clipAtributo } from "@/data/carrera/atributos";
 import { getClubById, getLigaById } from "@/data/carrera/clubes";
 import type { Atributos, EstadoCarrera } from "@/data/carrera/types";
 import { cn } from "@/lib/utils";
-
-const ATTR_ROWS: { key: keyof Atributos; label: string }[] = [
-  { key: "ritmo", label: "Ritmo" },
-  { key: "tiro", label: "Tiro" },
-  { key: "pase", label: "Pase" },
-  { key: "regate", label: "Regate" },
-  { key: "defensa", label: "Defensa" },
-  { key: "fisico", label: "Físico" },
-  { key: "atajadas", label: "Atajadas" },
-  { key: "reflejos", label: "Reflejos" },
-];
+import { CarreraFichaWE9, POSICION_CODE, we9StatTone } from "./CarreraFichaWE9";
 
 function DeltaMark({ delta }: { delta: number | undefined }) {
   if (delta == null || delta === 0) {
@@ -39,6 +30,58 @@ function DeltaMark({ delta }: { delta: number | undefined }) {
   );
 }
 
+function StatBig({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="text-center">
+      <p className="text-3xl font-bold tabular-nums tracking-tight leading-none sm:text-4xl">
+        {value}
+      </p>
+      <p className="mt-1.5 text-[10px] uppercase tracking-wide text-muted-foreground sm:text-xs">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function EtapaMini({
+  titulo,
+  accent,
+  partidos,
+  goles,
+  asistencias,
+  titulos,
+  premios,
+}: {
+  titulo: string;
+  accent?: boolean;
+  partidos: number;
+  goles: number;
+  asistencias: number;
+  titulos: number;
+  premios: number;
+}) {
+  if (partidos <= 0 && titulos <= 0 && premios <= 0) return null;
+  return (
+    <div>
+      <p
+        className={cn(
+          "mb-1.5 text-[10px] font-semibold uppercase tracking-wide",
+          accent ? "text-mundial-gold" : "text-muted-foreground"
+        )}
+      >
+        {titulo}
+      </p>
+      <p className="text-sm tabular-nums">
+        <span className="font-semibold">{partidos}</span> PJ ·{" "}
+        <span className="font-semibold">{goles}</span> G ·{" "}
+        <span className="font-semibold">{asistencias}</span> A ·{" "}
+        <span className="font-semibold">{titulos}</span> Tít ·{" "}
+        <span className="font-semibold">{premios}</span> Prem
+      </p>
+    </div>
+  );
+}
+
 interface Props {
   estado: EstadoCarrera;
   onResolverOferta: (aceptar: boolean) => void;
@@ -50,6 +93,9 @@ export function CarreraResultadoTemporada({
   onResolverOferta,
   onContinuar,
 }: Props) {
+  const [cronicaOpen, setCronicaOpen] = useState(false);
+  const [carreraOpen, setCarreraOpen] = useState(false);
+
   const last = estado.historialTemporadas[estado.historialTemporadas.length - 1];
   if (!last) return null;
 
@@ -61,7 +107,6 @@ export function CarreraResultadoTemporada({
   const deltas = last.deltasAtributos ?? {};
   const temporadaN = estado.historialTemporadas.length;
   const rendPct = Math.round(last.rendimientoPromedio * 100);
-  const visibleRows = ATTR_ROWS.filter((row) => typeof attrs[row.key] === "number");
   const media = calcularMedia(attrs, j.posicion);
   const attrsAntes: Atributos = { ...attrs };
   for (const [k, d] of Object.entries(deltas)) {
@@ -73,79 +118,117 @@ export function CarreraResultadoTemporada({
   }
   const mediaAntes = calcularMedia(attrsAntes, j.posicion);
   const deltaMedia = media - mediaAntes;
+  const mediaTone = we9StatTone(media);
 
   const carrera = estado.historialTemporadas.reduce(
     (acc, t) => {
-      acc.partidos += t.partidosJugados;
-      acc.goles += t.goles;
-      acc.asistencias += t.asistencias;
-      acc.titulos += t.titulos.length;
-      acc.premios += t.premiosIndividuales?.length ?? 0;
+      const can = t.cantera ?? {
+        partidos: 0,
+        goles: 0,
+        asistencias: 0,
+        titulos: [] as string[],
+        premiosIndividuales: [] as string[],
+      };
+      const pro = t.profesional ?? {
+        partidos: 0,
+        goles: 0,
+        asistencias: 0,
+        titulos: [] as string[],
+        premiosIndividuales: [] as string[],
+      };
+      acc.cantera.partidos += can.partidos;
+      acc.cantera.goles += can.goles;
+      acc.cantera.asistencias += can.asistencias;
+      acc.cantera.titulos += can.titulos.length;
+      acc.cantera.premios += can.premiosIndividuales.length;
+      acc.profesional.partidos += pro.partidos;
+      acc.profesional.goles += pro.goles;
+      acc.profesional.asistencias += pro.asistencias;
+      acc.profesional.titulos += pro.titulos.length;
+      acc.profesional.premios += pro.premiosIndividuales.length;
       return acc;
     },
-    { partidos: 0, goles: 0, asistencias: 0, titulos: 0, premios: 0 }
+    {
+      cantera: { partidos: 0, goles: 0, asistencias: 0, titulos: 0, premios: 0 },
+      profesional: { partidos: 0, goles: 0, asistencias: 0, titulos: 0, premios: 0 },
+    }
   );
-  const clubesCarrera = [
-    ...new Set(
-      [
-        ...estado.historialTemporadas.map((t) => t.clubId),
-        j.clubActualId,
-      ]
-        .map((id) => getClubById(id)?.nombre)
-        .filter((n): n is string => Boolean(n))
-    ),
-  ];
 
-  const hechos: string[] = [
-    `${last.partidosJugados} partidos · ${last.goles} goles · ${last.asistencias} asistencias`,
-    `${club?.nombre ?? "Club"} (${liga?.nombre ?? "Liga"}) · rendimiento ${rendPct}%`,
-  ];
-  for (const t of last.titulos) hechos.push(`Título: ${t}`);
-  for (const p of last.premiosIndividuales ?? []) hechos.push(`Premio: ${p}`);
-  if (last.narrativaSeleccion) hechos.push(last.narrativaSeleccion);
-  if (last.lesion) {
+  const hechos: string[] = [];
+  if (last.debutProfesional) {
+    hechos.push(`Debut profesional · ${j.edadDebutProfesional ?? last.edad} años`);
+  }
+  for (const t of last.titulos.slice(0, 2)) hechos.push(`Campeón · ${t}`);
+  for (const p of (last.premiosIndividuales ?? []).slice(0, 2)) {
+    hechos.push(`Premio · ${p}`);
+  }
+  if (last.convocatoriaSeleccion) {
     hechos.push(
-      last.lesion.grave
-        ? "Lesión grave: perdiste gran parte de la temporada"
-        : "Lesión menor: algunos partidos de baja"
+      last.narrativaSeleccion?.slice(0, 100) ??
+        `Selección · ${last.convocatoriaSeleccion}`
     );
   }
+  if (last.lesion) {
+    hechos.push(last.lesion.grave ? "Lesión grave · menos minutos" : "Lesión menor");
+  }
   if (oferta) {
-    hechos.push(`Oferta recibida: ${oferta.clubNombre} (${oferta.ligaNombre})`);
+    hechos.push(`Oferta · ${oferta.clubNombre}`);
   }
-  for (const n of last.notas ?? []) {
-    if (n && !hechos.includes(n)) hechos.push(n);
-  }
+  const hechosCortos = hechos.slice(0, 3);
+
+  const pk = last.partidoClave;
+  const clubNombre = club?.nombre ?? "Tu club";
+
+  const fichaJugador = {
+    ...j,
+    atributos: attrs,
+    reputacion: last.reputacion,
+    moral: last.moral,
+    edad: last.edad,
+  };
 
   return (
-    <div className="space-y-4 animate-in fade-in">
+    <div className="mx-auto max-w-2xl space-y-4 animate-in fade-in">
+      {/* Marcador de periodo */}
       <Card>
-        <CardHeader className="pb-3 border-b border-border/50">
+        <CardHeader className="border-b border-border/50 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">
-                Temporada {temporadaN} · {last.edad} años
+                Periodo {temporadaN} · {last.edadInicio}–{last.edad} años · {rendPct}%
               </p>
-              <CardTitle className="text-xl sm:text-2xl">
+              <CardTitle className="flex flex-wrap items-center gap-2 text-xl sm:text-2xl">
+                <span
+                  className={cn(
+                    "inline-flex h-5 min-w-[2rem] items-center justify-center rounded-[2px] bg-[#d94a3d] px-1.5 text-[10px] font-black text-white",
+                    j.posicion === "arquero" && "bg-[#c9a227] text-black",
+                    (j.posicion === "defensa_central" || j.posicion === "lateral") &&
+                      "bg-[#2f6fed]",
+                    j.posicion === "mediocampista" && "bg-[#2a9e5c]"
+                  )}
+                >
+                  {POSICION_CODE[j.posicion]}
+                </span>
                 {j.apellido}
-                <span className="text-muted-foreground font-normal text-base ml-2">
+                <span className="text-base font-normal text-muted-foreground">
                   {POSICION_LABELS[j.posicion]}
                 </span>
               </CardTitle>
-              <p className="text-sm text-muted-foreground font-normal">
-                {club?.nombre} · {liga?.nombre}
-                {j.esProfesional
-                  ? j.edadDebutProfesional != null
-                    ? ` · Profesional (debut ${j.edadDebutProfesional})`
-                    : " · Profesional"
-                  : " · Cantera"}
+              <p className="text-sm font-normal text-muted-foreground">
+                {clubNombre} · {liga?.nombre}
+                {j.esProfesional ? " · Pro" : " · Cantera"}
               </p>
             </div>
-            <div className="shrink-0 text-right rounded-xl border border-mundial-gold/40 bg-mundial-gold/10 px-3 py-2 min-w-[4.5rem]">
-              <p className="text-[10px] uppercase tracking-wider text-mundial-gold font-semibold">
-                Media
+            <div className="min-w-[4.5rem] shrink-0 rounded-[2px] border border-black/20 bg-[#1e2227] px-3 py-2 text-right">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">
+                OVR
               </p>
-              <p className="text-3xl font-bold tabular-nums leading-none text-foreground mt-0.5">
+              <p
+                className={cn(
+                  "text-3xl font-black tabular-nums leading-none",
+                  mediaTone.text
+                )}
+              >
                 {media}
               </p>
               <div className="mt-1 flex justify-end">
@@ -155,220 +238,165 @@ export function CarreraResultadoTemporada({
           </div>
         </CardHeader>
 
-        <CardContent className="pt-5 space-y-6">
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Esta temporada</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: "Partidos", value: last.partidosJugados },
-                { label: "Goles", value: last.goles },
-                { label: "Asistencias", value: last.asistencias },
-                {
-                  label: "Trofeos",
-                  value: last.titulos.length + (last.premiosIndividuales?.length ?? 0),
-                },
-              ].map((s) => (
-                <div
-                  key={`temp-${s.label}`}
-                  className="rounded-xl border border-border/60 bg-muted/30 px-3 py-3 text-center"
-                >
-                  <p className="text-2xl font-bold tabular-nums tracking-tight">{s.value}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
-                </div>
-              ))}
-            </div>
+        <CardContent className="space-y-5 pt-5">
+          <div className="grid grid-cols-4 gap-2 rounded-2xl border border-border/60 bg-muted/20 px-3 py-5 sm:px-6">
+            <StatBig label="PJ" value={last.partidosJugados} />
+            <StatBig label="Goles" value={last.goles} />
+            <StatBig label="Asist." value={last.asistencias} />
+            <StatBig
+              label="Títulos"
+              value={last.titulos.length + (last.premiosIndividuales?.length ?? 0)}
+            />
           </div>
 
-          <div className="rounded-xl border border-mundial-gold/25 bg-mundial-gold/5 p-4 space-y-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <h3 className="text-sm font-semibold">Totales de carrera</h3>
-              <p className="text-[11px] text-muted-foreground">
-                {temporadaN} temporada{temporadaN === 1 ? "" : "s"}
+          {pk && (
+            <div className="space-y-2 rounded-2xl border border-mundial-gold/35 bg-gradient-to-b from-mundial-gold/10 to-transparent px-4 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-mundial-gold">
+                Partido del periodo
               </p>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-              {[
-                { label: "Partidos", value: carrera.partidos },
-                { label: "Goles", value: carrera.goles },
-                { label: "Asistencias", value: carrera.asistencias },
-                { label: "Títulos", value: carrera.titulos },
-                { label: "Premios", value: carrera.premios },
-              ].map((s) => (
-                <div
-                  key={`car-${s.label}`}
-                  className="rounded-lg border border-border/50 bg-background/40 px-2.5 py-2.5 text-center"
-                >
-                  <p className="text-xl font-bold tabular-nums tracking-tight">{s.value}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
-                </div>
-              ))}
-            </div>
-            {clubesCarrera.length > 0 && (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <span className="text-foreground/80 font-medium">Clubes: </span>
-                {clubesCarrera.join(" → ")}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <div className="flex items-baseline justify-between gap-2 mb-3">
-              <h3 className="text-sm font-semibold">Atributos</h3>
-              <p className="text-xs text-muted-foreground">
-                Rendimiento temporada:{" "}
-                <span className="font-mono text-foreground">{rendPct}%</span>
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 mb-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-muted-foreground">Reputación</span>
-                  <span className="inline-flex items-center gap-1.5 font-mono tabular-nums font-semibold">
-                    {last.reputacion}
-                    <DeltaMark delta={last.deltaReputacion} />
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-mundial-gold/85"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, ((last.reputacion + 100) / 200) * 100))}%`,
-                    }}
-                  />
-                </div>
+              <div className="flex items-center justify-center gap-3 sm:gap-5">
+                <span className="flex-1 truncate text-right text-sm font-semibold sm:text-base">
+                  {pk.condicion === "local" ? clubNombre : pk.rival}
+                </span>
+                <span className="shrink-0 text-3xl font-bold tabular-nums tracking-tight sm:text-4xl">
+                  {pk.condicion === "local"
+                    ? `${pk.golesFavor}–${pk.golesContra}`
+                    : `${pk.golesContra}–${pk.golesFavor}`}
+                </span>
+                <span className="flex-1 truncate text-left text-sm font-semibold sm:text-base">
+                  {pk.condicion === "local" ? pk.rival : clubNombre}
+                </span>
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-muted-foreground">Moral</span>
-                  <span className="inline-flex items-center gap-1.5 font-mono tabular-nums font-semibold">
-                    {last.moral}
-                    <DeltaMark delta={last.deltaMoral} />
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-sky-400/85"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, ((last.moral + 100) / 200) * 100))}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground mb-2">
-              Los atributos también suben o bajan según el rendimiento de la campaña (además
-              de tus decisiones).
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {visibleRows.map((row) => {
-                const value = attrs[row.key] as number;
-                const delta = deltas[row.key];
-                return (
-                  <div key={row.key} className="space-y-1">
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="text-muted-foreground">{row.label}</span>
-                      <span className="inline-flex items-center gap-1.5 font-mono tabular-nums font-semibold">
-                        {value}
-                        <DeltaMark delta={delta} />
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-[width]",
-                          (delta ?? 0) > 0
-                            ? "bg-emerald-500/85"
-                            : (delta ?? 0) < 0
-                              ? "bg-red-500/75"
-                              : "bg-mundial-gold/80"
-                        )}
-                        style={{ width: `${value}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Balance de la temporada</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {last.debutProfesional && (
-            <div className="rounded-xl border border-mundial-gold/50 bg-mundial-gold/10 px-4 py-3 space-y-1">
-              <p className="text-[10px] uppercase tracking-wider text-mundial-gold font-semibold">
-                Hito de carrera
-              </p>
-              <p className="text-sm font-semibold leading-snug">
-                Ascendiste al plantel profesional
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Debutás en Primera con {club?.nombre ?? "tu club"} a los {last.edad}{" "}
-                años. De la cantera al fútbol de verdad.
-              </p>
+              <p className="text-center text-xs text-muted-foreground">{pk.nota}</p>
             </div>
           )}
-          <ul className="space-y-2.5">
-            {hechos.map((line, i) => (
-              <li key={`h-${i}`} className="flex gap-3 text-sm">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-mundial-gold" />
-                <span className="text-foreground/90 leading-relaxed">{line}</span>
-              </li>
-            ))}
-          </ul>
+
+          {hechosCortos.length > 0 && (
+            <ul className="space-y-1.5">
+              {hechosCortos.map((line, i) => (
+                <li key={`h-${i}`} className="flex gap-2 text-sm">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-mundial-gold" />
+                  <span className="leading-snug">{line}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {last.debutProfesional && hechosCortos.every((h) => !h.includes("Debut")) && (
+            <div className="rounded-lg border border-mundial-gold/40 bg-mundial-gold/10 px-3 py-2 text-sm font-medium">
+              Ascenso a Primera · debut a los {j.edadDebutProfesional ?? last.edad}
+            </div>
+          )}
 
           {last.eventosResolvidos.length > 0 && (
-            <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
-              <h4 className="text-sm font-semibold">Decisiones del año</h4>
-              <ol className="space-y-3">
-                {last.eventosResolvidos.map((d, i) => (
-                  <li key={`${d.eventoId}-${i}`} className="text-sm pl-3 border-l-2 border-mundial-gold/40 space-y-1">
-                    <p className="text-muted-foreground text-xs">Momento {i + 1}</p>
-                    <p className="text-xs text-muted-foreground leading-snug">
-                      <span className="text-foreground/70">Contexto:</span> {d.situacion}
-                    </p>
-                    <p className="leading-snug">
-                      <span className="font-medium text-mundial-gold">Decisión:</span>{" "}
-                      {d.decision}
-                    </p>
-                    <p className="leading-snug text-foreground/90">
-                      <span className="font-medium">Afectación:</span> {d.afectacion}
-                    </p>
-                  </li>
-                ))}
-              </ol>
+            <div className="flex flex-wrap gap-2">
+              {last.eventosResolvidos.map((d, i) => (
+                <span
+                  key={`${d.eventoId}-${i}`}
+                  className="inline-flex max-w-full items-center rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-[11px] text-muted-foreground"
+                  title={d.afectacion}
+                >
+                  <span className="mr-1 font-medium text-mundial-gold">
+                    {d.decision.slice(0, 28)}
+                  </span>
+                  <span className="truncate">{d.afectacion}</span>
+                </span>
+              ))}
             </div>
           )}
 
           {oferta && (
-            <div className="rounded-xl border border-mundial-gold/35 bg-mundial-gold/5 p-4 space-y-3">
+            <div className="space-y-3 rounded-xl border border-mundial-gold/35 bg-mundial-gold/5 p-4">
               <p className="text-sm font-medium">
-                Oferta de {oferta.clubNombre}
-                <span className="text-muted-foreground font-normal">
+                Oferta · {oferta.clubNombre}
+                <span className="font-normal text-muted-foreground">
                   {" "}
                   · {oferta.ligaNombre}
                 </span>
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => onResolverOferta(true)}>Aceptar fichaje</Button>
+                <Button onClick={() => onResolverOferta(true)}>Aceptar</Button>
                 <Button variant="outline" onClick={() => onResolverOferta(false)}>
                   Rechazar
                 </Button>
               </div>
             </div>
           )}
-
-          {!oferta && (
-            <Button className="w-full sm:w-auto" onClick={onContinuar}>
-              Siguiente temporada
-            </Button>
-          )}
         </CardContent>
       </Card>
+
+      {/* Ficha WE9 siempre visible — el gancho nostálgico */}
+      <CarreraFichaWE9
+        jugador={fichaJugador}
+        clubNombre={clubNombre}
+        ligaNombre={liga?.nombre}
+        deltas={deltas}
+      />
+
+      <div className="space-y-3">
+        <div className="overflow-hidden rounded-xl border border-border/50">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium hover:bg-muted/30"
+            onClick={() => setCarreraOpen((v) => !v)}
+          >
+            Totales de carrera
+            <ChevronDown
+              className={cn("h-4 w-4 transition-transform", carreraOpen && "rotate-180")}
+            />
+          </button>
+          {carreraOpen && (
+            <div className="space-y-3 border-t border-border/50 px-3 py-3">
+              <EtapaMini
+                titulo="Cantera"
+                partidos={carrera.cantera.partidos}
+                goles={carrera.cantera.goles}
+                asistencias={carrera.cantera.asistencias}
+                titulos={carrera.cantera.titulos}
+                premios={carrera.cantera.premios}
+              />
+              <EtapaMini
+                titulo="Profesional"
+                accent
+                partidos={carrera.profesional.partidos}
+                goles={carrera.profesional.goles}
+                asistencias={carrera.profesional.asistencias}
+                titulos={carrera.profesional.titulos}
+                premios={carrera.profesional.premios}
+              />
+            </div>
+          )}
+        </div>
+
+        {last.resumenAnio && (
+          <div className="overflow-hidden rounded-xl border border-border/50">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium hover:bg-muted/30"
+              onClick={() => setCronicaOpen((v) => !v)}
+            >
+              Ver crónica
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  cronicaOpen && "rotate-180"
+                )}
+              />
+            </button>
+            {cronicaOpen && (
+              <p className="border-t border-border/50 px-3 py-3 text-xs leading-relaxed text-muted-foreground">
+                {last.resumenAnio}
+              </p>
+            )}
+          </div>
+        )}
+
+        {!oferta && (
+          <Button className="w-full" onClick={onContinuar}>
+            Siguiente periodo
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

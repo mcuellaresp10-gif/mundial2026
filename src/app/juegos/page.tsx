@@ -25,8 +25,8 @@ export default function JuegosPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Creá un futbolista en la cantera BetPlay, tomá decisiones temporada a
-              temporada y buscá llegar a Europa.
+              Crea un futbolista en la cantera BetPlay, toma decisiones por periodos de
+              2 años y busca llegar a Europa.
             </p>
             <Button asChild>
               <Link href="/juegos/carrera">Jugar</Link>

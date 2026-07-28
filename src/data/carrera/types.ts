@@ -120,6 +120,8 @@ export interface EventoDecision {
   id: string;
   tramoCarrera: TramoCarrera;
   categoria: CategoriaEvento;
+  /** Etiqueta corta para la UI (Lesión, Contrato, Partido…). */
+  etiqueta?: string;
   texto: string;
   opciones: OpcionEvento[];
 }
@@ -142,7 +144,30 @@ export interface DecisionResuelta {
   afectacion: string;
 }
 
+/** Totales de una etapa (cantera o profesional). */
+export interface StatsEtapaCarrera {
+  partidos: number;
+  goles: number;
+  asistencias: number;
+  titulos: string[];
+  premiosIndividuales: string[];
+}
+
+/** Partido emblemático del periodo (1 highlight, no calendario completo). */
+export interface PartidoClave {
+  rival: string;
+  golesFavor: number;
+  golesContra: number;
+  /** Local | Visitante */
+  condicion: "local" | "visitante";
+  /** Nota corta tipo crónica de 1 línea. */
+  nota: string;
+}
+
 export interface ResultadoTemporada {
+  /** Edad al inicio del periodo (primer año). */
+  edadInicio: number;
+  /** Edad al cierre del periodo (segundo año). */
   edad: number;
   clubId: string;
   ligaId: string;
@@ -150,11 +175,17 @@ export interface ResultadoTemporada {
   goles: number;
   asistencias: number;
   titulos: string[];
-  /** Premios individuales de la temporada (Balón de Oro, Puskas, etc.). */
+  /** Premios individuales del periodo (Balón de Oro, Puskas, etc.). */
   premiosIndividuales: string[];
+  /** Stats del periodo en cantera / juveniles. */
+  cantera: StatsEtapaCarrera;
+  /** Stats del periodo como profesional. */
+  profesional: StatsEtapaCarrera;
+  /** Un partido emblemático del periodo. */
+  partidoClave: PartidoClave | null;
   rendimientoPromedio: number;
   eventosResolvidos: DecisionResuelta[];
-  /** Relato corto de la temporada (decisiones + hechos clave). */
+  /** Relato corto del periodo (decisiones + hechos clave). */
   resumenAnio: string;
   convocatoriaSeleccion: NivelSeleccion | null;
   narrativaSeleccion: string | null;
@@ -162,15 +193,15 @@ export interface ResultadoTemporada {
   aceptoTransferencia: boolean;
   lesion: Lesion | null;
   notas: string[];
-  /** Atributos al cierre de la temporada. */
+  /** Atributos al cierre del periodo. */
   atributos: Atributos;
-  /** Delta vs inicio de temporada (antes de decisiones/lesión/rendimiento). */
+  /** Delta vs inicio del periodo (antes de decisiones/lesión/rendimiento). */
   deltasAtributos: Partial<Record<keyof Atributos, number>>;
   reputacion: number;
   moral: number;
   deltaReputacion: number;
   deltaMoral: number;
-  /** true si en esta temporada ascendiste / debutaste en el plantel profesional. */
+  /** true si en este periodo ascendiste / debutaste en el plantel profesional. */
   debutProfesional: boolean;
 }
 
@@ -180,13 +211,43 @@ export interface ComparacionEstilo {
   disclaimer: string;
 }
 
+/** Mejor media (OVR) alcanzada en la carrera. */
+export interface PrimeCarrera {
+  media: number;
+  /** Edad al cierre del periodo del peak. */
+  edad: number;
+  edadInicio: number;
+  clubId: string;
+  clubNombre: string;
+  atributos: Atributos;
+  reputacion: number;
+  moral: number;
+}
+
+export interface TituloClubDetalle {
+  nombre: string;
+  cantidad: number;
+}
+
+export interface TitulosPorClub {
+  clubId: string;
+  clubNombre: string;
+  titulos: TituloClubDetalle[];
+}
+
 export interface ResumenCarrera {
   partidos: number;
   goles: number;
   asistencias: number;
   titulos: string[];
   premiosIndividuales: string[];
+  cantera: StatsEtapaCarrera;
+  profesional: StatsEtapaCarrera;
   clubes: string[];
+  /** Títulos agrupados por club (orden de aparición en la carrera). */
+  titulosPorClub: TitulosPorClub[];
+  /** Mejor valoración media de la carrera. */
+  prime: PrimeCarrera | null;
   maxLigaNivel: NivelLiga;
   edadRetiro: number;
   motivoRetiro: MotivoRetiro;

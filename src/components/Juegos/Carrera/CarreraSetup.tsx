@@ -14,6 +14,10 @@ import type { CrearJugadorInput, PiernaHabil, Posicion } from "@/data/carrera/ty
 const POSICIONES = Object.keys(POSICION_LABELS) as Posicion[];
 const PIERNAS: PiernaHabil[] = ["derecha", "izquierda", "ambidiestro"];
 
+function pickRandom<T>(items: readonly T[]): T {
+  return items[Math.floor(Math.random() * items.length)]!;
+}
+
 interface Props {
   onStart: (input: CrearJugadorInput) => void;
 }
@@ -21,10 +25,14 @@ interface Props {
 export function CarreraSetup({ onStart }: Props) {
   const clubes = getClubesBetPlay();
   const [apellido, setApellido] = useState("");
-  const [posicion, setPosicion] = useState<Posicion>("delantero");
-  const [piernaHabil, setPiernaHabil] = useState<PiernaHabil>("derecha");
-  const [nacionalidad, setNacionalidad] = useState<string>("Colombia");
-  const [clubOrigenId, setClubOrigenId] = useState(clubes[0]?.id ?? "millonarios");
+  const [posicion, setPosicion] = useState<Posicion>(() => pickRandom(POSICIONES));
+  const [piernaHabil, setPiernaHabil] = useState<PiernaHabil>(() => pickRandom(PIERNAS));
+  const [nacionalidad, setNacionalidad] = useState<string>(() =>
+    pickRandom(NACIONALIDADES_V1)
+  );
+  const [clubOrigenId, setClubOrigenId] = useState(
+    () => pickRandom(clubes)?.id ?? "millonarios"
+  );
   const [error, setError] = useState<string | null>(null);
 
   const submit = (e: React.FormEvent) => {

@@ -41,16 +41,16 @@ export function CarreraGame() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>¿Colgás los botines?</CardTitle>
+          <CardTitle>¿Cuelgas los botines?</CardTitle>
           <p className="text-sm text-muted-foreground font-normal">
-            Tenés {game.estado.jugador.edad} años y el rendimiento viene en baja. Podés
-            retirarte ahora o pelear una temporada más (el retiro forzado llega a los 42).
+            Tienes {game.estado.jugador.edad} años y el rendimiento viene en baja. Puedes
+            retirarte ahora o pelear un periodo más (el retiro forzado llega a los 42).
           </p>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Button onClick={() => game.continuarSiguienteAnio(true)}>Retirarme</Button>
           <Button variant="outline" onClick={() => game.continuarSiguienteAnio(false)}>
-            Seguir un año más
+            Seguir un periodo más
           </Button>
         </CardContent>
       </Card>

@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   aplicarCrecimientoPorRendimiento,
+  agruparTitulosPorClub,
+  calcularPrimeCarrera,
   calcularRendimiento,
   crearJugador,
+  declivePorEdad,
   EDAD_INICIO,
   evaluarAscensoProfesional,
   evaluarConvocatoria,
@@ -21,6 +24,7 @@ import {
   UMBRAL_RENDIMIENTO_TRANSFERENCIA,
 } from "./engine";
 import { ATRIBUTOS_INICIALES } from "@/data/carrera/atributos";
+import type { ResultadoTemporada } from "@/data/carrera/types";
 
 function seededRng(start = 1): () => number {
   let seed = start;
@@ -128,9 +132,9 @@ describe("evaluarOfertaTransferencia", () => {
       "liga-betplay",
       "millonarios",
       20,
-      1,
-      20,
-      0.75,
+      0,
+      10,
+      0.66,
       () => 0.01,
       true
     );
@@ -361,12 +365,119 @@ describe("resolverDecisiones con transferencia", () => {
 describe("aplicarCrecimientoPorRendimiento", () => {
   it("sube attrs con buen rendimiento y baja con malo", () => {
     const base = { ...ATRIBUTOS_INICIALES.delantero };
-    const up = aplicarCrecimientoPorRendimiento(base, 0.9, false);
-    const down = aplicarCrecimientoPorRendimiento(base, 0.25, false);
+    const up = aplicarCrecimientoPorRendimiento(base, 0.9, false, 24);
+    const down = aplicarCrecimientoPorRendimiento(base, 0.25, false, 24);
     assert.ok(up.ritmo! > base.ritmo);
     assert.ok(down.ritmo! < base.ritmo);
     assert.ok(up.tiro! > base.tiro);
     assert.ok(down.fisico! < base.fisico);
+  });
+
+  it("en el ocaso no sube la media aunque el rendimiento sea alto", () => {
+    const base = {
+      ritmo: 90,
+      tiro: 88,
+      pase: 85,
+      regate: 87,
+      defensa: 40,
+      fisico: 86,
+    };
+    const late = aplicarCrecimientoPorRendimiento(base, 0.95, false, 38);
+    assert.ok(late.ritmo! <= base.ritmo);
+    assert.ok(late.fisico! <= base.fisico);
+    const mid = aplicarCrecimientoPorRendimiento(base, 0.8, false, 35);
+    assert.ok(mid.ritmo! <= base.ritmo);
+  });
+});
+
+describe("declivePorEdad", () => {
+  it("no mueve attrs antes de los 32", () => {
+    const base = { ...ATRIBUTOS_INICIALES.extremo };
+    const same = declivePorEdad(base, 28);
+    assert.equal(same.ritmo, base.ritmo);
+    assert.equal(same.fisico, base.fisico);
+  });
+
+  it("baja piernas y físico en veteranía", () => {
+    const base = {
+      ritmo: 90,
+      tiro: 85,
+      pase: 80,
+      regate: 88,
+      defensa: 45,
+      fisico: 88,
+    };
+    const d33 = declivePorEdad(base, 33);
+    assert.ok(d33.ritmo! < base.ritmo);
+    assert.ok(d33.fisico! < base.fisico);
+    const d38 = declivePorEdad(base, 38);
+    assert.ok(d38.ritmo! < d33.ritmo!);
+    assert.ok(d38.fisico! < d33.fisico!);
+  });
+});
+
+describe("calcularPrimeCarrera", () => {
+  it("elige el periodo con mayor media", () => {
+    const bajo: Partial<ResultadoTemporada> = {
+      edadInicio: 20,
+      edad: 21,
+      clubId: "millonarios",
+      atributos: {
+        ritmo: 60,
+        tiro: 60,
+        pase: 60,
+        regate: 60,
+        defensa: 40,
+        fisico: 60,
+      },
+    };
+    const alto: Partial<ResultadoTemporada> = {
+      edadInicio: 28,
+      edad: 29,
+      clubId: "chelsea",
+      reputacion: 40,
+      moral: 35,
+      atributos: {
+        ritmo: 90,
+        tiro: 88,
+        pase: 85,
+        regate: 90,
+        defensa: 45,
+        fisico: 86,
+      },
+    };
+    const prime = calcularPrimeCarrera(
+      [bajo, alto] as ResultadoTemporada[],
+      "extremo"
+    );
+    assert.ok(prime);
+    assert.equal(prime!.clubId, "chelsea");
+    assert.ok(prime!.media > 70);
+  });
+});
+
+describe("agruparTitulosPorClub", () => {
+  it("agrupa y cuenta títulos por club en orden", () => {
+    const historial = [
+      {
+        clubId: "tolima",
+        titulos: ["Título de liga"],
+      },
+      {
+        clubId: "chelsea",
+        titulos: ["UEFA Champions League", "Título de liga"],
+      },
+      {
+        clubId: "chelsea",
+        titulos: ["Título de liga"],
+      },
+    ] as ResultadoTemporada[];
+    const grupos = agruparTitulosPorClub(historial);
+    assert.equal(grupos.length, 2);
+    assert.equal(grupos[0]!.clubId, "tolima");
+    assert.equal(grupos[1]!.clubId, "chelsea");
+    const ligaChelsea = grupos[1]!.titulos.find((t) => t.nombre === "Título de liga");
+    assert.equal(ligaChelsea?.cantidad, 2);
   });
 });
 
@@ -392,25 +503,41 @@ describe("cerrarTemporada", () => {
     );
 
     assert.equal(estado.historialTemporadas.length, 1);
-    assert.ok(estado.historialTemporadas[0].rendimientoPromedio > 0);
-    assert.ok(estado.historialTemporadas[0].resumenAnio.length > 20);
-    assert.ok(estado.historialTemporadas[0].eventosResolvidos.length >= 1);
-    assert.ok(estado.historialTemporadas[0].eventosResolvidos[0].decision);
-    assert.ok(estado.historialTemporadas[0].eventosResolvidos[0].afectacion.length > 10);
-    assert.ok(estado.historialTemporadas[0].atributos);
-    assert.equal(typeof estado.historialTemporadas[0].deltasAtributos, "object");
-    assert.equal(typeof estado.historialTemporadas[0].reputacion, "number");
-    assert.equal(typeof estado.historialTemporadas[0].moral, "number");
-    assert.equal(typeof estado.historialTemporadas[0].deltaReputacion, "number");
-    assert.equal(typeof estado.historialTemporadas[0].deltaMoral, "number");
-    assert.equal(typeof estado.historialTemporadas[0].debutProfesional, "boolean");
+    const periodo = estado.historialTemporadas[0];
+    assert.equal(periodo.edadInicio, EDAD_INICIO);
+    assert.equal(periodo.edad, EDAD_INICIO + 1);
+    assert.equal(estado.jugador.edad, EDAD_INICIO + 1);
+    assert.ok(periodo.rendimientoPromedio > 0);
+    assert.ok(periodo.partidosJugados >= 8);
+    assert.ok(periodo.resumenAnio.length > 20);
+    assert.ok(periodo.eventosResolvidos.length >= 1);
+    assert.ok(periodo.eventosResolvidos[0].decision);
+    assert.ok(periodo.eventosResolvidos[0].afectacion.length > 0);
+    assert.ok(periodo.atributos);
+    assert.equal(typeof periodo.deltasAtributos, "object");
+    assert.equal(typeof periodo.reputacion, "number");
+    assert.equal(typeof periodo.moral, "number");
+    assert.equal(typeof periodo.deltaReputacion, "number");
+    assert.equal(typeof periodo.deltaMoral, "number");
+    assert.equal(typeof periodo.debutProfesional, "boolean");
+    assert.ok(periodo.cantera);
+    assert.ok(periodo.profesional);
+    assert.equal(
+      periodo.cantera.partidos + periodo.profesional.partidos,
+      periodo.partidosJugados
+    );
     assert.equal(estado.jugador.esProfesional, false); // arranca a los 15 en cantera
+    assert.ok(periodo.cantera.partidos > 0);
+    assert.equal(periodo.profesional.partidos, 0);
+    assert.ok(periodo.partidoClave);
+    assert.ok(periodo.partidoClave.rival.length > 0);
+    assert.equal(typeof periodo.partidoClave.golesFavor, "number");
+    assert.ok(periodo.partidoClave.nota.length > 0);
     assert.ok(
       estado.fase === "temporada_resultado" || estado.fase === "retiro"
     );
-    assert.ok(
-      estado.historialTemporadas[0].rendimientoPromedio <= 1.2
-    );
+    assert.ok(periodo.rendimientoPromedio <= 1.2);
     void UMBRAL_RENDIMIENTO_TRANSFERENCIA;
+    void RACHA_TRANSFERENCIA;
   });
 });

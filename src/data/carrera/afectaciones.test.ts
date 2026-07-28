@@ -3,17 +3,18 @@ import { describe, it } from "node:test";
 import { construirAfectacion } from "@/data/carrera/afectaciones";
 
 describe("construirAfectacion", () => {
-  it("narra fallo de córners con reputación negativa", () => {
+  it("devuelve chips de impacto", () => {
     const text = construirAfectacion(
       "Bromean con hacer un gol olímpico",
       "Probar tiros de esquina en el entrenamiento",
       { reputacion: -1, atributos: { tiro: 2 } }
     );
-    assert.match(text, /esquina|córner|partido/i);
-    assert.match(text, /-1 reputación|\+2 tiro/);
+    assert.match(text, /-1 reputación/);
+    assert.match(text, /\+2 tiro/);
+    assert.match(text, /·/);
   });
 
-  it("respeta consecuencia explícita", () => {
+  it("respeta consecuencia explícita corta + chips", () => {
     const text = construirAfectacion(
       "X",
       "Y",

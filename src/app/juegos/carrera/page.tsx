@@ -16,8 +16,9 @@ export default function CarreraPage() {
           </p>
           <h1 className="text-3xl font-bold mt-1">Simulador de carrera</h1>
           <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
-            Elegí tu propia aventura: de la cantera BetPlay a las grandes ligas. Decisiones
-            pre-escritas, sin IA en tiempo real. Ficción con anclaje al fútbol colombiano.
+            Elige tu propia aventura: de la cantera a las grandes ligas. Cada periodo
+            suma 2 años de goles, títulos y decisiones. Ficción con anclaje al fútbol
+            colombiano.
           </p>
         </div>
       </div>

@@ -16,6 +16,7 @@ const LINKS = [
   { href: "/once-ideal", label: "Once Ideal", icon: "⭐" },
   { href: "/comparativas", label: "Comparativas", icon: "⚔️" },
   { href: "/simulacion", label: "Simulación", icon: "🎲" },
+  { href: "/juegos", label: "Juegos", icon: "🎮" },
   { href: "/estadisticas", label: "Estadísticas", icon: "📊" },
   { href: "/mundial", label: "Mundial (archivo)", icon: "🌍" },
   { href: "/agente", label: "Agente", icon: "💬" },

@@ -1,7 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar, BarChart3, Shield, Star, GitCompare, MessageCircle, Table2, Dices } from "lucide-react";
+import {
+  Calendar,
+  BarChart3,
+  Shield,
+  Star,
+  GitCompare,
+  MessageCircle,
+  Table2,
+  Dices,
+  Gamepad2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveLeague } from "@/hooks/useActiveLeague";
 
@@ -13,6 +23,7 @@ const QUICK_LINKS = [
   { href: "/once-ideal", label: "Once Ideal", icon: Star },
   { href: "/comparativas", label: "Comparativas", icon: GitCompare },
   { href: "/simulacion", label: "Simulación", icon: Dices },
+  { href: "/juegos", label: "Juegos", icon: Gamepad2 },
   { href: "/agente", label: "Agente", icon: MessageCircle },
 ] as const;
 

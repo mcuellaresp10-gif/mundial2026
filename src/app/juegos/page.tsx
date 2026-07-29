@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Compass, Sparkles, Trophy, UserRound } from "lucide-react";
+import { Compass, Grid3X3, Sparkles, Trophy, UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -66,6 +66,24 @@ export default function JuegosPage() {
             </p>
             <Button asChild>
               <Link href="/juegos/ideologia">Hacer el test</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-mundial-gold/25">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Grid3X3 className="h-5 w-5 text-mundial-gold" />
+              Crucigrama
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Crucigrama de fútbol colombiano, sudamericano y Mundiales. Cada vez una
+              grilla nueva.
+            </p>
+            <Button asChild>
+              <Link href="/juegos/crucigrama">Jugar</Link>
             </Button>
           </CardContent>
         </Card>

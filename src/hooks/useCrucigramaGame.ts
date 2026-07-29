@@ -161,7 +161,7 @@ export function useCrucigramaGame() {
 
         const key = claveCelda(fila, columna);
         const respuestas = { ...prev.respuestasUsuario, [key]: letra };
-        let errores = prev.errores;
+        const errores = prev.errores;
 
         const dir = prev.direccionActiva;
         const palabraId =

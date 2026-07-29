@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Compass, UserRound } from "lucide-react";
+import { Compass, Sparkles, Trophy, UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -15,10 +15,10 @@ export default function JuegosPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="border-mundial-gold/25">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <UserRound className="h-5 w-5 text-mundial-gold" />
               Simulador de carrera
             </CardTitle>
@@ -36,7 +36,25 @@ export default function JuegosPage() {
 
         <Card className="border-mundial-gold/25">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Trophy className="h-5 w-5 text-mundial-gold" />
+              Presi
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Fantasy de la Liga BetPlay — armá tu equipo, tu sede y compite jornada a
+              jornada.
+            </p>
+            <Button asChild>
+              <Link href="/juegos/presi">Jugar</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-mundial-gold/25">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <Compass className="h-5 w-5 text-mundial-gold" />
               Ideología futbolística
             </CardTitle>
@@ -48,6 +66,23 @@ export default function JuegosPage() {
             </p>
             <Button asChild>
               <Link href="/juegos/ideologia">Hacer el test</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-dashed border-border/70 bg-muted/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg text-muted-foreground">
+              <Sparkles className="h-5 w-5" />
+              Más juegos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Próximamente nuevos desafíos y modos. Estamos armando la grilla.
+            </p>
+            <Button disabled variant="outline" className="pointer-events-none">
+              Próximamente
             </Button>
           </CardContent>
         </Card>

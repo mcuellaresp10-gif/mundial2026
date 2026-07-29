@@ -60,7 +60,7 @@ const BETPLAY_CLUBS: Omit<Club, "ligaId" | "pais" | "nivel">[] = [
   { id: "aguilas-doradas", nombre: "Águilas Doradas" },
   { id: "deportivo-pasto", nombre: "Deportivo Pasto" },
   { id: "atletico-bucaramanga", nombre: "Atlético Bucaramanga" },
-  { id: "la-equidad", nombre: "La Equidad" },
+  { id: "internacional-bogota", nombre: "Internacional de Bogotá" },
   { id: "boyaca-chico", nombre: "Boyacá Chicó" },
   { id: "fortaleza-ceif", nombre: "Fortaleza CEIF" },
   { id: "llaneros", nombre: "Llaneros" },

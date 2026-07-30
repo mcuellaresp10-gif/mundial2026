@@ -18,7 +18,6 @@ import {
   RELACION_MIN,
   SALARIO_BASE_POR_NIVEL,
   SCHEMA_VERSION,
-  SEMANAS_POR_TEMPORADA,
   SOCIAL_DELTA,
   TEMPORADAS_MAX,
   VENTANA_TRANSFERENCIA_SEMANAS,
@@ -44,6 +43,13 @@ import type {
   TipoMomentoPartido,
 } from "@/data/nueva-estrella/types";
 import { configTimingDesdeAtributo } from "./timing";
+import {
+  crearTemporadaLiga,
+  partidoJugadorEnJornada,
+  resolverJornada,
+  semanasPorLiga,
+  temporadaLigaTerminada,
+} from "./liga";
 
 function clampRel(n: number): number {
   return Math.max(RELACION_MIN, Math.min(RELACION_MAX, Math.round(n)));
@@ -131,6 +137,7 @@ export function crearPartida(input: CrearJugadorNEInput): PartidaNuevaEstrella {
     ofertaPendiente: null,
     momentoPartidoIndex: 0,
     partidoEnCurso: null,
+    temporadaLiga: crearTemporadaLiga(club.ligaId, 1),
     stats: { goles: 0, asistencias: 0, partidos: 0, famaMax: fama, dineroMax: 2500 },
     retirado: false,
     motivoRetiro: null,
@@ -384,23 +391,44 @@ function resolverJugada(
 }
 
 export function iniciarPartido(partida: PartidaNuevaEstrella): PartidaNuevaEstrella {
-  const rivales = getClubesByLiga(partida.jugador.ligaActualId).filter(
-    (c) => c.id !== partida.jugador.clubActualId
+  const tl =
+    partida.temporadaLiga ??
+    crearTemporadaLiga(partida.jugador.ligaActualId, partida.jugador.temporadaActual);
+  const jornada = Math.min(tl.jornadaActual, tl.fixture.length || 1);
+  const fixturePartido = partidoJugadorEnJornada(
+    tl,
+    jornada,
+    partida.jugador.clubActualId
   );
-  const seed =
-    partida.jugador.semanaActual +
-    partida.jugador.temporadaActual * 40 +
-    partida.historialPartidos.length;
-  const rival = rivales[seed % Math.max(1, rivales.length)] ?? rivales[0];
-  const rivalNombre = rival?.nombre ?? "Rival FC";
-  const rivalId = rival?.id ?? "rival";
+
+  let rivalId: string;
+  let rivalNombre: string;
+  let local: boolean;
+
+  if (fixturePartido) {
+    local = fixturePartido.localId === partida.jugador.clubActualId;
+    rivalId = local ? fixturePartido.visitanteId : fixturePartido.localId;
+    rivalNombre = getClubById(rivalId)?.nombre ?? rivalId;
+  } else {
+    const rivales = getClubesByLiga(partida.jugador.ligaActualId).filter(
+      (c) => c.id !== partida.jugador.clubActualId
+    );
+    const seed =
+      partida.jugador.semanaActual +
+      partida.jugador.temporadaActual * 40 +
+      partida.historialPartidos.length;
+    const rival = rivales[seed % Math.max(1, rivales.length)] ?? rivales[0];
+    rivalNombre = rival?.nombre ?? "Rival FC";
+    rivalId = rival?.id ?? "rival";
+    local = seed % 2 === 0;
+  }
 
   const partido: PartidoSemana = {
     semana: partida.jugador.semanaActual,
     temporada: partida.jugador.temporadaActual,
     rivalId,
     rivalNombre,
-    local: seed % 2 === 0,
+    local,
     golesFavor: 0,
     golesContra: 0,
     momentos: [],
@@ -410,6 +438,7 @@ export function iniciarPartido(partida: PartidaNuevaEstrella): PartidaNuevaEstre
 
   return {
     ...partida,
+    temporadaLiga: tl,
     partidoEnCurso: partido,
     momentoPartidoIndex: 0,
   };
@@ -617,12 +646,14 @@ export function aceptarTransferencia(partida: PartidaNuevaEstrella): PartidaNuev
   return {
     ...partida,
     ofertaPendiente: null,
+    temporadaLiga: crearTemporadaLiga(o.ligaId, partida.jugador.temporadaActual),
     jugador: {
       ...partida.jugador,
       clubActualId: o.clubId,
       ligaActualId: o.ligaId,
       salarioSemanal: o.salarioSemanal,
       estatusClub: ESTATUS_TRAS_TRANSFERENCIA,
+      semanaActual: 1,
       moral: clampMoral(partida.jugador.moral + 8),
       fama: clampFama(partida.jugador.fama + 5),
       relaciones: {
@@ -649,7 +680,7 @@ export function rechazarTransferencia(partida: PartidaNuevaEstrella): PartidaNue
 
 /**
  * Cierra la semana: partido ya debe estar finalizado.
- * Paga salario, decay relaciones, avanza calendario, resetea energía.
+ * Simula el resto de la jornada de liga, paga salario, decay relaciones, avanza calendario.
  */
 export function cerrarSemana(partida: PartidaNuevaEstrella): PartidaNuevaEstrella {
   if (partida.partidoEnCurso) {
@@ -685,13 +716,39 @@ export function cerrarSemana(partida: PartidaNuevaEstrella): PartidaNuevaEstrell
     ),
   };
 
-  let semana = partida.jugador.semanaActual + 1;
+  let temporadaLiga =
+    partida.temporadaLiga ??
+    crearTemporadaLiga(
+      partida.jugador.ligaActualId,
+      partida.jugador.temporadaActual
+    );
+
+  const ultimo = partida.historialPartidos[partida.historialPartidos.length - 1];
+  const override =
+    ultimo &&
+    ultimo.semana === partida.jugador.semanaActual &&
+    ultimo.temporada === partida.jugador.temporadaActual
+      ? {
+          clubId: partida.jugador.clubActualId,
+          golesFavor: ultimo.golesFavor,
+          golesContra: ultimo.golesContra,
+        }
+      : null;
+
+  const jornadaAResolver = temporadaLiga.jornadaActual;
+  temporadaLiga = resolverJornada(temporadaLiga, jornadaAResolver, override);
+
+  let semana: number;
   let temporada = partida.jugador.temporadaActual;
   let edad = partida.jugador.edad;
-  if (semana > SEMANAS_POR_TEMPORADA) {
-    semana = 1;
+
+  if (temporadaLigaTerminada(temporadaLiga)) {
     temporada += 1;
     edad += 1;
+    temporadaLiga = crearTemporadaLiga(partida.jugador.ligaActualId, temporada);
+    semana = 1;
+  } else {
+    semana = temporadaLiga.jornadaActual;
   }
 
   const bonoEnergia =
@@ -713,6 +770,7 @@ export function cerrarSemana(partida: PartidaNuevaEstrella): PartidaNuevaEstrell
     ...partida,
     accionesSemana: [],
     semanasDescansoSeguidas: descansoEstaSemana ? semanasDescanso : 0,
+    temporadaLiga,
     jugador: {
       ...partida.jugador,
       semanaActual: semana,
@@ -730,8 +788,9 @@ export function cerrarSemana(partida: PartidaNuevaEstrella): PartidaNuevaEstrell
     },
   };
 
+  const semanasLiga = semanasPorLiga(partida.jugador.ligaActualId);
   const totalSemanas =
-    (temporada - 1) * SEMANAS_POR_TEMPORADA + semana;
+    (temporada - 1) * semanasLiga + semana;
   if (
     totalSemanas % VENTANA_TRANSFERENCIA_SEMANAS === 0 &&
     !next.ofertaPendiente
@@ -768,6 +827,12 @@ export function validarPartida(data: unknown): PartidaNuevaEstrella | null {
   if (!Array.isArray(p.historialPartidos)) return null;
   if (typeof p.jugador.estatusClub !== "number") {
     p.jugador = { ...p.jugador, estatusClub: ESTATUS_INICIAL };
+  }
+  if (!p.temporadaLiga?.fixture?.length) {
+    p.temporadaLiga = crearTemporadaLiga(
+      p.jugador.ligaActualId,
+      p.jugador.temporadaActual
+    );
   }
   return p;
 }

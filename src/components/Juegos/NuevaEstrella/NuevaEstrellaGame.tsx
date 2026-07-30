@@ -12,6 +12,7 @@ import { NuevaEstrellaPartido } from "./NuevaEstrellaPartido";
 import { NuevaEstrellaResultadoPartido } from "./NuevaEstrellaResultadoPartido";
 import { NuevaEstrellaRetiro } from "./NuevaEstrellaRetiro";
 import { NuevaEstrellaSetup } from "./NuevaEstrellaSetup";
+import { NuevaEstrellaTabla } from "./NuevaEstrellaTabla";
 import { NuevaEstrellaTienda } from "./NuevaEstrellaTienda";
 import { NuevaEstrellaTransferencia } from "./NuevaEstrellaTransferencia";
 
@@ -106,6 +107,15 @@ export function NuevaEstrellaGame() {
     );
   }
 
+  if (g.fase === "tabla") {
+    return (
+      <NuevaEstrellaTabla
+        partida={g.partida}
+        onVolver={() => g.setFase("hub")}
+      />
+    );
+  }
+
   if (g.fase === "transferencia" && g.partida.ofertaPendiente) {
     return (
       <NuevaEstrellaTransferencia
@@ -132,6 +142,7 @@ export function NuevaEstrellaGame() {
         onDescansar={g.descansar}
         onIrPartido={g.irPartido}
         onTienda={g.irTienda}
+        onTabla={() => g.setFase("tabla")}
         onExportar={g.generarCodigo}
         onRetirar={g.retirarse}
       />

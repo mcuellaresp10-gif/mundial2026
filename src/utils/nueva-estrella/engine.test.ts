@@ -30,6 +30,27 @@ describe("engine nueva-estrella", () => {
     assert.equal(p.jugador.clubActualId, "millonarios");
     assert.equal(p.jugador.energiaActual, 3);
     assert.equal(p.schemaVersion, 1);
+    assert.ok(p.temporadaLiga);
+    assert.equal(p.temporadaLiga.ligaId, p.jugador.ligaActualId);
+    assert.equal(p.temporadaLiga.fixture.length, 17);
+  });
+
+  it("iniciarPartido usa rival del fixture", () => {
+    const p0 = crearPartida(baseInput);
+    const p = iniciarPartido(p0);
+    assert.ok(p.partidoEnCurso);
+    const jornada = p0.temporadaLiga.jornadaActual;
+    const partidos = p0.temporadaLiga.fixture[jornada - 1]!;
+    const mio = partidos.find(
+      (x) =>
+        x.localId === p0.jugador.clubActualId ||
+        x.visitanteId === p0.jugador.clubActualId
+    )!;
+    const rivalEsperado =
+      mio.localId === p0.jugador.clubActualId
+        ? mio.visitanteId
+        : mio.localId;
+    assert.equal(p.partidoEnCurso!.rivalId, rivalEsperado);
   });
 
   it("entrenar consume energía y puede subir atributo", () => {
@@ -105,6 +126,43 @@ describe("engine nueva-estrella", () => {
     const code = exportarCodigo(p);
     const back = importarCodigo(code);
     assert.equal(back.jugador.apellido, "Valdés");
+    assert.ok(back.temporadaLiga?.fixture?.length);
+  });
+
+  it("cerrarSemana resuelve jornada de liga", () => {
+    let p = crearPartida(baseInput);
+    p = iniciarPartido(p);
+    for (const t of tiposMomentosPartido(p)) {
+      p = registrarMomentoPartido(
+        p,
+        t,
+        evaluarToque(
+          0.5,
+          { velocidad: 1, zonaCentro: 0.5, zonaVerdeAncho: 0.5, zonaAmarillaAncho: 0.6 },
+          1
+        )
+      );
+    }
+    p = finalizarPartido(p);
+    const golesFavor = p.historialPartidos[0]!.golesFavor;
+    const golesContra = p.historialPartidos[0]!.golesContra;
+    p = cerrarSemana(p);
+    assert.equal(p.temporadaLiga.jornadaActual, 2);
+    assert.equal(p.jugador.semanaActual, 2);
+    assert.ok(p.temporadaLiga.resultados.length > 0);
+    const mio = p.temporadaLiga.resultados.find(
+      (r) =>
+        r.jornada === 1 &&
+        (r.localId === p.jugador.clubActualId ||
+          r.visitanteId === p.jugador.clubActualId)
+    )!;
+    if (mio.localId === p.jugador.clubActualId) {
+      assert.equal(mio.golesLocal, golesFavor);
+      assert.equal(mio.golesVisitante, golesContra);
+    } else {
+      assert.equal(mio.golesLocal, golesContra);
+      assert.equal(mio.golesVisitante, golesFavor);
+    }
   });
 
   it("menos energía → zona verde más chica en partido", () => {

@@ -37,6 +37,7 @@ interface Props {
   onDescansar: () => void;
   onIrPartido: () => void;
   onTienda: () => void;
+  onTabla: () => void;
   onExportar: () => void;
   onRetirar: () => void;
 }
@@ -49,6 +50,7 @@ export function NuevaEstrellaHub({
   onDescansar,
   onIrPartido,
   onTienda,
+  onTabla,
   onExportar,
   onRetirar,
 }: Props) {
@@ -187,6 +189,9 @@ export function NuevaEstrellaHub({
             </Button>
             <Button size="sm" variant="outline" onClick={onTienda}>
               Tienda
+            </Button>
+            <Button size="sm" variant="outline" onClick={onTabla}>
+              Tabla
             </Button>
           </CardContent>
         </Card>

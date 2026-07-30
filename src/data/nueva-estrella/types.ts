@@ -34,6 +34,7 @@ export type FaseNuevaEstrella =
   | "partido"
   | "resultado_partido"
   | "tienda"
+  | "tabla"
   | "transferencia"
   | "retiro";
 
@@ -158,6 +159,48 @@ export interface StatsCarreraNE {
   dineroMax: number;
 }
 
+export interface PartidoFixture {
+  localId: string;
+  visitanteId: string;
+}
+
+export interface ResultadoLiga {
+  jornada: number;
+  localId: string;
+  visitanteId: string;
+  golesLocal: number;
+  golesVisitante: number;
+}
+
+export interface FilaTabla {
+  clubId: string;
+  pj: number;
+  pg: number;
+  pe: number;
+  pp: number;
+  gf: number;
+  gc: number;
+  pts: number;
+}
+
+export interface TemporadaLiga {
+  ligaId: string;
+  temporada: number;
+  clubIds: string[];
+  /** Índice 0 = jornada 1. */
+  fixture: PartidoFixture[][];
+  resultados: ResultadoLiga[];
+  tabla: FilaTabla[];
+  /** 1-based: próxima jornada a disputar. */
+  jornadaActual: number;
+}
+
+export interface OverrideResultadoJugador {
+  clubId: string;
+  golesFavor: number;
+  golesContra: number;
+}
+
 export interface PartidaNuevaEstrella {
   schemaVersion: 1;
   jugador: EstadoJugadorNE;
@@ -168,6 +211,7 @@ export interface PartidaNuevaEstrella {
   ofertaPendiente: OfertaTransferencia | null;
   momentoPartidoIndex: number;
   partidoEnCurso: PartidoSemana | null;
+  temporadaLiga: TemporadaLiga;
   stats: StatsCarreraNE;
   retirado: boolean;
   motivoRetiro: string | null;

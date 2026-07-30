@@ -25,6 +25,14 @@ export const MEJORA_ATRIBUTO: Record<"perfecto" | "bien" | "fallo", number> = {
   fallo: 0,
 };
 
+/**
+ * Semanas seguidas sin entrenar un atributo antes de que empiece a bajar.
+ * En el cierre de la 5.ª semana sin drill, ese atributo pierde puntos.
+ */
+export const SEMANAS_SIN_ENTRENAR_PARA_DECAY = 5;
+/** Puntos que baja un atributo por semana una vez alcanzado el umbral. */
+export const DECAY_ATRIBUTO = 1;
+
 export const SOCIAL_DELTA = 12;
 
 /** Ventana de mercado cada N semanas. */

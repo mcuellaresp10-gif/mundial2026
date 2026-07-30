@@ -201,4 +201,47 @@ describe("engine nueva-estrella", () => {
     const last = p.historialPartidos[p.historialPartidos.length - 1]!;
     assert.ok(typeof last.estatusTras === "number");
   });
+
+  it("soft-cap: cerca de 99 sube menos", () => {
+    let p = crearPartida(baseInput);
+    p = {
+      ...p,
+      jugador: {
+        ...p.jugador,
+        atributos: { ...p.jugador.atributos, tiro: 96 },
+      },
+    };
+    const res = evaluarToque(
+      0.5,
+      { velocidad: 1, zonaCentro: 0.5, zonaVerdeAncho: 0.5, zonaAmarillaAncho: 0.6 },
+      1
+    );
+    assert.equal(res.tipo, "perfecto");
+    p = aplicarEntrenamiento(p, "tiro", res);
+    assert.equal(p.jugador.atributos.tiro, 97);
+  });
+
+  it("a la 5.ª semana sin entrenar baja el atributo", () => {
+    let p = crearPartida(baseInput);
+    const tiroInicial = p.jugador.atributos.tiro;
+    for (let i = 0; i < 5; i++) {
+      p = { ...p, accionesSemana: [] };
+      p = iniciarPartido(p);
+      for (const t of tiposMomentosPartido(p)) {
+        p = registrarMomentoPartido(
+          p,
+          t,
+          evaluarToque(
+            0.5,
+            { velocidad: 1, zonaCentro: 0.5, zonaVerdeAncho: 0.5, zonaAmarillaAncho: 0.6 },
+            1
+          )
+        );
+      }
+      p = finalizarPartido(p);
+      p = cerrarSemana(p);
+    }
+    assert.equal(p.jugador.semanasSinEntrenar.tiro, 5);
+    assert.equal(p.jugador.atributos.tiro, tiroInicial - 1);
+  });
 });

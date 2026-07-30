@@ -2,10 +2,12 @@ import { ATRIBUTOS_INICIALES, clipAtributo } from "@/data/carrera/atributos";
 import { getClubById, getClubesByLiga, getClubesByNivel } from "@/data/carrera/clubes";
 import type { Atributos, NivelLiga } from "@/data/carrera/types";
 import {
+  ATRIBUTOS_ENTRENABLES,
   COSTO_DESCANSAR,
   COSTO_ENTRENAR,
   COSTO_MEDIOS,
   COSTO_SOCIALIZAR,
+  DECAY_ATRIBUTO,
   DECAY_RELACION,
   EDAD_INICIO,
   EDAD_RETIRO,
@@ -13,11 +15,11 @@ import {
   ENERGIA_BONO_DESCANSO,
   FAMA_OFERTA_EUROPA,
   FAMA_OFERTA_INTERMEDIA,
-  MEJORA_ATRIBUTO,
   RELACION_MAX,
   RELACION_MIN,
   SALARIO_BASE_POR_NIVEL,
   SCHEMA_VERSION,
+  SEMANAS_SIN_ENTRENAR_PARA_DECAY,
   SOCIAL_DELTA,
   TEMPORADAS_MAX,
   VENTANA_TRANSFERENCIA_SEMANAS,
@@ -42,6 +44,7 @@ import type {
   ResultadoMinijuego,
   TipoMomentoPartido,
 } from "@/data/nueva-estrella/types";
+import { gananciaEntrenamiento } from "./entrenamiento";
 import { configTimingDesdeAtributo } from "./timing";
 import {
   crearTemporadaLiga,
@@ -51,6 +54,16 @@ import {
   temporadaLigaTerminada,
 } from "./liga";
 
+function semanasSinEntrenarInicial(): Record<AtributoEntrenable, number> {
+  return {
+    ritmo: 0,
+    tiro: 0,
+    pase: 0,
+    regate: 0,
+    defensa: 0,
+    fisico: 0,
+  };
+}
 function clampRel(n: number): number {
   return Math.max(RELACION_MIN, Math.min(RELACION_MAX, Math.round(n)));
 }
@@ -129,6 +142,7 @@ export function crearPartida(input: CrearJugadorNEInput): PartidaNuevaEstrella {
       salarioSemanal: salarioDesdeClub(club.id, fama),
       semanaActual: 1,
       temporadaActual: 1,
+      semanasSinEntrenar: semanasSinEntrenarInicial(),
     },
     historialPartidos: [],
     accionesSemana: [],
@@ -173,9 +187,15 @@ export function aplicarEntrenamiento(
   if (!puedeEjecutarAccion(partida, "entrenar")) {
     throw new Error("Sin energía para entrenar");
   }
-  const delta = MEJORA_ATRIBUTO[resultado.tipo];
+  const valorAntes = partida.jugador.atributos[atributo] ?? 1;
+  const delta = gananciaEntrenamiento(valorAntes, resultado.tipo);
   const attrs = { ...partida.jugador.atributos };
-  attrs[atributo] = clipAtributo((attrs[atributo] ?? 1) + delta);
+  attrs[atributo] = clipAtributo(valorAntes + delta);
+
+  const semanasSinEntrenar = {
+    ...(partida.jugador.semanasSinEntrenar ?? semanasSinEntrenarInicial()),
+    [atributo]: 0,
+  };
 
   return {
     ...partida,
@@ -183,6 +203,7 @@ export function aplicarEntrenamiento(
       ...partida.jugador,
       atributos: clipAttrs(attrs),
       energiaActual: partida.jugador.energiaActual - COSTO_ENTRENAR,
+      semanasSinEntrenar,
     },
     accionesSemana: [
       ...partida.accionesSemana,
@@ -766,6 +787,26 @@ export function cerrarSemana(partida: PartidaNuevaEstrella): PartidaNuevaEstrell
     partida.historialPartidos.slice(-3).map((p) => p.calificacion)
   );
 
+  const entrenadosEstaSemana = new Set(
+    partida.accionesSemana
+      .filter((a) => a.tipo === "entrenar" && a.atributoEntrenado)
+      .map((a) => a.atributoEntrenado!)
+  );
+  const semanasSinEntrenar = {
+    ...(partida.jugador.semanasSinEntrenar ?? semanasSinEntrenarInicial()),
+  };
+  const attrs = { ...partida.jugador.atributos };
+  for (const attr of ATRIBUTOS_ENTRENABLES) {
+    if (entrenadosEstaSemana.has(attr)) {
+      semanasSinEntrenar[attr] = 0;
+    } else {
+      semanasSinEntrenar[attr] = (semanasSinEntrenar[attr] ?? 0) + 1;
+      if (semanasSinEntrenar[attr]! >= SEMANAS_SIN_ENTRENAR_PARA_DECAY) {
+        attrs[attr] = clipAtributo((attrs[attr] ?? 1) - DECAY_ATRIBUTO);
+      }
+    }
+  }
+
   let next: PartidaNuevaEstrella = {
     ...partida,
     accionesSemana: [],
@@ -781,6 +822,8 @@ export function cerrarSemana(partida: PartidaNuevaEstrella): PartidaNuevaEstrell
       dinero,
       energiaActual,
       energiaMaxima,
+      atributos: clipAttrs(attrs),
+      semanasSinEntrenar,
     },
     stats: {
       ...partida.stats,
@@ -833,6 +876,12 @@ export function validarPartida(data: unknown): PartidaNuevaEstrella | null {
       p.jugador.ligaActualId,
       p.jugador.temporadaActual
     );
+  }
+  if (!p.jugador.semanasSinEntrenar) {
+    p.jugador = {
+      ...p.jugador,
+      semanasSinEntrenar: semanasSinEntrenarInicial(),
+    };
   }
   return p;
 }

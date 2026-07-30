@@ -7,6 +7,7 @@ import { getClubById, getLigaById } from "@/data/carrera/clubes";
 import {
   ATRIBUTOS_ENTRENABLES,
   LABEL_ATRIBUTO,
+  SEMANAS_SIN_ENTRENAR_PARA_DECAY,
 } from "@/data/nueva-estrella/constantes";
 import { labelEstatusClub } from "@/data/nueva-estrella/estatus";
 import type { AtributoEntrenable, PartidaNuevaEstrella } from "@/data/nueva-estrella/types";
@@ -58,6 +59,9 @@ export function NuevaEstrellaHub({
   const club = getClubById(j.clubActualId);
   const liga = getLigaById(j.ligaActualId);
   const sinEnergia = j.energiaActual <= 0;
+  const oxidados = ATRIBUTOS_ENTRENABLES.filter(
+    (a) => (j.semanasSinEntrenar?.[a] ?? 0) >= SEMANAS_SIN_ENTRENAR_PARA_DECAY - 1
+  );
 
   return (
     <div className="space-y-4">
@@ -132,6 +136,13 @@ export function NuevaEstrellaHub({
                 {LABEL_ATRIBUTO[a]}
               </Button>
             ))}
+            {oxidados.length > 0 && (
+              <p className="w-full text-xs text-amber-700 dark:text-amber-400">
+                Sin entrenar hace semanas:{" "}
+                {oxidados.map((a) => LABEL_ATRIBUTO[a]).join(", ")}. A la 5.ª
+                bajan.
+              </p>
+            )}
           </CardContent>
         </Card>
 

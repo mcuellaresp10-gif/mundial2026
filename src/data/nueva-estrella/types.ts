@@ -77,6 +77,11 @@ export interface EstadoJugadorNE {
   salarioSemanal: number;
   semanaActual: number;
   temporadaActual: number;
+  /**
+   * Semanas seguidas sin entrenar cada atributo.
+   * Al llegar a SEMANAS_SIN_ENTRENAR_PARA_DECAY, baja en el cierre de semana.
+   */
+  semanasSinEntrenar: Record<AtributoEntrenable, number>;
 }
 
 export interface ResultadoMinijuego {

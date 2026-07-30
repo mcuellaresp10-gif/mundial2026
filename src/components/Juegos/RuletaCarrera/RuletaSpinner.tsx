@@ -6,8 +6,6 @@ import type { OpcionRuleta } from "@/data/ruleta-carrera/types";
 import { pickWeighted, segmentAngles } from "@/utils/ruleta-carrera/pickWeighted";
 import { cn } from "@/lib/utils";
 
-const EMPTY_OPCIONES: OpcionRuleta<unknown>[] = [];
-
 interface RuletaSpinnerProps<T> {
   opciones: OpcionRuleta<T>[];
   disabled?: boolean;
@@ -76,7 +74,9 @@ export function RuletaSpinner<T>({
   onResultado,
   className,
 }: RuletaSpinnerProps<T>) {
-  const safeOpciones = Array.isArray(opciones) ? opciones : EMPTY_OPCIONES;
+  const safeOpciones: OpcionRuleta<T>[] = Array.isArray(opciones)
+    ? opciones
+    : [];
   const angles = useMemo(() => segmentAngles(safeOpciones), [safeOpciones]);
 
   const [rotation, setRotation] = useState(() => {
@@ -87,7 +87,7 @@ export function RuletaSpinner<T>({
   const locked = useRef(false);
   const rotationRef = useRef(rotation);
   rotationRef.current = rotation;
-  const opcionesRef = useRef(safeOpciones);
+  const opcionesRef = useRef<OpcionRuleta<T>[]>(safeOpciones);
   opcionesRef.current = safeOpciones;
   const anglesRef = useRef(angles);
   anglesRef.current = angles;

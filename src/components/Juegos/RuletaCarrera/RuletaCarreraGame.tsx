@@ -36,8 +36,10 @@ export function RuletaCarreraGame() {
 
   const esGolesExacto = game.paso.kind === "golesExacto";
   const esAsistenciasExacto = game.paso.kind === "asistenciasExacto";
+  const esVallasExacto = game.paso.kind === "vallasExacto";
   const rangoGoles = game.draft.golesRango;
   const rangoAsistencias = game.draft.asistenciasRango;
+  const rangoVallas = game.draft.vallasRango;
   const debeAutoGirar = autoNonce > 0 && !game.resultadoActual;
 
   const avanzarYSeguirGirando = () => {
@@ -46,16 +48,32 @@ export function RuletaCarreraGame() {
   };
 
   const revelarExacto =
-    (esGolesExacto && rangoGoles) || (esAsistenciasExacto && rangoAsistencias)
-      ? {
-          key: esGolesExacto
-            ? `goles-${rangoGoles!.min}-${rangoGoles!.max}-a${autoNonce}`
-            : `asist-${rangoAsistencias!.min}-${rangoAsistencias!.max}-a${autoNonce}`,
-          min: esGolesExacto ? rangoGoles!.min : rangoAsistencias!.min,
-          max: esGolesExacto ? rangoGoles!.max : rangoAsistencias!.max,
-          unidad: esGolesExacto ? "goles" : "asistencias",
-          idPrefix: esGolesExacto ? "goles-exacto" : "asistencias-exacto",
-        }
+    (esGolesExacto && rangoGoles) ||
+    (esAsistenciasExacto && rangoAsistencias) ||
+    (esVallasExacto && rangoVallas)
+      ? esGolesExacto && rangoGoles
+        ? {
+            key: `goles-${rangoGoles.min}-${rangoGoles.max}-a${autoNonce}`,
+            min: rangoGoles.min,
+            max: rangoGoles.max,
+            unidad: "goles",
+            idPrefix: "goles-exacto",
+          }
+        : esAsistenciasExacto && rangoAsistencias
+          ? {
+              key: `asist-${rangoAsistencias.min}-${rangoAsistencias.max}-a${autoNonce}`,
+              min: rangoAsistencias.min,
+              max: rangoAsistencias.max,
+              unidad: "asistencias",
+              idPrefix: "asistencias-exacto",
+            }
+          : {
+              key: `vallas-${rangoVallas!.min}-${rangoVallas!.max}-a${autoNonce}`,
+              min: rangoVallas!.min,
+              max: rangoVallas!.max,
+              unidad: "vallas",
+              idPrefix: "vallas-exacto",
+            }
       : null;
 
   return (

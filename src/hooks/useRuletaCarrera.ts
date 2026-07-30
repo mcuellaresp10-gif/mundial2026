@@ -14,7 +14,6 @@ import {
   OPCIONES_MEJORA_EN_CLUB,
   atributosMejorables,
   habilidadesPara,
-  opcionesRango,
   opcionesRangosRedondos,
   opcionesRegion,
   opcionesStat,
@@ -70,6 +69,7 @@ type Draft = {
   goles: number | null;
   asistenciasRango: { min: number; max: number } | null;
   asistencias: number | null;
+  vallasRango: { min: number; max: number } | null;
   vallas: number | null;
   convocado: boolean | null;
   logroSeleccion: string | null;
@@ -97,6 +97,7 @@ function draftBase(): Draft {
     goles: null,
     asistenciasRango: null,
     asistencias: null,
+    vallasRango: null,
     vallas: null,
     convocado: null,
     logroSeleccion: null,
@@ -311,6 +312,10 @@ function aplicarEnDraft(
       next.asistencias = opcion.valor as number;
       break;
     case "vallas":
+      next.vallasRango = opcion.valor as { min: number; max: number };
+      next.vallas = null;
+      break;
+    case "vallasExacto":
       next.vallas = opcion.valor as number;
       break;
     case "seleccionConvocado":
@@ -356,6 +361,15 @@ function labelResultado(
   if (pasoCur.kind === "asistenciasExacto") {
     return `${opcion.valor as number} asistencias`;
   }
+  if (pasoCur.kind === "vallas") {
+    const r = opcion.valor as { min: number; max: number };
+    return r.min === r.max
+      ? `${r.min} vallas`
+      : `${r.min}–${r.max} vallas`;
+  }
+  if (pasoCur.kind === "vallasExacto") {
+    return `${opcion.valor as number} vallas invictas`;
+  }
   if (pasoCur.kind === "habilidad") {
     const h = opcion.valor as HabilidadEspecial;
     return `${h.nombre} (${h.descripcion})`;
@@ -368,6 +382,10 @@ function labelResultado(
 
 export function useRuletaCarrera() {
   const [draft, setDraft] = useState<Draft>(() => draftBase());
+  const [pasoIndex, setPasoIndex] = useState(0);
+  const [resultadoActual, setResultadoActual] = useState<string | null>(null);
+  const [bloqueoGiro, setBloqueoGiro] = useState(false);
+  const [carrera, setCarrera] = useState<CarreraGenerada | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const identidadLista = useRef(false);
@@ -382,11 +400,6 @@ export function useRuletaCarrera() {
       return next;
     });
   }, []);
-
-  const [pasoIndex, setPasoIndex] = useState(0);
-  const [resultadoActual, setResultadoActual] = useState<string | null>(null);
-  const [bloqueoGiro, setBloqueoGiro] = useState(false);
-  const [carrera, setCarrera] = useState<CarreraGenerada | null>(null);
 
   const pasos = useMemo(
     () =>
@@ -415,7 +428,8 @@ export function useRuletaCarrera() {
 
   const opciones = useMemo((): OpcionRuleta<unknown>[] => {
     if (!paso) return [];
-    switch (paso.kind) {
+    try {
+      switch (paso.kind) {
       case "posicion":
         return OPCIONES_POSICION;
       case "edadDebut":
@@ -427,7 +441,7 @@ export function useRuletaCarrera() {
       case "stat":
         return opcionesStat(paso.atributo);
       case "tieneHabilidad":
-        return OPCIONES_TIENE_HABILIDAD;
+        return OPCIONES_TIENE_HABILIDAD ?? [];
       case "habilidad": {
         if (!draft.posicion) return [];
         return habilidadesPara(draft.posicion).map((h) => ({
@@ -454,7 +468,7 @@ export function useRuletaCarrera() {
       case "motivoSalida":
         return MOTIVOS_SALIDA;
       case "mejoraEnClub": {
-        if (!draft.posicion) return OPCIONES_MEJORA_EN_CLUB;
+        if (!draft.posicion) return OPCIONES_MEJORA_EN_CLUB ?? [];
         const puede =
           atributosMejorables(draft.posicion, draft.statsBase).length > 0;
         if (!puede) {
@@ -467,7 +481,7 @@ export function useRuletaCarrera() {
             },
           ];
         }
-        return OPCIONES_MEJORA_EN_CLUB;
+        return OPCIONES_MEJORA_EN_CLUB ?? [];
       }
       case "mejoraStatCual": {
         if (!draft.posicion) return [];
@@ -508,8 +522,10 @@ export function useRuletaCarrera() {
         if (!draft.posicion) return [];
         const r = rangoVallas(draft.posicion);
         if (!r) return [];
-        return opcionesRango(r.min, r.max, 10);
+        return opcionesRangosRedondos(r.min, r.max);
       }
+      case "vallasExacto":
+        return [];
       case "seleccionConvocado": {
         const score = scoreCarreraParaSeleccion({
           golesTotales: draft.goles ?? 0,
@@ -538,6 +554,9 @@ export function useRuletaCarrera() {
         return MOTIVOS_RETIRO;
       default:
         return [];
+      }
+    } catch {
+      return [];
     }
   }, [paso, draft]);
 

@@ -22,8 +22,10 @@ export function pickWeighted<T>(
 export function segmentAngles(
   opciones: Pick<OpcionRuleta, "peso">[],
 ): { start: number; sweep: number; mid: number }[] {
+  if (!opciones || opciones.length === 0) return [];
   const weights = opciones.map((o) => Math.max(0.0001, o.peso ?? 1));
   const total = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0) return [];
   let acc = 0;
   return weights.map((w) => {
     const sweep = (w / total) * 360;

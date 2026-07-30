@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Compass, Dices, Grid3X3, Sparkles, Trophy, UserRound } from "lucide-react";
+import { Compass, Dices, Grid3X3, Sparkles, Star, Trophy, UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -102,6 +102,24 @@ export default function JuegosPage() {
             </p>
             <Button asChild>
               <Link href="/juegos/ruleta-carrera">Jugar</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-mundial-gold/25">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Star className="h-5 w-5 text-mundial-gold" />
+              Nueva Estrella
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Gestión semanal con energía, timing arcade en partidos y estilo de
+              vida. Autoguardado local + código para otro dispositivo.
+            </p>
+            <Button asChild>
+              <Link href="/juegos/nueva-estrella">Jugar</Link>
             </Button>
           </CardContent>
         </Card>

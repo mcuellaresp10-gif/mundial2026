@@ -6,6 +6,8 @@ import type { OpcionRuleta } from "@/data/ruleta-carrera/types";
 import { pickWeighted, segmentAngles } from "@/utils/ruleta-carrera/pickWeighted";
 import { cn } from "@/lib/utils";
 
+const EMPTY_OPCIONES: OpcionRuleta<unknown>[] = [];
+
 interface RuletaSpinnerProps<T> {
   opciones: OpcionRuleta<T>[];
   disabled?: boolean;
@@ -74,18 +76,19 @@ export function RuletaSpinner<T>({
   onResultado,
   className,
 }: RuletaSpinnerProps<T>) {
-  const angles = useMemo(() => segmentAngles(opciones), [opciones]);
+  const safeOpciones = Array.isArray(opciones) ? opciones : EMPTY_OPCIONES;
+  const angles = useMemo(() => segmentAngles(safeOpciones), [safeOpciones]);
 
   const [rotation, setRotation] = useState(() => {
-    const a = segmentAngles(opciones);
+    const a = segmentAngles(safeOpciones);
     return a[0] ? -a[0].mid : 0;
   });
   const [spinning, setSpinning] = useState(false);
   const locked = useRef(false);
   const rotationRef = useRef(rotation);
   rotationRef.current = rotation;
-  const opcionesRef = useRef(opciones);
-  opcionesRef.current = opciones;
+  const opcionesRef = useRef(safeOpciones);
+  opcionesRef.current = safeOpciones;
   const anglesRef = useRef(angles);
   anglesRef.current = angles;
   const onResultadoRef = useRef(onResultado);
@@ -131,7 +134,7 @@ export function RuletaSpinner<T>({
   // Auto-giro forzado al montar / cuando autoGirar pasa a true
   useEffect(() => {
     if (!autoGirar) return;
-    if (opciones.length === 0) return;
+    if (safeOpciones.length === 0) return;
 
     locked.current = false;
     const t = window.setTimeout(() => {
@@ -139,7 +142,7 @@ export function RuletaSpinner<T>({
     }, 120);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoGirar, opciones.length]);
+  }, [autoGirar, safeOpciones.length]);
 
   const busy = spinning || spinningExternal;
   const cx = 100;
@@ -147,7 +150,8 @@ export function RuletaSpinner<T>({
   const r = 98;
   const puedeContinuar = Boolean(resultadoListo && onContinuar);
   // Con resultado listo, Girar siempre puede continuar (aunque no haya segmentos).
-  const botonDisabled = busy || (!puedeContinuar && (disabled || opciones.length === 0));
+  const botonDisabled =
+    busy || (!puedeContinuar && (disabled || safeOpciones.length === 0));
 
   return (
     <div className={cn("flex flex-col items-center gap-4", className)}>
@@ -169,11 +173,12 @@ export function RuletaSpinner<T>({
           }}
         >
           <svg viewBox="0 0 200 200" className="h-full w-full">
-            {opciones.map((op, i) => {
-              const a = angles[i]!;
+            {safeOpciones.map((op, i) => {
+              const a = angles[i];
+              if (!a) return null;
               const color =
                 op.color ?? SEGMENT_COLORS[i % SEGMENT_COLORS.length]!;
-              const n = Math.max(1, opciones.length);
+              const n = Math.max(1, safeOpciones.length);
               const flip = a.mid > 90 && a.mid < 270;
               const labelAngle = flip ? a.mid + 90 : a.mid - 90;
               const labelR = n > 12 ? r * 0.68 : r * 0.62;

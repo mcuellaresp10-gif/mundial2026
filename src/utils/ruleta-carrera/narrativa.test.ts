@@ -31,6 +31,7 @@ describe("construirPasos", () => {
     });
     assert.ok(p.some((x) => x.kind === "stat"));
     assert.ok(p.some((x) => x.kind === "vallas"));
+    assert.ok(p.some((x) => x.kind === "vallasExacto"));
     assert.ok(p.some((x) => x.kind === "seleccionLogro"));
     assert.ok(p.some((x) => x.kind === "region"));
     assert.ok(p.some((x) => x.kind === "tieneHabilidad"));

@@ -135,6 +135,8 @@ export interface CarreraFichaWE9Props {
   compact?: boolean;
   /** Etiqueta pequeña en la barra del club (ej. Prime). */
   badge?: string;
+  /** Estatus en el plantel (0–100) con etiqueta: Reserva, Titular… */
+  estatusClub?: { label: string; value: number };
   className?: string;
 }
 
@@ -145,6 +147,7 @@ export function CarreraFichaWE9({
   deltas,
   compact = false,
   badge,
+  estatusClub,
   className,
 }: CarreraFichaWE9Props) {
   const media = calcularMedia(jugador.atributos, jugador.posicion);
@@ -305,6 +308,9 @@ export function CarreraFichaWE9({
         <CondRow label="Moral" value={jugador.moral} />
         <CondRow label="Reputación" value={jugador.reputacion} />
       </div>
+      {estatusClub ? (
+        <EstatusClubRow label={estatusClub.label} value={estatusClub.value} />
+      ) : null}
     </div>
   );
 }
@@ -336,6 +342,37 @@ function CondRow({ label, value }: { label: string; value: number }) {
           className="h-full bg-[#2f6fed]"
           style={{ width: `${pct}%` }}
         />
+      </div>
+    </div>
+  );
+}
+
+function EstatusClubRow({ label, value }: { label: string; value: number }) {
+  const pct = Math.min(100, Math.max(0, value));
+  const tone = we9StatTone(Math.round(pct * 0.99) || 1);
+  return (
+    <div className="border-t border-black/40 bg-[#2a2f36] px-3 py-2">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
+          En el club
+        </span>
+        <span
+          className={cn("text-xs font-black uppercase tracking-wide", tone.text)}
+          style={{ textShadow: "0 1px 0 #000" }}
+        >
+          {label}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-[1px] border border-black/50 bg-[#1a1d21]">
+          <div className={cn("h-full", tone.bar)} style={{ width: `${pct}%` }} />
+        </div>
+        <span
+          className={cn("min-w-[1.75rem] text-right text-[11px] font-black tabular-nums", tone.text)}
+          style={{ textShadow: "0 1px 0 #000" }}
+        >
+          {Math.round(value)}
+        </span>
       </div>
     </div>
   );

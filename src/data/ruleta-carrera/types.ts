@@ -160,6 +160,7 @@ export type PasoRuleta =
   | { id: string; kind: "asistencias"; titulo: string }
   | { id: string; kind: "asistenciasExacto"; titulo: string }
   | { id: string; kind: "vallas"; titulo: string }
+  | { id: string; kind: "vallasExacto"; titulo: string }
   | { id: string; kind: "seleccionConvocado"; titulo: string }
   | { id: string; kind: "seleccionLogro"; titulo: string }
   | { id: string; kind: "retiro"; titulo: string };

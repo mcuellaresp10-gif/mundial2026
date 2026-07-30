@@ -193,6 +193,11 @@ export function construirPasos(args: {
       kind: "vallas",
       titulo: "Vallas invictas de carrera",
     });
+    pasos.push({
+      id: "vallasExacto",
+      kind: "vallasExacto",
+      titulo: "Vallas invictas exactas",
+    });
   }
 
   pasos.push({

@@ -66,6 +66,17 @@ export const AMERICAS_LEAGUES: AmericasLeague[] = [
     defaultSeason: 2026,
   },
   {
+    id: 72,
+    slug: "brasileirao-serie-b",
+    name: "Serie B",
+    shortName: "Brasil B",
+    country: "Brazil",
+    countryCode: "BR",
+    type: "domestic",
+    seasonMode: "annual",
+    defaultSeason: 2026,
+  },
+  {
     id: 239,
     slug: "liga-betplay",
     name: "Primera A",

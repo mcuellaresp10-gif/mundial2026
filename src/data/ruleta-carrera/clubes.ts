@@ -253,6 +253,17 @@ export function clubesPorRegion(region: Region): ClubRuleta[] {
               ? 5
               : 4
         ),
+        ...fromCarrera(
+          ["brasileirao-serie-b"],
+          "sudamerica",
+          "Brasileirão Série B",
+          (id) =>
+            ["fortaleza-br", "ceara", "sport-recife", "goias", "juventude"].includes(
+              id
+            )
+              ? 3
+              : 2
+        ),
         ...EXTRA_SUD,
       ];
     case "europa":

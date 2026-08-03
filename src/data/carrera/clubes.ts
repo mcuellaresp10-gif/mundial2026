@@ -15,9 +15,15 @@ export const LIGAS: Liga[] = [
   },
   {
     id: "brasileirao",
-    nombre: "Brasileirão",
+    nombre: "Brasileirão Série A",
     pais: "Brasil",
     nivel: "intermedia",
+  },
+  {
+    id: "brasileirao-serie-b",
+    nombre: "Brasileirão Série B",
+    pais: "Brasil",
+    nivel: "colombia_primera",
   },
   {
     id: "liga-profesional-ar",
@@ -85,6 +91,30 @@ const BR_CLUBS = [
   { id: "internacional", nombre: "Internacional" },
 ];
 
+/** Plantilla Série B 2026 (20 clubes). */
+const BR_SERIE_B_CLUBS = [
+  { id: "america-mg", nombre: "América-MG" },
+  { id: "athletic-mg", nombre: "Athletic-MG" },
+  { id: "atletico-go", nombre: "Atlético-GO" },
+  { id: "avai", nombre: "Avaí" },
+  { id: "botafogo-sp", nombre: "Botafogo-SP" },
+  { id: "ceara", nombre: "Ceará" },
+  { id: "crb", nombre: "CRB" },
+  { id: "criciuma", nombre: "Criciúma" },
+  { id: "cuiaba", nombre: "Cuiabá" },
+  { id: "fortaleza-br", nombre: "Fortaleza" },
+  { id: "goias", nombre: "Goiás" },
+  { id: "juventude", nombre: "Juventude" },
+  { id: "londrina", nombre: "Londrina" },
+  { id: "nautico", nombre: "Náutico" },
+  { id: "novorizontino", nombre: "Novorizontino" },
+  { id: "operario-pr", nombre: "Operário-PR" },
+  { id: "ponte-preta", nombre: "Ponte Preta" },
+  { id: "sao-bernardo", nombre: "São Bernardo" },
+  { id: "sport-recife", nombre: "Sport" },
+  { id: "vila-nova", nombre: "Vila Nova" },
+];
+
 const AR_CLUBS = [
   { id: "boca-juniors", nombre: "Boca Juniors" },
   { id: "river-plate", nombre: "River Plate" },
@@ -132,6 +162,7 @@ function mapClubs(
 
 export const CLUBES: Club[] = [
   ...mapClubs(BETPLAY_CLUBS, "liga-betplay", "Colombia", "colombia_primera"),
+  ...mapClubs(BR_SERIE_B_CLUBS, "brasileirao-serie-b", "Brasil", "colombia_primera"),
   ...mapClubs(MX_CLUBS, "liga-mx", "México", "intermedia"),
   ...mapClubs(BR_CLUBS, "brasileirao", "Brasil", "intermedia"),
   ...mapClubs(AR_CLUBS, "liga-profesional-ar", "Argentina", "intermedia"),

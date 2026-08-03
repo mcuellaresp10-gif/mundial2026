@@ -52,7 +52,8 @@ import {
 const client = axios.create({ baseURL: "/api/football" });
 const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
 const PLAYER_STATS_LOCAL_CACHE_MS = 3 * 60 * 1000;
-const WORLD_CUP_PLAYER_POOL_MAX_PAGES = 15;
+/** ~20 jugadores/página. Série B (~20 clubes) necesita más de 15 páginas. */
+const WORLD_CUP_PLAYER_POOL_MAX_PAGES = 40;
 const WORLD_CUP_PLAYER_POOL_PAGE_CONCURRENCY = 4;
 
 function isTournamentStatsRefreshActive(): boolean {
@@ -1140,6 +1141,45 @@ export async function getLeaguePlayerStatsPool(
       setLocalCache(key, pool, playerStatsLocalCacheTtl());
     }
     return pool;
+  } catch {
+    return getStaleLocalCache<Player[]>(key) ?? [];
+  }
+}
+
+/**
+ * Busca jugadores por nombre dentro de una liga (scouting: encontrar a alguien
+ * fuera del truncado del pool paginado).
+ */
+export async function searchLeaguePlayers(
+  query: string,
+  leagueId: number,
+  season: number = DEFAULT_SEASON
+): Promise<Player[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+
+  const key = cacheKey("leaguePlayerSearch", { q: q.toLowerCase(), league: leagueId, season });
+  if (!shouldBypassPlayerStatsCache()) {
+    const cached = getLocalCache<Player[]>(key);
+    if (cached) return cached;
+  }
+
+  try {
+    const { players } = await getPlayers({
+      league: leagueId,
+      season,
+      search: q,
+      page: 1,
+    });
+    const enriched = players.map((p) =>
+      leagueId === LEAGUE_ID
+        ? enrichWorldCupPoolPlayer(p)
+        : enrichLeaguePoolPlayer(p, leagueId, season)
+    );
+    if (!shouldBypassPlayerStatsCache()) {
+      setLocalCache(key, enriched, playerStatsLocalCacheTtl());
+    }
+    return enriched;
   } catch {
     return getStaleLocalCache<Player[]>(key) ?? [];
   }

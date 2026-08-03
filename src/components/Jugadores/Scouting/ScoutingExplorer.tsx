@@ -39,8 +39,10 @@ export function ScoutingExplorer() {
     selectionLabel,
     minMinutes,
     leagueIds,
+    searchActive,
   } = useWorldCupScoutingPool(true, {
     loadGoalkeepers: position === "G",
+    searchQuery: search,
   });
 
   const leagueKey = leagueIds.join(",");
@@ -146,7 +148,7 @@ export function ScoutingExplorer() {
         <div className="flex-1 min-w-[200px]">
           <label className="text-xs text-muted-foreground block mb-1">Buscar jugador</label>
           <Input
-            placeholder="Nombre o equipo…"
+            placeholder="Ej. Leonai, Náutico…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -155,7 +157,8 @@ export function ScoutingExplorer() {
           {filtered.length} de {positionProfiles.length} {positionLabel.toLowerCase()}
           {teamFilter ? ` · ${teamHighlightIds.length} de ${teamFilter}` : ""}
           {!isReady && isLoading && " · cargando pool…"}
-          {isReady && isEnriching && " · actualizando porteros…"}
+          {isReady && isEnriching && " · ampliando búsqueda…"}
+          {searchActive && " · búsqueda API"}
         </p>
       </div>
 
@@ -177,7 +180,8 @@ export function ScoutingExplorer() {
                     {activeView?.label ?? "Mapa"} · {positionLabel.toLowerCase()}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground font-normal">
-                    Pool {selectionLabel} · ≥{minMinutes} min · clic en un punto
+                    Pool {selectionLabel} · ≥{minMinutes} min
+                    {searchActive ? " (búsqueda ≥1 min)" : ""} · clic en un punto
                     para seleccionar
                     {teamFilter ? ` · resaltados: ${teamFilter}` : ""}
                   </p>

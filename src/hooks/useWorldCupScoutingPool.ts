@@ -8,6 +8,7 @@ import {
   getLeagueGoalkeepersForTeams,
   getLeaguePlayerStatsPool,
   getTeams,
+  searchLeaguePlayers,
 } from "@/services/apiFootball";
 import {
   buildScoutingProfiles,
@@ -42,6 +43,8 @@ function mergePlayerRows(primary: Player[], extra: Player[]): Player[] {
 export interface WorldCupScoutingPoolOptions {
   /** Porteros no salen bien en topscorers; cargar solo si hace falta (p. ej. pestaña G). */
   loadGoalkeepers?: boolean;
+  /** Búsqueda por nombre (≥3 chars) amplía el pool vía API. */
+  searchQuery?: string;
 }
 
 export function useWorldCupScoutingPool(
@@ -49,6 +52,8 @@ export function useWorldCupScoutingPool(
   options: WorldCupScoutingPoolOptions = {}
 ) {
   const loadGoalkeepers = options.loadGoalkeepers ?? false;
+  const searchQuery = (options.searchQuery ?? "").trim();
+  const searchActive = searchQuery.length >= 3;
   const { league, leagues, leagueIds, season, isMulti } = useActiveLeague();
   const { data: fixtures = [] } = useFixtures();
 
@@ -101,6 +106,26 @@ export function useWorldCupScoutingPool(
     [poolKey, seasonKey, poolDataKey]
   );
 
+  const { data: searchHits = [], isFetching: searchFetching } = useQuery({
+    queryKey: [
+      "leaguePlayerSearch",
+      "scouting",
+      searchQuery.toLowerCase(),
+      poolKey,
+      seasonKey,
+    ],
+    queryFn: async () => {
+      const batches = await Promise.all(
+        leagues.map((l) =>
+          searchLeaguePlayers(searchQuery, l.id, l.defaultSeason)
+        )
+      );
+      return batches.flat();
+    },
+    enabled: enabled && searchActive && leagues.length > 0,
+    staleTime,
+  });
+
   const { data: gkPools = [], isFetching: gkFetching } = useQuery({
     queryKey: [
       "leagueGoalkeeperPool",
@@ -138,14 +163,40 @@ export function useWorldCupScoutingPool(
     [gkPools]
   );
 
+  const searchMerged = useMemo(() => {
+    if (!searchHits.length || leagues.length === 0) return [] as Player[];
+    // Reusa el merge de una sola liga por slice para normalizar filas.
+    return mergePlayerPoolsAcrossLeagues(
+      leagues.map((l) => ({
+        league: l,
+        players: searchHits.filter((p) => {
+          const row = p.statistics?.[0];
+          if (!row) return false;
+          return (
+            row.league.id === l.id ||
+            (leagues.length === 1 && row.league.season === l.defaultSeason)
+          );
+        }),
+      }))
+    );
+  }, [searchHits, leagues]);
+
+  const forceIncludeIds = useMemo(() => {
+    if (!searchActive || searchHits.length === 0) return undefined;
+    return new Set(searchHits.map((p) => p.player.id));
+  }, [searchActive, searchHits]);
+
   const mergedPlayers: Player[] = useMemo(
-    () => mergePlayerRows(fieldMerged, gkMerged),
-    [fieldMerged, gkMerged]
+    () => mergePlayerRows(mergePlayerRows(fieldMerged, gkMerged), searchMerged),
+    [fieldMerged, gkMerged, searchMerged]
   );
 
   const profiles: ScoutingProfile[] = useMemo(
-    () => buildScoutingProfiles(mergedPlayers, league.id, league.defaultSeason),
-    [mergedPlayers, league.id, league.defaultSeason]
+    () =>
+      buildScoutingProfiles(mergedPlayers, league.id, league.defaultSeason, {
+        forceIncludeIds,
+      }),
+    [mergedPlayers, league.id, league.defaultSeason, forceIncludeIds]
   );
 
   const profilesById = useMemo(() => {
@@ -155,11 +206,16 @@ export function useWorldCupScoutingPool(
   }, [profiles]);
 
   const averagesByPosition = useMemo(() => {
-    const out: Partial<Record<ScoutingPosition, ReturnType<typeof computePoolAverages>>> = {};
+    const out: Partial<
+      Record<ScoutingPosition, ReturnType<typeof computePoolAverages>>
+    > = {};
     for (const pos of ["G", "D", "M", "F"] as ScoutingPosition[]) {
       out[pos] = computePoolAverages(profilesForPosition(profiles, pos));
     }
-    return out as Record<ScoutingPosition, ReturnType<typeof computePoolAverages>>;
+    return out as Record<
+      ScoutingPosition,
+      ReturnType<typeof computePoolAverages>
+    >;
   }, [profiles]);
 
   const selectionLabel = useMemo(
@@ -183,13 +239,17 @@ export function useWorldCupScoutingPool(
     profilesById,
     averagesByPosition,
     isLoading: poolLoading && profiles.length === 0,
-    isEnriching: gkFetching && fieldMerged.length > 0,
+    isEnriching:
+      (gkFetching && fieldMerged.length > 0) ||
+      (searchFetching && searchActive),
     isReady: profiles.length > 0,
+    searchActive,
   };
 }
 
 export function useScoutingProfile(playerId: number, enabled = true) {
-  const { profilesById, profiles, isLoading, isReady } = useWorldCupScoutingPool(enabled);
+  const { profilesById, profiles, isLoading, isReady } =
+    useWorldCupScoutingPool(enabled);
   const profile = profilesById.get(playerId) ?? null;
   return { profile, profiles, isLoading, isReady };
 }

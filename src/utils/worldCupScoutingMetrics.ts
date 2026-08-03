@@ -274,10 +274,12 @@ function buildRadarValues(
 export function playerHasScoutingEligibleWc(
   player: Player,
   leagueId: number = LEAGUE_ID,
-  season: number = DEFAULT_SEASON
+  season: number = DEFAULT_SEASON,
+  minMinutesOverride?: number
 ): boolean {
   const minMinutes =
-    leagueId === LEAGUE_ID ? SCOUTING_MIN_WC_MINUTES : SCOUTING_MIN_LEAGUE_MINUTES;
+    minMinutesOverride ??
+    (leagueId === LEAGUE_ID ? SCOUTING_MIN_WC_MINUTES : SCOUTING_MIN_LEAGUE_MINUTES);
   const stat = getLeagueSeasonStat(player, leagueId, season);
   if (!stat) return false;
   return (stat.games.minutes ?? 0) >= minMinutes;
@@ -299,11 +301,16 @@ export function getScoutingPosition(
 export function buildScoutingProfiles(
   players: Player[],
   leagueId: number = LEAGUE_ID,
-  season: number = DEFAULT_SEASON
+  season: number = DEFAULT_SEASON,
+  options?: { forceIncludeIds?: ReadonlySet<number> }
 ): ScoutingProfile[] {
-  const eligible = players.filter((p) =>
-    playerHasScoutingEligibleWc(p, leagueId, season)
-  );
+  const forceIncludeIds = options?.forceIncludeIds;
+  const eligible = players.filter((p) => {
+    if (forceIncludeIds?.has(p.player.id)) {
+      return playerHasScoutingEligibleWc(p, leagueId, season, 1);
+    }
+    return playerHasScoutingEligibleWc(p, leagueId, season);
+  });
   const byPosition = new Map<
     ScoutingPosition,
     { player: Player; base: WorldCupPer90Metrics }[]

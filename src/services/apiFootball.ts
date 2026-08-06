@@ -34,8 +34,9 @@ import {
   pickFeaturedFixture,
 } from "@/lib/liveRefresh";
 import { isCupKnockoutRound } from "@/utils/cupBracket";
-import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats } from "@/utils/squad";
+import { enrichPlayerWithStatBundle, mapSquadPlayerToPlayer, mergeSquadWithPlayerStats, positionToCode } from "@/utils/squad";
 import { isWorldCupStatRow, pickClubStat } from "@/utils/playerStats";
+import { applyResolvedPositionsToPlayers } from "@/utils/scoutingPosition";
 import { mapPlayersToTopScorers, mapPlayersToTopAssists, mergeTopAssistLists } from "@/utils/tournamentScorers";
 import { isGoalkeeperStat } from "@/utils/tournamentGoalkeepers";
 import { mergeLiveIntoFixtures, mergeFixtureLists, isFixtureListIncomplete } from "@/utils/fixtureMerge";
@@ -52,9 +53,10 @@ import {
 const client = axios.create({ baseURL: "/api/football" });
 const LIVE_TOP_SCORERS_CACHE_MS = 30 * 1000;
 const PLAYER_STATS_LOCAL_CACHE_MS = 3 * 60 * 1000;
-/** ~20 jugadores/página. Série B (~20 clubes) necesita más de 15 páginas. */
-const WORLD_CUP_PLAYER_POOL_MAX_PAGES = 40;
-const WORLD_CUP_PLAYER_POOL_PAGE_CONCURRENCY = 4;
+/** ~20 jugadores/página. Proxy allowlist MAX_PAGE=20; no pedir más o el pool entero falla. */
+const WORLD_CUP_PLAYER_POOL_MAX_PAGES = 20;
+const WORLD_CUP_PLAYER_POOL_PAGE_CONCURRENCY = 3;
+const WORLD_CUP_PLAYER_POOL_PAGE_DELAY_MS = 80;
 
 function isTournamentStatsRefreshActive(): boolean {
   return isLiveSessionActive() || getClientTournamentPhase() === "live";
@@ -668,6 +670,43 @@ export async function getTeamSquad(teamId: number): Promise<TeamSquad | null> {
   return data[0] ?? null;
 }
 
+/**
+ * Mapa playerId → posición del plantel (G/D/M/F) para una liga.
+ * Más fiable que `statistics.games.position` de season stats en muchos clubes.
+ */
+export async function getLeagueSquadPositionMap(
+  leagueId: number,
+  season: number = DEFAULT_SEASON
+): Promise<Map<number, string>> {
+  const key = cacheKey("leagueSquadPositionMap", { league: leagueId, season });
+  const cached = getLocalCache<[number, string][]>(key);
+  if (cached) return new Map(cached);
+
+  try {
+    const teams = await getTeams(season, leagueId);
+    const squads = await mapAsyncWithConcurrency(
+      teams.map((t) => t.id),
+      4,
+      async (teamId) => getTeamSquad(teamId),
+      40
+    );
+
+    const map = new Map<number, string>();
+    for (const squad of squads) {
+      if (!squad?.players?.length) continue;
+      for (const sp of squad.players) {
+        map.set(sp.id, positionToCode(sp.position));
+      }
+    }
+
+    setLocalCache(key, [...map.entries()], CACHE_TTL_MS);
+    return map;
+  } catch {
+    const stale = getStaleLocalCache<[number, string][]>(key);
+    return stale ? new Map(stale) : new Map();
+  }
+}
+
 export interface SquadPlayersOptions {
   /** true = stats club + selección por jugador (más lento). false = solo selección vía team (rápido). */
   fullStats?: boolean;
@@ -953,23 +992,33 @@ export async function getPlayers(params: {
 }): Promise<{ players: Player[]; paging: { current: number; total: number } }> {
   const league = params.league ?? LEAGUE_ID;
   const season = params.season ?? DEFAULT_SEASON;
-  const response = await client.get<ApiResponse<Player[]>>("players", {
-    params: {
-      league,
-      season,
-      team: params.team,
-      page: params.page ?? 1,
-      search: params.search,
-      id: params.id,
-    },
-    ...liveRequestConfig(),
-  });
+  const page = params.page ?? 1;
   const key = cacheKey("players", { ...params, league, season } as Record<string, unknown>);
-  setLocalCache(key, response.data.response, playerStatsLocalCacheTtl());
-  return {
-    players: response.data.response,
-    paging: response.data.paging ?? { current: 1, total: 1 },
-  };
+  try {
+    const response = await client.get<ApiResponse<Player[]>>("players", {
+      params: {
+        league,
+        season,
+        team: params.team,
+        page,
+        search: params.search,
+        id: params.id,
+      },
+      ...liveRequestConfig(),
+    });
+    setLocalCache(key, response.data.response, playerStatsLocalCacheTtl());
+    return {
+      players: response.data.response ?? [],
+      paging: response.data.paging ?? { current: page, total: 1 },
+    };
+  } catch {
+    const stale = getStaleLocalCache<Player[]>(key);
+    if (stale) {
+      return { players: stale, paging: { current: page, total: page } };
+    }
+    // Página fuera de allowlist / rate limit: no tumbar el pool entero.
+    return { players: [], paging: { current: page, total: page } };
+  }
 }
 
 export async function getPlayerById(
@@ -1054,6 +1103,7 @@ const WORLD_CUP_GK_TEAM_CONCURRENCY = 6;
 
 function mergePlayerPoolRows(into: Map<number, Player>, rows: Player[]): void {
   for (const p of rows) {
+    if (!p?.player?.id) continue;
     const existing = into.get(p.player.id);
     if (!existing) {
       into.set(p.player.id, p);
@@ -1095,15 +1145,69 @@ function enrichLeaguePoolPlayer(
   };
 }
 
+/** Todos los jugadores con stats de liga/temporada para un club (paginado). */
+async function fetchLeaguePlayersForTeam(
+  teamId: number,
+  leagueId: number,
+  season: number
+): Promise<Player[]> {
+  const out: Player[] = [];
+  let page = 1;
+  let total = 1;
+  while (page <= total) {
+    const { players, paging } = await getPlayers({
+      season,
+      team: teamId,
+      league: leagueId,
+      page,
+    });
+    for (const p of players) {
+      const leagueStat =
+        p.statistics.find(
+          (s) =>
+            s.league.id === leagueId &&
+            s.team.id === teamId &&
+            s.league.season === season
+        ) ??
+        p.statistics.find(
+          (s) => s.league.id === leagueId && s.team.id === teamId
+        ) ??
+        p.statistics.find(
+          (s) => s.league.id === leagueId && s.league.season === season
+        ) ??
+        p.statistics.find((s) => s.league.id === leagueId);
+      if (!leagueStat) continue;
+      out.push(
+        enrichLeaguePoolPlayer(
+          { ...p, statistics: [leagueStat] },
+          leagueId,
+          season
+        )
+      );
+    }
+    total = paging.total;
+    page += 1;
+    if (players.length === 0) break;
+  }
+  return out;
+}
+
 /** Pool de jugadores con stats de una liga/temporada (scouting Américas o Mundial). */
 export async function getLeaguePlayerStatsPool(
   leagueId: number,
   season: number = DEFAULT_SEASON
 ): Promise<Player[]> {
-  const key = cacheKey("leaguePlayerStatsPool", { league: leagueId, season });
+  // v5: respeta MAX_PAGE del proxy (20); no tumba el pool si una página falla.
+  const key = cacheKey("leaguePlayerStatsPool.v5", { league: leagueId, season });
+  const legacyKeys = [
+    cacheKey("leaguePlayerStatsPool.v4", { league: leagueId, season }),
+    cacheKey("leaguePlayerStatsPool.v3", { league: leagueId, season }),
+    cacheKey("leaguePlayerStatsPool.v2", { league: leagueId, season }),
+    cacheKey("leaguePlayerStatsPool", { league: leagueId, season }),
+  ];
   if (!shouldBypassPlayerStatsCache()) {
     const cached = getLocalCache<Player[]>(key);
-    if (cached) return cached;
+    if (cached && cached.length > 0) return cached;
   }
 
   try {
@@ -1117,32 +1221,98 @@ export async function getLeaguePlayerStatsPool(
 
     const firstPage = await getPlayers({ league: leagueId, season, page: 1 });
     mergePlayerPoolRows(byId, firstPage.players);
-    const totalPages = Math.min(firstPage.paging.total, WORLD_CUP_PLAYER_POOL_MAX_PAGES);
-
+    const totalPages = Math.min(
+      Math.max(firstPage.paging.total, 1),
+      WORLD_CUP_PLAYER_POOL_MAX_PAGES
+    );
     if (totalPages > 1) {
-      const extraPages = Array.from({ length: totalPages - 1 }, (_, index) => index + 2);
+      const extraPages = Array.from(
+        { length: totalPages - 1 },
+        (_, index) => index + 2
+      );
       const pageResults = await mapAsyncWithConcurrency(
         extraPages,
         WORLD_CUP_PLAYER_POOL_PAGE_CONCURRENCY,
         async (page) => getPlayers({ league: leagueId, season, page }),
-        0
+        WORLD_CUP_PLAYER_POOL_PAGE_DELAY_MS
       );
       for (const { players } of pageResults) {
         mergePlayerPoolRows(byId, players);
       }
     }
 
-    const pool = [...byId.values()].map((p) =>
+    // Rellenar huecos respecto al plantel actual (fichajes fuera del paginado).
+    let squadPositions = new Map<number, string>();
+    try {
+      squadPositions = await getLeagueSquadPositionMap(leagueId, season);
+    } catch {
+      /* plantel opcional */
+    }
+
+    const missingTeamIds = new Set<number>();
+    try {
+      const teams = await getTeams(season, leagueId);
+      for (const team of teams) {
+        let teamCount = 0;
+        for (const p of byId.values()) {
+          if (p.statistics[0]?.team.id === team.id) teamCount += 1;
+        }
+        if (teamCount < 6) missingTeamIds.add(team.id);
+      }
+    } catch {
+      /* sin teams: seguimos con el paginado */
+    }
+
+    if (missingTeamIds.size > 0 && byId.size > 0) {
+      try {
+        const teamPools = await mapAsyncWithConcurrency(
+          [...missingTeamIds],
+          WORLD_CUP_GK_TEAM_CONCURRENCY,
+          (teamId) =>
+            fetchLeaguePlayersForTeam(teamId, leagueId, season).catch(() => []),
+          100
+        );
+        for (const rows of teamPools) {
+          mergePlayerPoolRows(byId, rows);
+        }
+      } catch {
+        /* huecos opcionales */
+      }
+    }
+
+    const enriched = [...byId.values()].map((p) =>
       leagueId === LEAGUE_ID
         ? enrichWorldCupPoolPlayer(p)
         : enrichLeaguePoolPlayer(p, leagueId, season)
     );
+
+    const pool = applyResolvedPositionsToPlayers(
+      enriched,
+      leagueId,
+      season,
+      squadPositions
+    );
+
+    if (pool.length === 0) {
+      for (const legacy of legacyKeys) {
+        const stale = getStaleLocalCache<Player[]>(legacy);
+        if (stale && stale.length > 0) return stale;
+      }
+      return [];
+    }
+
     if (!shouldBypassPlayerStatsCache()) {
       setLocalCache(key, pool, playerStatsLocalCacheTtl());
     }
     return pool;
   } catch {
-    return getStaleLocalCache<Player[]>(key) ?? [];
+    const fresh = getStaleLocalCache<Player[]>(key);
+    if (fresh && fresh.length > 0) return fresh;
+    for (const legacy of legacyKeys) {
+      const stale = getStaleLocalCache<Player[]>(legacy);
+      if (stale && stale.length > 0) return stale;
+    }
+    return [];
   }
 }
 
@@ -1158,7 +1328,7 @@ export async function searchLeaguePlayers(
   const q = query.trim();
   if (q.length < 3) return [];
 
-  const key = cacheKey("leaguePlayerSearch", { q: q.toLowerCase(), league: leagueId, season });
+  const key = cacheKey("leaguePlayerSearch.v3", { q: q.toLowerCase(), league: leagueId, season });
   if (!shouldBypassPlayerStatsCache()) {
     const cached = getLocalCache<Player[]>(key);
     if (cached) return cached;
@@ -1176,10 +1346,17 @@ export async function searchLeaguePlayers(
         ? enrichWorldCupPoolPlayer(p)
         : enrichLeaguePoolPlayer(p, leagueId, season)
     );
+    const squadPositions = await getLeagueSquadPositionMap(leagueId, season);
+    const withPositions = applyResolvedPositionsToPlayers(
+      enriched,
+      leagueId,
+      season,
+      squadPositions
+    );
     if (!shouldBypassPlayerStatsCache()) {
-      setLocalCache(key, enriched, playerStatsLocalCacheTtl());
+      setLocalCache(key, withPositions, playerStatsLocalCacheTtl());
     }
-    return enriched;
+    return withPositions;
   } catch {
     return getStaleLocalCache<Player[]>(key) ?? [];
   }

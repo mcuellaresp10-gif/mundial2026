@@ -1,11 +1,15 @@
 import type { Player, PlayerStatistics } from "@/types";
 import type { MetricKey, ScoutingPosition } from "@/config/positionMetricProfiles";
 import { getPositionProfile } from "@/config/positionMetricProfiles";
-import { getLeagueSeasonStat, getWorldCupTournamentStat } from "@/utils/playerStats";
+import { allMetricViewKeys } from "@/config/scoutingMetricViews";
+import { getLeagueSeasonStat } from "@/utils/playerStats";
 import { DEFAULT_SEASON, LEAGUE_ID } from "@/lib/utils";
-import { positionToCode } from "@/utils/squad";
 import { parseRating } from "@/utils/formatters";
 import { translateTeamName } from "@/utils/teamNames";
+import {
+  resolveScoutingPosition,
+  type ScoutingPositionOptions,
+} from "@/utils/scoutingPosition";
 
 /** Mínimo de minutos en la competición para entrar al pool de scouting. */
 export const SCOUTING_MIN_WC_MINUTES = 90;
@@ -48,6 +52,7 @@ export interface ScoutingProfile {
   name: string;
   photo: string;
   team: string;
+  teamId: number;
   teamLogo: string;
   position: ScoutingPosition;
   positionRaw: string;
@@ -288,23 +293,26 @@ export function playerHasScoutingEligibleWc(
 export function getScoutingPosition(
   player: Player,
   leagueId: number = LEAGUE_ID,
-  season: number = DEFAULT_SEASON
+  season: number = DEFAULT_SEASON,
+  options?: ScoutingPositionOptions
 ): ScoutingPosition {
-  const stat =
-    getLeagueSeasonStat(player, leagueId, season) ?? getWorldCupTournamentStat(player);
-  const pos = stat?.games.position ?? player.statistics[0]?.games.position ?? "M";
-  const code = positionToCode(pos);
-  if (code === "G" || code === "D" || code === "M" || code === "F") return code;
-  return "M";
+  return resolveScoutingPosition(player, leagueId, season, options);
 }
 
 export function buildScoutingProfiles(
   players: Player[],
   leagueId: number = LEAGUE_ID,
   season: number = DEFAULT_SEASON,
-  options?: { forceIncludeIds?: ReadonlySet<number> }
+  options?: {
+    forceIncludeIds?: ReadonlySet<number>;
+    squadPositionByPlayerId?: ReadonlyMap<number, string>;
+  }
 ): ScoutingProfile[] {
   const forceIncludeIds = options?.forceIncludeIds;
+  const positionOpts: ScoutingPositionOptions | undefined =
+    options?.squadPositionByPlayerId
+      ? { squadPositionByPlayerId: options.squadPositionByPlayerId }
+      : undefined;
   const eligible = players.filter((p) => {
     if (forceIncludeIds?.has(p.player.id)) {
       return playerHasScoutingEligibleWc(p, leagueId, season, 1);
@@ -318,7 +326,7 @@ export function buildScoutingProfiles(
 
   for (const player of eligible) {
     const row = getLeagueSeasonStat(player, leagueId, season)!;
-    const position = getScoutingPosition(player, leagueId, season);
+    const position = getScoutingPosition(player, leagueId, season, positionOpts);
     const base = extractWorldCupPer90(row);
     const list = byPosition.get(position) ?? [];
     list.push({ player, base });
@@ -355,6 +363,13 @@ export function buildScoutingProfiles(
         percentiles[axis.key] = percentileRank(values, metricValue(metrics, axis.key));
       }
 
+      // Percentiles de ejes usados en vistas alternativas (Regates, Pases, etc.).
+      for (const key of allMetricViewKeys()) {
+        if (percentiles[key] != null) continue;
+        const values = withComposites.map((m) => metricValue(m, key));
+        percentiles[key] = percentileRank(values, metricValue(metrics, key));
+      }
+
       const radar = buildRadarValues(metrics, position, withComposites);
 
       profiles.push({
@@ -362,9 +377,13 @@ export function buildScoutingProfiles(
         name: player.player.name,
         photo: player.player.photo,
         team: translateTeamName(row.team.name),
+        teamId: row.team.id,
         teamLogo: row.team.logo,
         position,
-        positionRaw: row.games.position ?? position,
+        positionRaw:
+          options?.squadPositionByPlayerId?.get(player.player.id) ??
+          row.games.position ??
+          position,
         minutes: metrics.minutes,
         rating: metrics.rating,
         goals: row.goals.total ?? 0,

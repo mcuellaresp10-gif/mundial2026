@@ -3,19 +3,52 @@ import type { PlayerStatBundle } from "@/types";
 import { splitPlayerStatistics } from "@/utils/playerStats";
 
 const POSITION_MAP: Record<string, string> = {
-  Goalkeeper: "G",
-  Defender: "D",
-  Midfielder: "M",
-  Attacker: "F",
-  G: "G",
-  D: "D",
-  M: "M",
-  F: "F",
+  goalkeeper: "G",
+  keeper: "G",
+  gk: "G",
+  g: "G",
+  defender: "D",
+  defence: "D",
+  defense: "D",
+  centreback: "D",
+  centerback: "D",
+  fullback: "D",
+  wingback: "D",
+  d: "D",
+  midfielder: "M",
+  midfield: "M",
+  attackingmidfielder: "M",
+  defensivemidfielder: "M",
+  centralmidfielder: "M",
+  m: "M",
+  attacker: "F",
+  forward: "F",
+  striker: "F",
+  winger: "F",
+  centreforward: "F",
+  centerforward: "F",
+  f: "F",
 };
 
+/** Normaliza posición API / plantel a código G|D|M|F. Sin dato → M. */
 export function positionToCode(position: string | null | undefined): string {
   if (!position) return "M";
-  return POSITION_MAP[position] ?? position.charAt(0).toUpperCase();
+  const raw = position.trim();
+  if (!raw) return "M";
+  const normalized = raw.toLowerCase().replace(/[\s_-]+/g, "");
+  const mapped = POSITION_MAP[normalized];
+  if (mapped) return mapped;
+  const initial = raw.charAt(0).toUpperCase();
+  if (initial === "G" || initial === "D" || initial === "M" || initial === "F") {
+    return initial;
+  }
+  return "M";
+}
+
+export function isScoutingPositionCode(
+  code: string
+): code is "G" | "D" | "M" | "F" {
+  return code === "G" || code === "D" || code === "M" || code === "F";
 }
 
 function buildBasePlayerInfo(

@@ -18,14 +18,16 @@ import type { ScoutingMetricViewId } from "@/config/scoutingMetricViews";
 import { resolveScatterConfig } from "@/config/scoutingMetricViews";
 import { resolveStarLabel } from "@/config/scoutingStarLabels";
 import type { ScoutingProfile } from "@/utils/worldCupScoutingMetrics";
-import { getScatterPoint } from "@/utils/worldCupScoutingMetrics";
+import { getScatterPoint, scatterColorPercent } from "@/utils/worldCupScoutingMetrics";
 import { cn } from "@/lib/utils";
 
 const SCATTER_DOT_FILL = "#FCD116";
-/** Jugadores del equipo filtrado (distinto del dorado de selección). */
+/** Jugador en revisión (clic) — distinto del dorado del resto. */
+const SCATTER_SELECTED_FILL = "#38BDF8";
+/** Jugadores del equipo filtrado. */
 const SCATTER_TEAM_FILL = "#34D399";
-/** Hover / señalamiento — contraste claro vs dorado. */
-const SCATTER_HOVER_FILL = "#38BDF8";
+/** Solo al pasar el mouse (más claro que el seleccionado). */
+const SCATTER_HOVER_FILL = "#E0F2FE";
 
 export interface ScatterPoint {
   id: number;
@@ -35,6 +37,7 @@ export interface ScatterPoint {
   teamLogo: string;
   x: number;
   y: number;
+  colorValue: number;
   starLabel?: string | null;
 }
 
@@ -43,7 +46,7 @@ interface ScoutingScatterProps {
   position: ScoutingPosition;
   metricView?: ScoutingMetricViewId;
   scatterConfig?: ScatterConfig;
-  /** Jugador seleccionado — punto dorado grande. */
+  /** Jugador seleccionado — punto azul permanente. */
   highlightIds?: number[];
   /** Equipo filtrado — puntos verdes. */
   teamHighlightIds?: number[];
@@ -59,11 +62,13 @@ function CustomTooltip({
   payload,
   xLabel,
   yLabel,
+  colorLabel,
 }: {
   active?: boolean;
   payload?: { payload: ScatterPoint }[];
   xLabel: string;
   yLabel: string;
+  colorLabel?: string;
 }) {
   if (!active || !payload?.[0]) return null;
   const p = payload[0].payload;
@@ -75,6 +80,11 @@ function CustomTooltip({
         {xLabel}: {p.x.toFixed(2)}
       </p>
       <p className="font-mono">{yLabel}: {p.y.toFixed(2)}</p>
+      {colorLabel && (
+        <p className="font-mono text-muted-foreground">
+          {colorLabel}: {p.colorValue.toFixed(2)}
+        </p>
+      )}
     </div>
   );
 }
@@ -101,7 +111,7 @@ export function ScoutingScatter({
       profiles
         .filter((p) => p.position === position)
         .map((p) => {
-          const { id, name, photo, team, teamLogo, x, y } = getScatterPoint(
+          const { id, name, photo, team, teamLogo, x, y, color } = getScatterPoint(
             p,
             config.x.key,
             config.y.key,
@@ -115,11 +125,26 @@ export function ScoutingScatter({
             teamLogo,
             x,
             y,
+            colorValue: color,
             starLabel: resolveStarLabel(p.playerId, p.name),
           };
         }),
     [profiles, position, config]
   );
+
+  const colorExtent = useMemo(() => {
+    if (!points.length) return { min: 0, max: 1 };
+    let min = points[0].colorValue;
+    let max = points[0].colorValue;
+    for (const p of points) {
+      if (p.colorValue < min) min = p.colorValue;
+      if (p.colorValue > max) max = p.colorValue;
+    }
+    if (config.color.isRate) {
+      return { min: Math.min(min, 0), max: Math.max(max, 100) };
+    }
+    return { min, max: max === min ? min + 1 : max };
+  }, [points, config.color.isRate]);
 
   const avgX = points.length ? points.reduce((s, p) => s + p.x, 0) / points.length : 0;
   const avgY = points.length ? points.reduce((s, p) => s + p.y, 0) / points.length : 0;
@@ -149,7 +174,13 @@ export function ScoutingScatter({
           <ReferenceLine x={avgX} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" />
           <ReferenceLine y={avgY} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" />
           <Tooltip
-            content={<CustomTooltip xLabel={config.x.label} yLabel={config.y.label} />}
+            content={
+              <CustomTooltip
+                xLabel={config.x.label}
+                yLabel={config.y.label}
+                colorLabel={config.colorLabel}
+              />
+            }
             cursor={{ strokeDasharray: "3 3" }}
           />
           <Scatter
@@ -170,10 +201,14 @@ export function ScoutingScatter({
               const fill = isHovered
                 ? SCATTER_HOVER_FILL
                 : isSelected
-                  ? SCATTER_DOT_FILL
+                  ? SCATTER_SELECTED_FILL
                   : isTeam
                     ? SCATTER_TEAM_FILL
-                    : SCATTER_DOT_FILL;
+                    : scatterColorPercent(
+                        payload.colorValue,
+                        colorExtent.min,
+                        colorExtent.max
+                      );
               const label = payload.starLabel;
               const labelY = cy - (isEmphasized ? 14 : 11);
               return (
@@ -197,7 +232,7 @@ export function ScoutingScatter({
                   <circle
                     cx={cx}
                     cy={cy}
-                    r={isHovered ? 9 : isSelected ? 8 : isTeam ? 7 : 5}
+                    r={isSelected ? 9 : isHovered ? 8 : isTeam ? 7 : 5}
                     fill={fill}
                     fillOpacity={
                       isHovered || isSelected
@@ -209,15 +244,15 @@ export function ScoutingScatter({
                             : 0.72
                     }
                     stroke={
-                      isHovered
-                        ? SCATTER_HOVER_FILL
-                        : isSelected
-                          ? "hsl(var(--mundial-gold))"
+                      isSelected
+                        ? "#7DD3FC"
+                        : isHovered
+                          ? SCATTER_HOVER_FILL
                           : isTeam
                             ? SCATTER_TEAM_FILL
                             : "hsl(var(--background))"
                     }
-                    strokeWidth={isEmphasized ? 2.5 : 1}
+                    strokeWidth={isSelected ? 3 : isEmphasized ? 2.5 : 1}
                     style={{ cursor: onSelect ? "pointer" : "default" }}
                     onClick={() => onSelect?.(payload.id)}
                     onMouseEnter={() => setHoverId(payload.id)}
@@ -238,14 +273,24 @@ export function ScoutingScatter({
             <span className="inline-flex items-center gap-1.5">
               <span
                 className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: SCATTER_DOT_FILL }}
+                style={{
+                  background: `linear-gradient(90deg, ${scatterColorPercent(colorExtent.min, colorExtent.min, colorExtent.max)}, ${scatterColorPercent(colorExtent.max, colorExtent.min, colorExtent.max)})`,
+                }}
+                aria-hidden
+              />
+              {config.colorLabel}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: SCATTER_SELECTED_FILL }}
                 aria-hidden
               />
               Seleccionado
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
+                className="inline-block h-2.5 w-2.5 rounded-full border border-sky-300"
                 style={{ backgroundColor: SCATTER_HOVER_FILL }}
                 aria-hidden
               />

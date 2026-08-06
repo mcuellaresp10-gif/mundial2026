@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -10,9 +11,24 @@ import {
   type ScoutingPosition,
 } from "@/config/positionMetricProfiles";
 import type { ScoutingMetricViewId } from "@/config/scoutingMetricViews";
-import { getMetricView, getMetricViewsForPosition } from "@/config/scoutingMetricViews";
+import {
+  getMetricView,
+  getMetricViewsForPosition,
+  resolveScatterConfig,
+} from "@/config/scoutingMetricViews";
+import {
+  getRoleTemplate,
+  defaultRoleIdForPosition,
+  rolesForPosition,
+  type ScoutingRoleId,
+} from "@/config/scoutingRoleProfiles";
 import { profilesForPosition } from "@/utils/worldCupScoutingMetrics";
+import { filterProfilesByThresholds } from "@/utils/scoutingInsights";
 import { useWorldCupScoutingPool } from "@/hooks/useWorldCupScoutingPool";
+import { useActiveLeague } from "@/hooks/useActiveLeague";
+import { useLeagueStore } from "@/stores/useLeagueStore";
+import { getLeagueById, getLeagueBySlug } from "@/data/americasLeagues";
+import { normalizePlayerLabelName } from "@/config/scoutingStarLabels";
 import {
   ChartExportButton,
   ScoutingRadarWC,
@@ -21,20 +37,76 @@ import {
   ScoutingScatter,
   ScoutingSelectedCard,
   ScoutingMetricViewPicker,
+  ScoutingPer90Table,
+  ScoutingPercentileBar,
 } from "@/components/Jugadores/Scouting";
+import { ScoutingRankings, type RankMetricKey } from "./ScoutingRankings";
+import { ScoutingFiltersBar, type ScoutingThresholdFilters } from "./ScoutingFiltersBar";
+import {
+  ScoutingScoutCard,
+  ScoutingDataHonestyBadge,
+  ScoutingMarketPanel,
+} from "./ScoutingScoutCard";
+import { ScoutingSimilarList } from "./ScoutingSimilarList";
+import {
+  ScoutingShortlistPanel,
+  ScoutingShortlistToggle,
+} from "./ScoutingShortlistPanel";
+import {
+  ScoutingPhaseNotice,
+  ScoutingFormPlaceholder,
+  ScoutingTimeSeries,
+  ScoutingPartnerRoadmap,
+} from "./ScoutingPhaseNotice";
+import { buildAnchoredScoutBrief } from "@/utils/scoutingInsights";
+
+function parsePos(v: string | null): ScoutingPosition | null {
+  if (v === "G" || v === "D" || v === "M" || v === "F") return v;
+  return null;
+}
 
 export function ScoutingExplorer() {
-  const [position, setPosition] = useState<ScoutingPosition>("M");
-  const [metricView, setMetricView] = useState<ScoutingMetricViewId>("default");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { phase: leaguePhase, supportsPhaseFilter: phaseOk, leagues } =
+    useActiveLeague();
+  const setLeagueSlugs = useLeagueStore((s) => s.setLeagueSlugs);
+
+  const initialPos = parsePos(searchParams.get("pos")) ?? "M";
+  const [position, setPosition] = useState<ScoutingPosition>(initialPos);
+  const [metricView, setMetricView] = useState<ScoutingMetricViewId>(
+    () => (searchParams.get("view") as ScoutingMetricViewId) || "default"
+  );
+  const [roleId, setRoleId] = useState<ScoutingRoleId>(
+    () =>
+      (searchParams.get("role") as ScoutingRoleId) ||
+      defaultRoleIdForPosition(initialPos)
+  );
   const [search, setSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(() => {
+    const raw = searchParams.get("player");
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) ? n : null;
+  });
+  const [rankMetric, setRankMetric] = useState<RankMetricKey>("keyPasses90");
+  const [benchmarkScope, setBenchmarkScope] = useState<
+    "league" | "conmebol" | "position"
+  >("position");
+  const [thresholds, setThresholds] = useState<ScoutingThresholdFilters>({
+    minMinutes: 0,
+    minGoals: 0,
+    minAssists: 0,
+    minRating: 0,
+  });
   const chartRef = useRef<HTMLDivElement>(null);
 
   const {
     profiles,
     isLoading,
     isReady,
+    isEmpty,
     isEnriching,
     selectionLabel,
     minMinutes,
@@ -46,49 +118,110 @@ export function ScoutingExplorer() {
   });
 
   const leagueKey = leagueIds.join(",");
+  const role = getRoleTemplate(position, roleId);
 
   useEffect(() => {
-    setSelectedId(null);
     setTeamFilter("");
   }, [leagueKey]);
+
+  useEffect(() => {
+    const valid = rolesForPosition(position).some((r) => r.id === roleId);
+    if (!valid) setRoleId(defaultRoleIdForPosition(position));
+  }, [position, roleId]);
+
+  useEffect(() => {
+    const suggested = getRoleTemplate(position, roleId).suggestedMin;
+    if (!suggested) return;
+    setThresholds((prev) => ({
+      ...prev,
+      minGoals: suggested.goals ?? prev.minGoals,
+      minAssists: suggested.assists ?? prev.minAssists,
+      minRating: suggested.rating ?? prev.minRating,
+      minMinutes: suggested.minutes ?? prev.minMinutes,
+    }));
+  }, [roleId, position]);
+
+  useEffect(() => {
+    const leagueParam = searchParams.get("league");
+    if (!leagueParam) return;
+    const byId = Number(leagueParam);
+    const league =
+      Number.isFinite(byId) && byId > 0
+        ? getLeagueById(byId)
+        : getLeagueBySlug(leagueParam);
+    if (league && league.slug !== "mundial-2026") {
+      setLeagueSlugs([league.slug]);
+    }
+    // solo al montar / cuando cambia el param externo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get("league")]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("pos", position);
+    params.set("view", metricView);
+    params.set("role", roleId);
+    if (leagues[0]) params.set("league", String(leagues[0].id));
+    if (selectedId) params.set("player", String(selectedId));
+    else params.delete("player");
+    const next = params.toString();
+    if (next !== searchParams.toString()) {
+      router.replace(`${pathname}?${next}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position, metricView, roleId, selectedId, pathname, leagueKey]);
 
   const positionProfiles = useMemo(
     () => profilesForPosition(profiles, position),
     [profiles, position]
   );
 
+  const thresholded = useMemo(
+    () =>
+      filterProfilesByThresholds(positionProfiles, {
+        minMinutes: Math.max(thresholds.minMinutes, 0),
+        minGoals: thresholds.minGoals,
+        minAssists: thresholds.minAssists,
+        minRating: thresholds.minRating,
+      }),
+    [positionProfiles, thresholds]
+  );
+
   const teamOptions = useMemo(() => {
-    const names = new Set(positionProfiles.map((p) => p.team).filter(Boolean));
+    const names = new Set(thresholded.map((p) => p.team).filter(Boolean));
     return [...names].sort((a, b) => a.localeCompare(b, "es"));
-  }, [positionProfiles]);
+  }, [thresholded]);
 
   useEffect(() => {
-    if (teamFilter && !teamOptions.includes(teamFilter)) {
-      setTeamFilter("");
-    }
+    if (teamFilter && !teamOptions.includes(teamFilter)) setTeamFilter("");
   }, [teamFilter, teamOptions]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return positionProfiles;
-    return positionProfiles.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.team.toLowerCase().includes(q)
-    );
-  }, [positionProfiles, search]);
+    const q = normalizePlayerLabelName(search);
+    let list = thresholded;
+    if (q) {
+      list = list.filter((p) => {
+        const name = normalizePlayerLabelName(p.name);
+        const team = normalizePlayerLabelName(p.team);
+        return name.includes(q) || team.includes(q);
+      });
+    }
+    return list;
+  }, [thresholded, search]);
 
   const teamHighlightIds = useMemo(() => {
     if (!teamFilter) return [] as number[];
-    return positionProfiles
-      .filter((p) => p.team === teamFilter)
-      .map((p) => p.playerId);
-  }, [positionProfiles, teamFilter]);
+    return thresholded.filter((p) => p.team === teamFilter).map((p) => p.playerId);
+  }, [thresholded, teamFilter]);
 
   const selectedProfile = useMemo(() => {
     const id = selectedId ?? filtered[0]?.playerId ?? null;
     if (id == null) return null;
-    return filtered.find((p) => p.playerId === id) ?? positionProfiles.find((p) => p.playerId === id) ?? null;
+    return (
+      filtered.find((p) => p.playerId === id) ??
+      positionProfiles.find((p) => p.playerId === id) ??
+      null
+    );
   }, [selectedId, filtered, positionProfiles]);
 
   const peerRadar = useMemo(() => {
@@ -102,25 +235,52 @@ export function ScoutingExplorer() {
     return syntheticPeerProfile(values, position, selectedProfile);
   }, [selectedProfile, positionProfiles, position]);
 
-  const positionLabel = scoutingPositionOptions().find((o) => o.value === position)?.label ?? position;
+  const positionLabel =
+    scoutingPositionOptions().find((o) => o.value === position)?.label ?? position;
   const activeView = getMetricView(metricView, position);
+  const scatterConfig = role.scatter ?? resolveScatterConfig(position, metricView);
 
   useEffect(() => {
     const available = getMetricViewsForPosition(position);
-    if (!available.some((v) => v.id === metricView)) {
-      setMetricView("default");
-    }
+    if (!available.some((v) => v.id === metricView)) setMetricView("default");
   }, [position, metricView]);
+
+  useEffect(() => {
+    if (role.focusKeys[0]) setRankMetric(role.focusKeys[0]);
+  }, [roleId, position]);
+
+  const brief = selectedProfile ? buildAnchoredScoutBrief(selectedProfile) : [];
 
   return (
     <div className="space-y-6">
+      <ScoutingDataHonestyBadge />
+      <ScoutingPhaseNotice phase={leaguePhase} supportsPhase={phaseOk} />
+
+      <ScoutingFiltersBar
+        position={position}
+        roleId={roleId}
+        onRoleChange={setRoleId}
+        thresholds={thresholds}
+        onThresholdsChange={setThresholds}
+        benchmarkScope={benchmarkScope}
+        onBenchmarkScopeChange={setBenchmarkScope}
+      />
+      <p className="text-[11px] text-muted-foreground -mt-3">
+        Rol: {role.label} — {role.description}
+        {benchmarkScope !== "position"
+          ? ` · Benchmark UI: ${benchmarkScope} (percentiles del pool activo de posición)`
+          : " · Percentiles vs misma posición en el pool activo"}
+      </p>
+
       <div className="flex flex-wrap gap-3 items-end">
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Posición</label>
           <Select
             value={position}
             onChange={(e) => {
-              setPosition(e.target.value as ScoutingPosition);
+              const next = e.target.value as ScoutingPosition;
+              setPosition(next);
+              setRoleId(defaultRoleIdForPosition(next));
               setSelectedId(null);
             }}
           >
@@ -133,10 +293,7 @@ export function ScoutingExplorer() {
         </div>
         <div className="min-w-[180px]">
           <label className="text-xs text-muted-foreground block mb-1">Equipo</label>
-          <Select
-            value={teamFilter}
-            onChange={(e) => setTeamFilter(e.target.value)}
-          >
+          <Select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
             <option value="">Todos los equipos</option>
             {teamOptions.map((team) => (
               <option key={team} value={team}>
@@ -148,7 +305,7 @@ export function ScoutingExplorer() {
         <div className="flex-1 min-w-[200px]">
           <label className="text-xs text-muted-foreground block mb-1">Buscar jugador</label>
           <Input
-            placeholder="Ej. Leonai, Náutico…"
+            placeholder="Ej. Urena, Castro…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -159,6 +316,13 @@ export function ScoutingExplorer() {
           {!isReady && isLoading && " · cargando pool…"}
           {isReady && isEnriching && " · ampliando búsqueda…"}
           {searchActive && " · búsqueda API"}
+          {isEmpty &&
+            !isLoading &&
+            " · sin datos (reintenta o baja el umbral de minutos)"}
+          {thresholds.minMinutes > minMinutes &&
+            filtered.length === 0 &&
+            positionProfiles.length > 0 &&
+            ` · filtro min. ${thresholds.minMinutes}' oculta a todos`}
         </p>
       </div>
 
@@ -171,43 +335,64 @@ export function ScoutingExplorer() {
       {isLoading && profiles.length === 0 ? (
         <Skeleton className="h-[480px] w-full" />
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
-          <div ref={chartRef} className="space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-start justify-between gap-4">
-                <div>
-                  <CardTitle>
-                    {activeView?.label ?? "Mapa"} · {positionLabel.toLowerCase()}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground font-normal">
-                    Pool {selectionLabel} · ≥{minMinutes} min
-                    {searchActive ? " (búsqueda ≥1 min)" : ""} · clic en un punto
-                    para seleccionar
-                    {teamFilter ? ` · resaltados: ${teamFilter}` : ""}
-                  </p>
-                </div>
-                <ChartExportButton
-                  targetRef={chartRef}
-                  filename={`scouting-${position}-${metricView}-${leagueIds.join("-")}.png`}
-                />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <ScoutingScatter
-                  profiles={filtered}
-                  position={position}
-                  metricView={metricView}
-                  highlightIds={selectedProfile ? [selectedProfile.playerId] : []}
-                  teamHighlightIds={teamHighlightIds}
-                  teamHighlightLabel={teamFilter || null}
-                  selectedId={selectedProfile?.playerId}
-                  onSelect={setSelectedId}
-                />
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-6">
+          <div className="space-y-4">
+            <div ref={chartRef} className="space-y-4">
+              <Card>
+                <CardHeader className="flex flex-row items-start justify-between gap-4">
+                  <div>
+                    <CardTitle>
+                      {activeView?.label ?? "Mapa"} · {positionLabel.toLowerCase()}
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground font-normal">
+                      Pool {selectionLabel} · ≥{minMinutes} min
+                      {searchActive ? " (búsqueda ≥1 min)" : ""} · clic para
+                      seleccionar
+                      {teamFilter ? ` · resaltados: ${teamFilter}` : ""}
+                    </p>
+                  </div>
+                  <ChartExportButton
+                    targetRef={chartRef}
+                    filename={`scouting-${position}-${metricView}-${leagueIds.join("-")}.png`}
+                  />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <ScoutingScatter
+                    profiles={filtered}
+                    position={position}
+                    metricView={metricView}
+                    scatterConfig={scatterConfig}
+                    highlightIds={
+                      selectedProfile ? [selectedProfile.playerId] : []
+                    }
+                    teamHighlightIds={teamHighlightIds}
+                    teamHighlightLabel={teamFilter || null}
+                    selectedId={selectedProfile?.playerId}
+                    onSelect={setSelectedId}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ScoutingRankings
+                profiles={filtered}
+                metricKey={rankMetric}
+                onMetricChange={setRankMetric}
+                selectedId={selectedProfile?.playerId ?? null}
+                onSelect={setSelectedId}
+              />
+              <ScoutingShortlistPanel onSelect={setSelectedId} />
+            </div>
           </div>
 
           <div className="space-y-4">
             <ScoutingSelectedCard profile={selectedProfile} />
+            {selectedProfile && (
+              <div className="flex flex-wrap gap-2">
+                <ScoutingShortlistToggle profile={selectedProfile} />
+              </div>
+            )}
             {selectedProfile && peerRadar && (
               <Card>
                 <CardHeader>
@@ -220,10 +405,51 @@ export function ScoutingExplorer() {
                     labelA={selectedProfile.name.split(" ").pop()}
                     labelB="Promedio"
                     height={280}
+                    axisKeys={role.focusKeys}
                   />
                 </CardContent>
               </Card>
             )}
+            {selectedProfile && (
+              <>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Per 90 + percentiles</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <ScoutingPer90Table profile={selectedProfile} />
+                    <ScoutingPercentileBar profile={selectedProfile} />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Brief (anclado)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      {brief.map((line) => (
+                        <li key={line}>· {line}</li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+                <ScoutingScoutCard
+                  profile={selectedProfile}
+                  peers={positionProfiles}
+                  position={position}
+                />
+                <ScoutingSimilarList
+                  profile={selectedProfile}
+                  peers={positionProfiles}
+                  focusKeys={role.focusKeys}
+                  onSelect={setSelectedId}
+                />
+                <ScoutingFormPlaceholder profile={selectedProfile} />
+                <ScoutingTimeSeries profile={selectedProfile} />
+                <ScoutingMarketPanel profile={selectedProfile} />
+              </>
+            )}
+            <ScoutingPartnerRoadmap />
           </div>
         </div>
       )}

@@ -24,6 +24,7 @@ export function ComparativaJugadores() {
   const [metricView, setMetricView] = useState<ScoutingMetricViewId>("default");
   const [playerAId, setPlayerAId] = useState<number>(0);
   const [playerBId, setPlayerBId] = useState<number>(0);
+  const [playerCId, setPlayerCId] = useState<number>(0);
   const chartRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -44,17 +45,20 @@ export function ComparativaJugadores() {
 
   const profileA = filtered.find((p) => p.playerId === playerAId) ?? filtered[0];
   const profileB = filtered.find((p) => p.playerId === playerBId) ?? filtered[1];
+  const profileC = filtered.find((p) => p.playerId === playerCId) ?? filtered[2] ?? null;
 
   useEffect(() => {
     if (filtered[0] && !playerAId) setPlayerAId(filtered[0].playerId);
     if (filtered[1] && !playerBId) setPlayerBId(filtered[1].playerId);
-  }, [filtered, playerAId, playerBId]);
+    if (filtered[2] && !playerCId) setPlayerCId(filtered[2].playerId);
+  }, [filtered, playerAId, playerBId, playerCId]);
 
   const leagueKey = leagueIds.join(",");
 
   useEffect(() => {
     setPlayerAId(0);
     setPlayerBId(0);
+    setPlayerCId(0);
     setMetricView("default");
   }, [posFilter, leagueKey]);
 
@@ -67,7 +71,7 @@ export function ComparativaJugadores() {
 
   const positionProfile = getPositionProfile(posFilter);
   const activeView = getMetricView(metricView, posFilter);
-  const highlightIds = [profileA?.playerId, profileB?.playerId].filter(
+  const highlightIds = [profileA?.playerId, profileB?.playerId, profileC?.playerId].filter(
     (id): id is number => id != null
   );
 
@@ -76,7 +80,7 @@ export function ComparativaJugadores() {
       <CardHeader>
         <CardTitle>Comparativa · {selectionLabel}</CardTitle>
         <p className="text-sm text-muted-foreground font-normal">
-          Stats seleccionadas · ≥{minMinutes} min · radar y scatter por posición
+          Hasta 3 jugadores · ≥{minMinutes} min · radar y scatter por posición
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -112,6 +116,18 @@ export function ComparativaJugadores() {
               </option>
             ))}
           </Select>
+          <span className="self-center font-bold">VS</span>
+          <Select
+            value={profileC?.playerId ?? 0}
+            onChange={(e) => setPlayerCId(Number(e.target.value))}
+          >
+            <option value={0}>— Tercero (opcional)</option>
+            {filtered.map((p) => (
+              <option key={p.playerId} value={p.playerId}>
+                {p.name} ({p.team})
+              </option>
+            ))}
+          </Select>
         </div>
 
         {isLoading && !isReady ? (
@@ -129,12 +145,22 @@ export function ComparativaJugadores() {
                   filename={`comparativa-${profileA.name}-vs-${profileB.name}.png`}
                 />
               </div>
-              <ScoutingRadarWC
-                profile={profileA}
-                compareProfile={profileB}
-                labelA={profileA.name.split(" ").pop() ?? profileA.name}
-                labelB={profileB.name.split(" ").pop() ?? profileB.name}
-              />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <ScoutingRadarWC
+                  profile={profileA}
+                  compareProfile={profileB}
+                  labelA={profileA.name.split(" ").pop() ?? profileA.name}
+                  labelB={profileB.name.split(" ").pop() ?? profileB.name}
+                />
+                {profileC && (
+                  <ScoutingRadarWC
+                    profile={profileA}
+                    compareProfile={profileC}
+                    labelA={profileA.name.split(" ").pop() ?? profileA.name}
+                    labelB={profileC.name.split(" ").pop() ?? profileC.name}
+                  />
+                )}
+              </div>
               <div>
                 <p className="text-sm font-medium mb-2">
                   Scatter · {activeView?.label ?? "Resumen"} · {positionProfile.label}s ({filtered.length})
@@ -154,9 +180,13 @@ export function ComparativaJugadores() {
               </div>
             </div>
             <ScoutingPer90Table profile={profileA} compareProfile={profileB} />
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            {profileC && (
+              <ScoutingPer90Table profile={profileA} compareProfile={profileC} />
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <ComparePlayerCard profile={profileA} />
               <ComparePlayerCard profile={profileB} />
+              {profileC && <ComparePlayerCard profile={profileC} />}
             </div>
           </>
         ) : null}
@@ -165,17 +195,36 @@ export function ComparativaJugadores() {
   );
 }
 
-function ComparePlayerCard({ profile }: { profile: { name: string; photo: string; team: string; goals: number; assists: number; rating: number; minutes: number } }) {
+function ComparePlayerCard({
+  profile,
+}: {
+  profile: {
+    name: string;
+    photo: string;
+    team: string;
+    goals: number;
+    assists: number;
+    rating: number;
+    minutes: number;
+  };
+}) {
   return (
     <div className="p-3 rounded-lg bg-muted/50 space-y-1">
       <div className="flex items-center gap-2 mb-2">
-        <Image src={profile.photo} alt="" width={32} height={32} className="rounded-full" unoptimized />
+        <Image
+          src={profile.photo}
+          alt=""
+          width={32}
+          height={32}
+          className="rounded-full"
+          unoptimized
+        />
         <span className="font-semibold">{profile.name}</span>
       </div>
       <p className="text-xs text-muted-foreground">{profile.team}</p>
       <p>Goles: {profile.goals}</p>
       <p>Asistencias: {profile.assists}</p>
-      <p>Rating WC: {profile.rating.toFixed(1)}</p>
+      <p>Rating: {profile.rating.toFixed(1)}</p>
       <p>Minutos: {profile.minutes}&apos;</p>
     </div>
   );

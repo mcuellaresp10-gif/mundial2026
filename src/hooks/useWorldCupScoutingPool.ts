@@ -7,6 +7,7 @@ import { useActiveLeague } from "@/hooks/useActiveLeague";
 import {
   getLeagueGoalkeepersForTeams,
   getLeaguePlayerStatsPool,
+  getLeagueSquadPositionMap,
   getTeams,
   searchLeaguePlayers,
 } from "@/services/apiFootball";
@@ -88,11 +89,12 @@ export function useWorldCupScoutingPool(
   });
 
   const poolsReady = poolQueries.every((q) => {
-    if (!q.isLoading) return true;
+    if (!q.isLoading && !q.isFetching) return true;
     const rows = q.data as Player[] | undefined;
     return (rows?.length ?? 0) > 0;
   });
-  const poolLoading = poolQueries.some((q) => q.isLoading) && !poolsReady;
+  const poolLoading =
+    poolQueries.some((q) => q.isLoading || q.isFetching) && !poolsReady;
   const poolDataKey = poolQueries.map((q) => q.dataUpdatedAt).join("|");
 
   const leaguePools = useMemo(
@@ -125,6 +127,27 @@ export function useWorldCupScoutingPool(
     enabled: enabled && searchActive && leagues.length > 0,
     staleTime,
   });
+
+  const { data: squadPositionEntries = [] } = useQuery({
+    queryKey: ["leagueSquadPositionMap", "scouting-v3", poolKey, seasonKey],
+    queryFn: async () => {
+      const maps = await Promise.all(
+        leagues.map((l) => getLeagueSquadPositionMap(l.id, l.defaultSeason))
+      );
+      const merged = new Map<number, string>();
+      for (const map of maps) {
+        for (const [id, pos] of map) merged.set(id, pos);
+      }
+      return [...merged.entries()];
+    },
+    enabled: enabled && leagues.length > 0,
+    staleTime: CACHE_TTL_MS,
+  });
+
+  const squadPositionByPlayerId = useMemo(
+    () => new Map(squadPositionEntries),
+    [squadPositionEntries]
+  );
 
   const { data: gkPools = [], isFetching: gkFetching } = useQuery({
     queryKey: [
@@ -195,8 +218,15 @@ export function useWorldCupScoutingPool(
     () =>
       buildScoutingProfiles(mergedPlayers, league.id, league.defaultSeason, {
         forceIncludeIds,
+        squadPositionByPlayerId,
       }),
-    [mergedPlayers, league.id, league.defaultSeason, forceIncludeIds]
+    [
+      mergedPlayers,
+      league.id,
+      league.defaultSeason,
+      forceIncludeIds,
+      squadPositionByPlayerId,
+    ]
   );
 
   const profilesById = useMemo(() => {
@@ -243,6 +273,10 @@ export function useWorldCupScoutingPool(
       (gkFetching && fieldMerged.length > 0) ||
       (searchFetching && searchActive),
     isReady: profiles.length > 0,
+    isEmpty:
+      !poolLoading &&
+      profiles.length === 0 &&
+      poolQueries.every((q) => !q.isFetching),
     searchActive,
   };
 }

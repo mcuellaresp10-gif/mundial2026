@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import type { ScoutingPosition } from "@/config/positionMetricProfiles";
+import type { MetricKey, ScoutingPosition } from "@/config/positionMetricProfiles";
 import { getPositionProfile } from "@/config/positionMetricProfiles";
 import type { ScoutingProfile } from "@/utils/worldCupScoutingMetrics";
 import { CHART_GOLD } from "@/components/Estadisticas/charts/chartTheme";
@@ -28,12 +28,42 @@ const RADAR_COMPARE = {
   strokeWidth: 1.5,
 };
 
+const KEY_LABELS: Partial<Record<MetricKey, string>> = {
+  dribblesSuccess90: "Regates/90",
+  duelsWon90: "Duelos/90",
+  keyPasses90: "Pases clave",
+  shots90: "Tiros/90",
+  shotsOn90: "A puerta/90",
+  foulsDrawn90: "Faltas rec.",
+  tackles90: "Entradas/90",
+  offensiveIndex: "Ofensivo",
+  goals90: "Goles/90",
+  assists90: "Asist./90",
+  finishingIndex: "Finalización",
+  interceptions90: "Intercep./90",
+  duelWinRate: "% duelos",
+  blocks90: "Bloqueos/90",
+  foulsCommitted90: "Faltas",
+  defensiveIndex: "Defensivo",
+  saves90: "Paradas/90",
+  conceded90: "Recibidos/90",
+  savePercentage: "% paro",
+  passes90: "Pases/90",
+  passAccuracy: "% pase",
+  goalkeeperIndex: "Portero",
+  dribbleSuccessRate: "% regate",
+  dribblesAttempts90: "Intentos/90",
+  shotOnTargetRate: "% a puerta",
+};
+
 interface ScoutingRadarWCProps {
   profile: ScoutingProfile;
   compareProfile?: ScoutingProfile | null;
   labelA?: string;
   labelB?: string;
   height?: number;
+  /** Ejes del rol (si no, radar de posición por defecto). */
+  axisKeys?: MetricKey[];
 }
 
 export function ScoutingRadarWC({
@@ -42,17 +72,33 @@ export function ScoutingRadarWC({
   labelA,
   labelB = "Promedio del resto",
   height = 340,
+  axisKeys,
 }: ScoutingRadarWCProps) {
   const positionProfile = getPositionProfile(profile.position);
+  const axes =
+    axisKeys && axisKeys.length > 0
+      ? axisKeys.map((key) => ({
+          key,
+          label: KEY_LABELS[key] ?? key.replace(/90$/, "/90"),
+        }))
+      : positionProfile.radarAxes.map((a) => ({ key: a.key, label: a.label }));
 
-  const chartData = positionProfile.radarAxes.map((axis) => ({
-    stat: axis.label,
-    A: profile.radarValues[axis.key] ?? 0,
-    B: compareProfile
-      ? compareProfile.radarValues[axis.key] ?? profile.radarPeerAverage[axis.key] ?? 5
-      : profile.radarPeerAverage[axis.key] ?? 5,
-    help: axis.compositeHelp,
-  }));
+  const chartData = axes.map((axis) => {
+    const fromRadar = profile.radarValues[axis.key];
+    const fromPct = profile.percentiles[axis.key];
+    const A =
+      fromRadar != null
+        ? fromRadar
+        : fromPct != null
+          ? Math.round((fromPct / 10) * 10) / 10
+          : 5;
+    const B =
+      compareProfile?.radarValues[axis.key] ??
+      (compareProfile?.percentiles[axis.key] != null
+        ? Math.round(((compareProfile.percentiles[axis.key] as number) / 10) * 10) / 10
+        : profile.radarPeerAverage[axis.key] ?? 5);
+    return { stat: axis.label, A, B };
+  });
 
   return (
     <ResponsiveContainer width="100%" height={height}>

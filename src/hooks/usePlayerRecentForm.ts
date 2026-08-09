@@ -30,7 +30,7 @@ export function usePlayerRecentForm(
   enabled = true
 ) {
   const { data: fixtures = [], isLoading: fixturesLoading } = useFixtures({
-    applyPhaseFilter: false,
+    applyPhaseFilter: true,
   });
 
   const recentFixtureIds = useMemo(() => {

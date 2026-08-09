@@ -5,7 +5,7 @@ import { usePlayerRecentForm } from "@/hooks/usePlayerRecentForm";
 import type { ScoutingProfile } from "@/utils/worldCupScoutingMetrics";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Placeholder de forma reciente / fase: la API season no parte Apertura/Clausura. */
+/** Aviso corto: la API season no parte Apertura/Clausura; la forma sí puede. */
 export function ScoutingPhaseNotice({
   phase,
   supportsPhase,
@@ -14,21 +14,17 @@ export function ScoutingPhaseNotice({
   supportsPhase: boolean;
 }) {
   if (!supportsPhase || phase === "all") {
-    return (
-      <p className="text-xs text-muted-foreground">
-        Pool de temporada completa (stats API por temporada).
-      </p>
-    );
+    return null;
   }
   const label = phase === "apertura" ? "Apertura" : "Clausura";
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
-      Fase <strong>{label}</strong> activa en el selector: las tablas/fixtures sí
-      filtran por fase, pero el pool de scouting usa{" "}
-      <strong>temporada completa</strong> (API-Football no parte stats de
-      jugador por Apertura/Clausura). La forma reciente abajo usa los últimos
-      partidos del club vía <code className="text-[10px]">fixtures/players</code>.
-    </div>
+    <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-muted-foreground">
+      <strong className="text-foreground">{label}:</strong> el mapa y percentiles
+      siguen siendo de <strong className="text-foreground">temporada completa</strong>{" "}
+      (la API no parte stats de jugador por fase). La{" "}
+      <strong className="text-foreground">forma reciente</strong> sí usa partidos
+      de esta fase.
+    </p>
   );
 }
 
@@ -172,16 +168,8 @@ export function ScoutingTimeSeries({ profile }: { profile: ScoutingProfile }) {
 
 export function ScoutingPartnerRoadmap() {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Próximos partners</CardTitle>
-      </CardHeader>
-      <CardContent className="text-xs text-muted-foreground space-y-1">
-        <p>· Deep-link a video (Wyscout / highlights) por partido.</p>
-        <p>· Eventos avanzados (xG, progresivos) con proveedor Opta/StatsBomb.</p>
-        <p>· Cobertura youth / Sudamericano sub-20.</p>
-        <p>· CRM multi-usuario tipo club (bajo demanda).</p>
-      </CardContent>
-    </Card>
+    <p className="text-[11px] text-muted-foreground border-t pt-3">
+      Próximo (partners): video · xG/progresivos · youth · CRM club.
+    </p>
   );
 }

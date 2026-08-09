@@ -83,13 +83,10 @@ export function ScoutingScoutCard({ profile, peers, position }: ScoutingScoutCar
 
 export function ScoutingDataHonestyBadge() {
   return (
-    <div className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
-      <strong className="text-foreground">Datos:</strong> volumen API-Football
-      (tiros, pases, duelos, entradas…).{" "}
-      <span className="text-muted-foreground">
-        No incluye xG, pases/carries progresivos, pressures ni video.
-      </span>
-    </div>
+    <p className="text-[11px] text-muted-foreground">
+      Datos: volumen API-Football. Sin xG, pases/carries progresivos, pressures ni
+      video.
+    </p>
   );
 }
 

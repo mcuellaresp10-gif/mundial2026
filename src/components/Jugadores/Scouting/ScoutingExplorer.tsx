@@ -3,8 +3,6 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   scoutingPositionOptions,
@@ -251,80 +249,56 @@ export function ScoutingExplorer() {
 
   const brief = selectedProfile ? buildAnchoredScoutBrief(selectedProfile) : [];
 
+  const statusText = [
+    `${filtered.length} de ${positionProfiles.length} ${positionLabel.toLowerCase()}`,
+    teamFilter ? `${teamHighlightIds.length} de ${teamFilter}` : null,
+    !isReady && isLoading ? "cargando…" : null,
+    isReady && isEnriching ? "ampliando…" : null,
+    searchActive ? "búsqueda API" : null,
+    isEmpty && !isLoading ? "sin datos" : null,
+    thresholds.minMinutes > minMinutes &&
+    filtered.length === 0 &&
+    positionProfiles.length > 0
+      ? `filtro ${thresholds.minMinutes}' oculta todos`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const roleHint =
+    `${role.label}: ${role.description}` +
+    (benchmarkScope !== "position"
+      ? ` · Benchmark: ${benchmarkScope} (percentiles del pool activo)`
+      : " · Percentiles vs misma posición");
+
   return (
-    <div className="space-y-6">
-      <ScoutingDataHonestyBadge />
-      <ScoutingPhaseNotice phase={leaguePhase} supportsPhase={phaseOk} />
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <ScoutingDataHonestyBadge />
+        <ScoutingPhaseNotice phase={leaguePhase} supportsPhase={phaseOk} />
+      </div>
 
       <ScoutingFiltersBar
         position={position}
+        onPositionChange={(next) => {
+          setPosition(next);
+          setRoleId(defaultRoleIdForPosition(next));
+          setSelectedId(null);
+        }}
         roleId={roleId}
         onRoleChange={setRoleId}
+        teamFilter={teamFilter}
+        onTeamFilterChange={setTeamFilter}
+        teamOptions={teamOptions}
+        search={search}
+        onSearchChange={setSearch}
         thresholds={thresholds}
         onThresholdsChange={setThresholds}
         benchmarkScope={benchmarkScope}
         onBenchmarkScopeChange={setBenchmarkScope}
+        statusText={statusText}
+        roleHint={roleHint}
       />
-      <p className="text-[11px] text-muted-foreground -mt-3">
-        Rol: {role.label} — {role.description}
-        {benchmarkScope !== "position"
-          ? ` · Benchmark UI: ${benchmarkScope} (percentiles del pool activo de posición)`
-          : " · Percentiles vs misma posición en el pool activo"}
-      </p>
-
-      <div className="flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="text-xs text-muted-foreground block mb-1">Posición</label>
-          <Select
-            value={position}
-            onChange={(e) => {
-              const next = e.target.value as ScoutingPosition;
-              setPosition(next);
-              setRoleId(defaultRoleIdForPosition(next));
-              setSelectedId(null);
-            }}
-          >
-            {scoutingPositionOptions().map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="min-w-[180px]">
-          <label className="text-xs text-muted-foreground block mb-1">Equipo</label>
-          <Select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
-            <option value="">Todos los equipos</option>
-            {teamOptions.map((team) => (
-              <option key={team} value={team}>
-                {team}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="flex-1 min-w-[200px]">
-          <label className="text-xs text-muted-foreground block mb-1">Buscar jugador</label>
-          <Input
-            placeholder="Ej. Urena, Castro…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <p className="text-sm text-muted-foreground pb-2">
-          {filtered.length} de {positionProfiles.length} {positionLabel.toLowerCase()}
-          {teamFilter ? ` · ${teamHighlightIds.length} de ${teamFilter}` : ""}
-          {!isReady && isLoading && " · cargando pool…"}
-          {isReady && isEnriching && " · ampliando búsqueda…"}
-          {searchActive && " · búsqueda API"}
-          {isEmpty &&
-            !isLoading &&
-            " · sin datos (reintenta o baja el umbral de minutos)"}
-          {thresholds.minMinutes > minMinutes &&
-            filtered.length === 0 &&
-            positionProfiles.length > 0 &&
-            ` · filtro min. ${thresholds.minMinutes}' oculta a todos`}
-        </p>
-      </div>
 
       <ScoutingMetricViewPicker
         position={position}
@@ -335,11 +309,12 @@ export function ScoutingExplorer() {
       {isLoading && profiles.length === 0 ? (
         <Skeleton className="h-[480px] w-full" />
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-6">
-          <div className="space-y-4">
-            <div ref={chartRef} className="space-y-4">
+        <div className="space-y-6">
+          {/* 1 · Descubrimiento */}
+          <section className="space-y-4" aria-label="Mapa y rankings">
+            <div ref={chartRef}>
               <Card>
-                <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
                   <div>
                     <CardTitle>
                       {activeView?.label ?? "Mapa"} · {positionLabel.toLowerCase()}
@@ -356,7 +331,7 @@ export function ScoutingExplorer() {
                     filename={`scouting-${position}-${metricView}-${leagueIds.join("-")}.png`}
                   />
                 </CardHeader>
-                <CardContent className="space-y-2">
+                <CardContent>
                   <ScoutingScatter
                     profiles={filtered}
                     position={position}
@@ -374,7 +349,7 @@ export function ScoutingExplorer() {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <ScoutingRankings
                 profiles={filtered}
                 metricKey={rankMetric}
@@ -384,73 +359,102 @@ export function ScoutingExplorer() {
               />
               <ScoutingShortlistPanel onSelect={setSelectedId} />
             </div>
-          </div>
+          </section>
 
-          <div className="space-y-4">
-            <ScoutingSelectedCard profile={selectedProfile} />
-            {selectedProfile && (
-              <div className="flex flex-wrap gap-2">
+          {/* 2 · Ficha del seleccionado (ancho completo, no rail derecho) */}
+          <section className="space-y-4" aria-label="Jugador seleccionado">
+            <div className="flex flex-wrap items-end justify-between gap-2 border-b pb-2">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Jugador seleccionado
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Radar, percentiles, forma y ficha exportable
+                </p>
+              </div>
+              {selectedProfile && (
                 <ScoutingShortlistToggle profile={selectedProfile} />
+              )}
+            </div>
+
+            {!selectedProfile ? (
+              <ScoutingSelectedCard profile={null} />
+            ) : (
+              <div className="space-y-4">
+                <ScoutingSelectedCard profile={selectedProfile} />
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {peerRadar && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">
+                          Radar · {role.label}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScoutingRadarWC
+                          profile={selectedProfile}
+                          compareProfile={peerRadar}
+                          labelA={selectedProfile.name.split(" ").pop()}
+                          labelB="Promedio"
+                          height={300}
+                          axisKeys={role.focusKeys}
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Per 90 + percentiles</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <ScoutingPer90Table profile={selectedProfile} />
+                      <ScoutingPercentileBar profile={selectedProfile} />
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Brief</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-1.5 text-sm text-muted-foreground">
+                        {brief.map((line) => (
+                          <li key={line} className="leading-snug">
+                            · {line}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                  <ScoutingSimilarList
+                    profile={selectedProfile}
+                    peers={positionProfiles}
+                    focusKeys={role.focusKeys}
+                    onSelect={setSelectedId}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ScoutingFormPlaceholder profile={selectedProfile} />
+                  <ScoutingTimeSeries profile={selectedProfile} />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ScoutingScoutCard
+                    profile={selectedProfile}
+                    peers={positionProfiles}
+                    position={position}
+                  />
+                  <ScoutingMarketPanel profile={selectedProfile} />
+                </div>
               </div>
             )}
-            {selectedProfile && peerRadar && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Mini radar</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScoutingRadarWC
-                    profile={selectedProfile}
-                    compareProfile={peerRadar}
-                    labelA={selectedProfile.name.split(" ").pop()}
-                    labelB="Promedio"
-                    height={280}
-                    axisKeys={role.focusKeys}
-                  />
-                </CardContent>
-              </Card>
-            )}
-            {selectedProfile && (
-              <>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Per 90 + percentiles</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <ScoutingPer90Table profile={selectedProfile} />
-                    <ScoutingPercentileBar profile={selectedProfile} />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Brief (anclado)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-1 text-xs text-muted-foreground">
-                      {brief.map((line) => (
-                        <li key={line}>· {line}</li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-                <ScoutingScoutCard
-                  profile={selectedProfile}
-                  peers={positionProfiles}
-                  position={position}
-                />
-                <ScoutingSimilarList
-                  profile={selectedProfile}
-                  peers={positionProfiles}
-                  focusKeys={role.focusKeys}
-                  onSelect={setSelectedId}
-                />
-                <ScoutingFormPlaceholder profile={selectedProfile} />
-                <ScoutingTimeSeries profile={selectedProfile} />
-                <ScoutingMarketPanel profile={selectedProfile} />
-              </>
-            )}
-            <ScoutingPartnerRoadmap />
-          </div>
+          </section>
+
+          <ScoutingPartnerRoadmap />
         </div>
       )}
     </div>

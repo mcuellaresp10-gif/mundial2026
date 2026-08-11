@@ -1,5 +1,12 @@
-import type { Fixture, StandingTeam } from "@/types";
+import type { Fixture, StandingTeam, StandingsGroup } from "@/types";
 import { isFixtureFinished } from "@/lib/liveRefresh";
+import { getLeagueById } from "@/data/americasLeagues";
+import {
+  applyCompetitionCoeff,
+  getDomesticEcosystemPrior,
+  getLeagueStrengthCoeff,
+  standingSourcePriority,
+} from "@/utils/leagueCompetitionStrength";
 
 /** Pesos fuerza club: tabla + plantilla + forma reciente. */
 export const CLUB_TABLE_WEIGHT = 0.45;
@@ -97,6 +104,7 @@ export function recentFormFromFixtures(
   let points = 0;
   let gf = 0;
   let ga = 0;
+  let coeffSum = 0;
 
   for (const f of finished) {
     const isHome = f.teams.home.id === teamId;
@@ -106,6 +114,7 @@ export function recentFormFromFixtures(
     ga += againstGoals;
     if (forGoals > againstGoals) points += 3;
     else if (forGoals === againstGoals) points += 1;
+    coeffSum += getLeagueStrengthCoeff(f.league.id);
   }
 
   const n = finished.length;
@@ -123,18 +132,55 @@ export function recentFormFromFixtures(
   };
   record.lose = n - record.win - record.draw;
 
+  const avgCoeff = coeffSum / n;
+  const rawStrength = strengthFromRecord(record);
+
   return {
     played: n,
     pointsPerGame: points / n,
     goalsForPerGame: gf / n,
     goalsAgainstPerGame: ga / n,
-    strength: strengthFromRecord(record),
+    strength: applyCompetitionCoeff(rawStrength, avgCoeff),
   };
+}
+
+export interface ClubStandingPick {
+  standing: StandingTeam;
+  leagueId: number;
+}
+
+/**
+ * Elige la mejor fila de tabla para un club: prioriza doméstica sobre copa.
+ * Si hay doméstica + continental, mezcla 70/30 en puntos vía fuerza (no muta filas).
+ */
+export function pickStandingForClub(
+  standingsRaw: StandingsGroup[],
+  teamId: number
+): ClubStandingPick | null {
+  const candidates: ClubStandingPick[] = [];
+  for (const sg of standingsRaw) {
+    for (const group of sg.league.standings) {
+      const row = group.find((s) => s.team.id === teamId);
+      if (row && (row.all.played > 0 || row.points > 0)) {
+        candidates.push({ standing: row, leagueId: sg.league.id });
+      }
+    }
+  }
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    const pa = standingSourcePriority(getLeagueById(a.leagueId));
+    const pb = standingSourcePriority(getLeagueById(b.leagueId));
+    if (pb !== pa) return pb - pa;
+    return (b.standing.all.played ?? 0) - (a.standing.all.played ?? 0);
+  });
+
+  return candidates[0];
 }
 
 /**
  * Fuerza club: mix tabla + plantilla + forma reciente.
- * Sin FIFA de selecciones.
+ * Ajusta por coeficiente de liga y, en copas, ancla al ecosistema del país.
  */
 export function getClubEffectiveStrength(input: {
   standing?: StandingTeam;
@@ -143,8 +189,11 @@ export function getClubEffectiveStrength(input: {
   recent?: RecentFormSummary | null;
   /** true = usar split home; false = split away; undefined = all */
   venue?: "home" | "away";
+  leagueId?: number | null;
+  teamCountry?: string | null;
 }): number {
-  const { standing, attackMod, defenseMod, recent, venue } = input;
+  const { standing, attackMod, defenseMod, recent, venue, leagueId, teamCountry } =
+    input;
   const tableAll = strengthFromStandingAll(standing);
   let table = tableAll;
 
@@ -152,6 +201,18 @@ export function getClubEffectiveStrength(input: {
     table = tableAll * 0.4 + strengthFromRecord(standing.home) * 0.6;
   } else if (standing && venue === "away" && standing.away.played >= 2) {
     table = tableAll * 0.4 + strengthFromRecord(standing.away) * 0.6;
+  }
+
+  const coeff = getLeagueStrengthCoeff(leagueId ?? undefined);
+  table = applyCompetitionCoeff(table, coeff);
+
+  const league = leagueId != null ? getLeagueById(leagueId) : undefined;
+  if (league?.type === "cup") {
+    const eco = getDomesticEcosystemPrior(
+      teamCountry ?? standing?.team.country ?? null
+    );
+    // En copas el PPG engaña: anclar al nivel del país del club.
+    table = table * 0.4 + eco * 0.6;
   }
 
   const squad = strengthFromSquadMods(attackMod, defenseMod);

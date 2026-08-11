@@ -62,6 +62,8 @@ export interface MatchLambdaEstimateInput {
   clubCalibration?: {
     enabled: boolean;
     leagueFixtures?: Fixture[];
+    homeLeagueId?: number | null;
+    awayLeagueId?: number | null;
   };
 }
 
@@ -377,6 +379,8 @@ export function estimateMatchLambdas(input: MatchLambdaEstimateInput): MatchLamb
       defenseMod: defenseModA,
       recent: recentHome,
       venue: "home",
+      leagueId: clubCalibration?.homeLeagueId,
+      teamCountry: standingHome?.team.country ?? null,
     });
     strengthB = getClubEffectiveStrength({
       standing: standingAway,
@@ -384,6 +388,8 @@ export function estimateMatchLambdas(input: MatchLambdaEstimateInput): MatchLamb
       defenseMod: defenseModB,
       recent: recentAway,
       venue: "away",
+      leagueId: clubCalibration?.awayLeagueId,
+      teamCountry: standingAway?.team.country ?? null,
     });
     homeAdv = computeDynamicHomeAdvantage(
       standingHome,

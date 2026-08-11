@@ -131,17 +131,26 @@ function calibrationError(
   probs: MatchOutcomeProbs,
   target: MatchOutcomeProbs,
   isMismatch: boolean,
+  favoriteIsHome: boolean,
   lambdaA?: number,
   lambdaB?: number
 ): number {
   if (isMismatch) {
     const drawTarget = Math.min(target.draw, 0.08);
     const drawExcess = Math.max(0, probs.draw - 0.095);
+    if (favoriteIsHome) {
+      return (
+        Math.abs(probs.homeWin - target.homeWin) * 5 +
+        Math.abs(probs.draw - drawTarget) * 2.5 +
+        drawExcess * 15 +
+        Math.abs(probs.awayWin - target.awayWin) * 0.5
+      );
+    }
     return (
-      Math.abs(probs.homeWin - target.homeWin) * 5 +
+      Math.abs(probs.awayWin - target.awayWin) * 5 +
       Math.abs(probs.draw - drawTarget) * 2.5 +
       drawExcess * 15 +
-      Math.abs(probs.awayWin - target.awayWin) * 0.5
+      Math.abs(probs.homeWin - target.homeWin) * 0.5
     );
   }
 
@@ -189,11 +198,20 @@ export function calibrateLambdasTo1X2(
   strengthGap?: number,
   fifaGap?: number
 ): { home: number; away: number } {
-  const absFifaGap = Math.abs(fifaGap ?? strengthGap ?? 0);
+  const gap = fifaGap ?? strengthGap ?? 0;
+  const absFifaGap = Math.abs(gap);
   const isMismatch = absFifaGap > 18;
+  const favoriteIsHome = gap >= 0;
 
   const initial = poissonOutcomeProbs(lambdaA, lambdaB);
-  const initialErr = calibrationError(initial, target, isMismatch, lambdaA, lambdaB);
+  const initialErr = calibrationError(
+    initial,
+    target,
+    isMismatch,
+    favoriteIsHome,
+    lambdaA,
+    lambdaB
+  );
 
   if (initialErr < 0.04 && !isMismatch) {
     const capped = capBalancedLambdas(lambdaA, lambdaB, isMismatch);
@@ -207,14 +225,40 @@ export function calibrateLambdasTo1X2(
   let bestLb = lambdaB;
   let bestErr = initialErr;
 
-  const laMin = isMismatch
-    ? Math.max(1.6, lambdaA * 0.85)
-    : Math.max(0.35, lambdaA * 0.45);
-  const laMax = isMismatch ? lambdaA * 1.35 : Math.min(2.4, lambdaA * 1.8);
-  const lbMin = isMismatch ? LAMBDA_FLOOR_MISMATCH : Math.max(0.12, lambdaB * 0.35);
-  const lbMax = isMismatch
-    ? Math.min(0.42, Math.max(lbMin + 0.05, lambdaB * 1.05))
-    : Math.min(2.4, lambdaB * 1.8);
+  // Bounds direccionales: el favorito (por gap) puede tener λ alto; el underdog se comprime.
+  let laMin: number;
+  let laMax: number;
+  let lbMin: number;
+  let lbMax: number;
+
+  if (!isMismatch) {
+    laMin = Math.max(0.35, lambdaA * 0.45);
+    laMax = Math.min(2.4, lambdaA * 1.8);
+    lbMin = Math.max(0.12, lambdaB * 0.35);
+    lbMax = Math.min(2.4, lambdaB * 1.8);
+  } else if (favoriteIsHome) {
+    laMin = Math.max(1.6, lambdaA * 0.85);
+    laMax = Math.max(laMin + 0.15, lambdaA * 1.35);
+    lbMin = LAMBDA_FLOOR_MISMATCH;
+    lbMax = Math.min(0.42, Math.max(lbMin + 0.05, lambdaB * 1.05));
+  } else {
+    lbMin = Math.max(1.6, lambdaB * 0.85);
+    lbMax = Math.max(lbMin + 0.15, lambdaB * 1.35);
+    laMin = LAMBDA_FLOOR_MISMATCH;
+    laMax = Math.min(0.42, Math.max(laMin + 0.05, lambdaA * 1.05));
+  }
+
+  // Evitar rejilla vacía si los bounds salen invertidos.
+  if (laMin > laMax) {
+    const mid = (laMin + laMax) / 2;
+    laMin = mid - 0.1;
+    laMax = mid + 0.1;
+  }
+  if (lbMin > lbMax) {
+    const mid = (lbMin + lbMax) / 2;
+    lbMin = mid - 0.1;
+    lbMax = mid + 0.1;
+  }
 
   const laStep = 0.05;
   const lbStep = isMismatch ? 0.03 : 0.04;
@@ -222,7 +266,7 @@ export function calibrateLambdasTo1X2(
   for (let la = laMin; la <= laMax; la += laStep) {
     for (let lb = lbMin; lb <= lbMax; lb += lbStep) {
       const probs = poissonOutcomeProbs(la, lb);
-      const err = calibrationError(probs, target, isMismatch, la, lb);
+      const err = calibrationError(probs, target, isMismatch, favoriteIsHome, la, lb);
       if (err < bestErr) {
         bestErr = err;
         bestLa = la;

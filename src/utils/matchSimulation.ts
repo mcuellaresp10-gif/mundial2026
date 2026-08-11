@@ -33,6 +33,8 @@ export interface MatchSimulationInput {
   /** Calibración club (local A / visitante B). */
   clubCalibration?: boolean;
   leagueFixtures?: Fixture[];
+  homeLeagueId?: number | null;
+  awayLeagueId?: number | null;
 }
 
 export interface ScoreProbabilityMatrix {
@@ -197,6 +199,8 @@ export function estimateLambdas(input: MatchSimulationInput): {
     teamBName,
     clubCalibration = false,
     leagueFixtures = [],
+    homeLeagueId = null,
+    awayLeagueId = null,
   } = input;
 
   const baseTotal = Math.max(
@@ -236,7 +240,12 @@ export function estimateLambdas(input: MatchSimulationInput): {
     standingHome: standingA,
     standingAway: standingB,
     clubCalibration: clubCalibration
-      ? { enabled: true, leagueFixtures }
+      ? {
+          enabled: true,
+          leagueFixtures,
+          homeLeagueId,
+          awayLeagueId,
+        }
       : undefined,
   });
 }

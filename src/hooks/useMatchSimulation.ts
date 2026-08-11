@@ -5,17 +5,8 @@ import { useTeams, useStandings, useH2H, useFixtures } from "@/hooks/usePartidos
 import { useTeamPlayers } from "@/hooks/useJugadores";
 import { useEstadisticasAggregadas } from "@/hooks/useEstadisticasAggregadas";
 import { runScoreSimulation, type ScoreProbabilityMatrix } from "@/utils/matchSimulation";
-import type { StandingTeam, Team } from "@/types";
-
-function flattenStandings(standingsRaw: import("@/types").StandingsGroup[]): StandingTeam[] {
-  const result: StandingTeam[] = [];
-  for (const sg of standingsRaw) {
-    for (const group of sg.league.standings) {
-      result.push(...group);
-    }
-  }
-  return result;
-}
+import { pickStandingForClub } from "@/utils/clubMatchCalibration";
+import type { Team } from "@/types";
 
 export interface UseMatchSimulationResult {
   result: ScoreProbabilityMatrix | null;
@@ -43,9 +34,17 @@ export function useMatchSimulation(
   const teamB = teams.find((t) => t.id === teamBId);
   const sameTeam = teamAId > 0 && teamAId === teamBId;
 
-  const allStandings = useMemo(() => flattenStandings(standingsRaw), [standingsRaw]);
-  const standingA = allStandings.find((s) => s.team.id === teamAId);
-  const standingB = allStandings.find((s) => s.team.id === teamBId);
+  const pickA = useMemo(
+    () => (teamAId > 0 ? pickStandingForClub(standingsRaw, teamAId) : null),
+    [standingsRaw, teamAId]
+  );
+  const pickB = useMemo(
+    () => (teamBId > 0 ? pickStandingForClub(standingsRaw, teamBId) : null),
+    [standingsRaw, teamBId]
+  );
+
+  const standingA = pickA?.standing;
+  const standingB = pickB?.standing;
 
   const isPreTournament = playedCount === 0 && startedCount === 0;
 
@@ -66,6 +65,8 @@ export function useMatchSimulation(
       isPreTournament,
       clubCalibration: true,
       leagueFixtures: fixtures,
+      homeLeagueId: pickA?.leagueId ?? null,
+      awayLeagueId: pickB?.leagueId ?? null,
     });
   }, [
     sameTeam,
@@ -81,6 +82,8 @@ export function useMatchSimulation(
     avgGoalsPerMatch,
     isPreTournament,
     fixtures,
+    pickA?.leagueId,
+    pickB?.leagueId,
   ]);
 
   return {

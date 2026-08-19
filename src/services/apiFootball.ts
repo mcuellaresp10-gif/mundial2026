@@ -28,6 +28,7 @@ import {
 import { DEFAULT_SEASON, LEAGUE_ID, PLAYER_STAT_SEASONS, CACHE_TTL_MS } from "@/lib/utils";
 import { AMERICAS_LEAGUES } from "@/data/americasLeagues";
 import {
+  getLocalDayKey,
   isFixtureLive,
   isPlausibleLiveFixture,
   isWithinKickoffWindow,
@@ -580,6 +581,13 @@ export async function getFixturesForBracket(
   return mergeFixtureLists(seasonList, fromMonths);
 }
 
+const AMERICAS_LEAGUE_IDS = AMERICAS_LEAGUES.map((l) => l.id);
+
+function filterAmericasFixtures(list: Fixture[]): Fixture[] {
+  const allowed = new Set(AMERICAS_LEAGUE_IDS);
+  return list.filter((f) => allowed.has(f.league.id));
+}
+
 /** Partidos de un día civil (API date=YYYY-MM-DD), filtrados a ligas Américas. */
 export async function getAmericasFixturesByDate(date: string): Promise<Fixture[]> {
   const key = cacheKey("fixtures-americas-day", { date });
@@ -591,13 +599,41 @@ export async function getAmericasFixturesByDate(date: string): Promise<Fixture[]
       params: { date },
       ...liveRequestConfig(),
     });
-    const allowed = new Set(AMERICAS_LEAGUES.map((l) => l.id));
-    const list = (data.response ?? []).filter((f) => allowed.has(f.league.id));
+    if (data.errors && Object.keys(data.errors).length > 0) {
+      const stale = getStaleLocalCache<Fixture[]>(key);
+      if (stale) return stale;
+      return [];
+    }
+    const list = filterAmericasFixtures(data.response ?? []);
     setLocalCache(key, list, list.length > 0 ? LIVE_FIXTURE_CACHE_MS : EMPTY_LIVE_CACHE_MS);
     return list;
   } catch {
     return getStaleLocalCache<Fixture[]>(key) ?? [];
   }
+}
+
+/**
+ * Ventana corta para el dashboard: ayer/hoy/mañana (día local) + live=all.
+ * Evita depender del calendario mensual (31 peticiones) que puede agotar cuota y dejar hoy vacío.
+ */
+export async function getAmericasFixturesForDashboard(
+  reference: Date = new Date()
+): Promise<Fixture[]> {
+  const dayKeys = new Set<string>();
+  for (let offset = -1; offset <= 1; offset += 1) {
+    const d = new Date(reference);
+    d.setDate(d.getDate() + offset);
+    dayKeys.add(getLocalDayKey(d));
+  }
+
+  const lists = await Promise.all([...dayKeys].map((d) => getAmericasFixturesByDate(d)));
+  let merged: Fixture[] = [];
+  for (const list of lists) {
+    merged = mergeFixtureLists(merged, list);
+  }
+
+  const live = filterAmericasFixtures(await getLiveFixtures(AMERICAS_LEAGUE_IDS));
+  return mergeFixtureLists(merged, live);
 }
 
 /** Calendario mensual: agrega por día (evita N temporadas completas / rate limit). */
@@ -620,7 +656,11 @@ export async function getAmericasFixturesForMonth(
 
   const merged: Fixture[] = [];
   const seen = new Set<number>();
-  const BATCH = 4;
+  const BATCH = 2;
+  const BATCH_DELAY_MS = 400;
+  const now = new Date();
+  const isCurrentMonth =
+    year === now.getFullYear() && monthIndex0 === now.getMonth();
 
   for (let i = 0; i < dates.length; i += BATCH) {
     const chunk = dates.slice(i, i + BATCH);
@@ -632,9 +672,18 @@ export async function getAmericasFixturesForMonth(
         merged.push(f);
       }
     }
+    if (i + BATCH < dates.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+    }
   }
 
-  if (merged.length > 0) setLocalCache(key, merged);
+  if (merged.length > 0) {
+    setLocalCache(
+      key,
+      merged,
+      isCurrentMonth ? LIVE_FIXTURE_CACHE_MS * 4 : CACHE_TTL_MS
+    );
+  }
   return merged;
 }
 

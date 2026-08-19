@@ -7,16 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFixtures } from "@/hooks/usePartidos";
 import { useActiveLeague } from "@/hooks/useActiveLeague";
-import { getAmericasFixturesForMonth } from "@/services/apiFootball";
+import { getAmericasFixturesForDashboard } from "@/services/apiFootball";
 import {
   getLeagueById,
   WORLD_CUP_LEAGUE,
 } from "@/data/americasLeagues";
 import {
   getDashboardFixtures,
+  getLocalDayKey,
   isPlausibleLiveFixture,
   isWithinKickoffWindow,
-  NORMAL_STALE_MS,
+  LIVE_REFRESH_MS,
+  shouldPollFixtures,
 } from "@/lib/liveRefresh";
 import { formatDayHeading } from "@/utils/formatters";
 import { cn, WORLD_CUP_LEAGUE_ID } from "@/lib/utils";
@@ -59,14 +61,14 @@ function groupFixturesByLeague(fixtures: Fixture[]): {
 function PartidosDelDiaAmericas() {
   const { leagueIds } = useActiveLeague();
   const selectedIds = useMemo(() => new Set(leagueIds), [leagueIds]);
-  const now = useMemo(() => new Date(), []);
-  const year = now.getFullYear();
-  const month = now.getMonth();
+  const dayKey = getLocalDayKey(new Date());
 
   const { data: allFixtures = [], isLoading } = useQuery({
-    queryKey: ["fixtures", { scope: "americas-month", year, month }],
-    queryFn: () => getAmericasFixturesForMonth(year, month),
-    staleTime: NORMAL_STALE_MS,
+    queryKey: ["fixtures", { scope: "americas-dashboard", day: dayKey }],
+    queryFn: () => getAmericasFixturesForDashboard(),
+    staleTime: LIVE_REFRESH_MS.fixtures,
+    refetchInterval: (query) =>
+      shouldPollFixtures(query.state.data) ? LIVE_REFRESH_MS.fixtures : false,
   });
 
   const filteredFixtures = useMemo(
@@ -115,7 +117,7 @@ function PartidosDelDiaAmericas() {
   if (byLeague.length === 0) {
     return (
       <div className="rounded-2xl border bg-muted/30 p-8 text-center text-muted-foreground">
-        No hay partidos programados próximamente en las ligas Américas
+        No hay partidos programados hoy en las ligas seleccionadas
       </div>
     );
   }

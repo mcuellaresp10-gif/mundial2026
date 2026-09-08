@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBetPlayPhaseProbs } from "@/hooks/useBetPlayPhaseProbs";
@@ -11,6 +13,9 @@ import {
   formatBetPlayPct,
   type BetPlayPhaseProbs,
 } from "@/utils/betPlaySeasonSimulation";
+
+type SortKey = "rank" | "probCuadrangulares" | "probFinal" | "probChampion";
+type SortDir = "asc" | "desc";
 
 function ProbBar({
   value,
@@ -44,6 +49,65 @@ function ProbBar({
   );
 }
 
+function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) {
+    return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" aria-hidden />;
+  }
+  return dir === "asc" ? (
+    <ArrowUp className="h-3.5 w-3.5 text-mundial-gold" aria-hidden />
+  ) : (
+    <ArrowDown className="h-3.5 w-3.5 text-mundial-gold" aria-hidden />
+  );
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  dir,
+  onSort,
+  className,
+}: {
+  label: string;
+  sortKey: SortKey;
+  activeKey: SortKey;
+  dir: SortDir;
+  onSort: (key: SortKey) => void;
+  className?: string;
+}) {
+  const active = activeKey === sortKey;
+  return (
+    <th className={cn("py-2.5 px-3 text-left font-medium", className)} aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-md transition-colors hover:text-foreground",
+          active ? "text-foreground" : "text-muted-foreground"
+        )}
+      >
+        <span>{label}</span>
+        <SortIcon active={active} dir={dir} />
+      </button>
+    </th>
+  );
+}
+
+function compareRows(
+  a: BetPlayPhaseProbs,
+  b: BetPlayPhaseProbs,
+  key: SortKey,
+  dir: SortDir
+): number {
+  const mul = dir === "asc" ? 1 : -1;
+  if (key === "rank") {
+    return (a.rank - b.rank || a.teamName.localeCompare(b.teamName, "es")) * (dir === "asc" ? 1 : -1);
+  }
+  const diff = (a[key] - b[key]) * mul;
+  if (Math.abs(diff) > 1e-12) return diff;
+  return a.rank - b.rank;
+}
+
 function ProbsTable({
   rows,
   maxPlayed,
@@ -51,20 +115,63 @@ function ProbsTable({
   rows: BetPlayPhaseProbs[];
   maxPlayed: number;
 }) {
+  const [sortKey, setSortKey] = useState<SortKey>("rank");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    // Probabilidades: mayor primero; posición: 1º arriba.
+    setSortDir(key === "rank" ? "asc" : "desc");
+  };
+
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => compareRows(a, b, sortKey, sortDir)),
+    [rows, sortKey, sortDir]
+  );
+
   return (
     <div className="overflow-x-auto rounded-lg border border-border/60">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/40 text-muted-foreground">
-            <th className="py-2.5 px-2 text-left font-medium w-10">#</th>
+            <SortableHeader
+              label="#"
+              sortKey="rank"
+              activeKey={sortKey}
+              dir={sortDir}
+              onSort={handleSort}
+              className="w-10 px-2"
+            />
             <th className="py-2.5 px-3 text-left font-medium w-[28%]">Equipo</th>
-            <th className="py-2.5 px-3 text-left font-medium">Cuadrangulares</th>
-            <th className="py-2.5 px-3 text-left font-medium">Final</th>
-            <th className="py-2.5 px-3 text-left font-medium">Campeón</th>
+            <SortableHeader
+              label="Cuadrangulares"
+              sortKey="probCuadrangulares"
+              activeKey={sortKey}
+              dir={sortDir}
+              onSort={handleSort}
+            />
+            <SortableHeader
+              label="Final"
+              sortKey="probFinal"
+              activeKey={sortKey}
+              dir={sortDir}
+              onSort={handleSort}
+            />
+            <SortableHeader
+              label="Campeón"
+              sortKey="probChampion"
+              activeKey={sortKey}
+              dir={sortDir}
+              onSort={handleSort}
+            />
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {sortedRows.map((row) => (
             <tr
               key={row.teamId}
               className="border-b border-border/40 last:border-0 align-middle"

@@ -170,15 +170,15 @@ function ProbsTable({
             />
           </tr>
         </thead>
-        <tbody>
-          {sortedRows.map((row) => (
-            <tr
-              key={row.teamId}
-              className="border-b border-border/40 last:border-0 align-middle"
-            >
-              <td className="py-2.5 px-2 font-mono text-muted-foreground tabular-nums">
-                {row.rank}
-              </td>
+          <tbody>
+            {sortedRows.map((row, index) => (
+              <tr
+                key={row.teamId}
+                className="border-b border-border/40 last:border-0 align-middle"
+              >
+                <td className="py-2.5 px-2 font-mono text-muted-foreground tabular-nums">
+                  {index + 1}
+                </td>
               <td className="py-2.5 px-3">
                 <Link
                   href={`/equipos/${row.teamId}`}

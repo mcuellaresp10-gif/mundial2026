@@ -328,11 +328,10 @@ describe("simulateBetPlayPhaseProbabilities", () => {
     assert.ok(first.probChampion >= last.probChampion);
     assert.ok(first.probCuadrangulares >= 0.9);
 
-    // Ordenados por cuadrangulares desc
-    for (let i = 1; i < rows.length; i++) {
-      assert.ok(
-        rows[i - 1].probCuadrangulares >= rows[i].probCuadrangulares - 1e-9
-      );
+    // Ordenados por posición en tabla (#1 arriba)
+    for (let i = 0; i < rows.length; i++) {
+      assert.equal(rows[i].rank, i + 1);
+      assert.equal(rows[i].teamId, i + 1);
     }
   });
 

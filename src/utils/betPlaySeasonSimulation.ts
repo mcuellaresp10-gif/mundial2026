@@ -21,6 +21,8 @@ export interface BetPlayPhaseProbs {
   teamId: number;
   teamName: string;
   teamLogo: string;
+  /** Posición actual en la tabla de posiciones. */
+  rank: number;
   /** 0–1 */
   probCuadrangulares: number;
   /** 0–1 */
@@ -637,6 +639,7 @@ export function simulateBetPlayPhaseProbabilitiesDetailed(
       teamId: s.teamId,
       teamName: meta.teamName,
       teamLogo: meta.teamLogo,
+      rank: meta.standing.rank,
       // Si está eliminado, forzar 0 en fase regular (final/campeón ya serían 0).
       probCuadrangulares: elim ? 0 : c.cuadrangulares / n,
       probFinal: elim ? 0 : c.final / n,
@@ -645,12 +648,8 @@ export function simulateBetPlayPhaseProbabilitiesDetailed(
     };
   });
 
-  rows.sort(
-    (a, b) =>
-      b.probCuadrangulares - a.probCuadrangulares ||
-      b.probFinal - a.probFinal ||
-      b.probChampion - a.probChampion
-  );
+  // Mismo orden que la tabla de posiciones (#1 arriba).
+  rows.sort((a, b) => a.rank - b.rank || a.teamName.localeCompare(b.teamName, "es"));
 
   return {
     rows,
@@ -664,7 +663,7 @@ export function simulateBetPlayPhaseProbabilitiesDetailed(
   };
 }
 
-/** Compat: solo filas (ordenadas por Cuadrangulares). */
+/** Compat: solo filas (ordenadas por posición en tabla). */
 export function simulateBetPlayPhaseProbabilities(
   input: BetPlaySimInput
 ): BetPlayPhaseProbs[] {

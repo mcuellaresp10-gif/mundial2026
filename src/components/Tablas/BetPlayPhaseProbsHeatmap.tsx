@@ -56,6 +56,7 @@ function ProbsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/40 text-muted-foreground">
+            <th className="py-2.5 px-2 text-left font-medium w-10">#</th>
             <th className="py-2.5 px-3 text-left font-medium w-[28%]">Equipo</th>
             <th className="py-2.5 px-3 text-left font-medium">Cuadrangulares</th>
             <th className="py-2.5 px-3 text-left font-medium">Final</th>
@@ -68,6 +69,9 @@ function ProbsTable({
               key={row.teamId}
               className="border-b border-border/40 last:border-0 align-middle"
             >
+              <td className="py-2.5 px-2 font-mono text-muted-foreground tabular-nums">
+                {row.rank}
+              </td>
               <td className="py-2.5 px-3">
                 <Link
                   href={`/equipos/${row.teamId}`}

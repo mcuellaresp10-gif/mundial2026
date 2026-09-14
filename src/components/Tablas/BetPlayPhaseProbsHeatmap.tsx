@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DomImageExportButtons } from "@/components/shared/DomImageExportButtons";
 import { useBetPlayPhaseProbs } from "@/hooks/useBetPlayPhaseProbs";
 import { translateTeamName } from "@/utils/teamNames";
 import { cn } from "@/lib/utils";
@@ -87,7 +88,9 @@ function SortableHeader({
         )}
       >
         <span>{label}</span>
-        <SortIcon active={active} dir={dir} />
+        <span data-export-hide>
+          <SortIcon active={active} dir={dir} />
+        </span>
       </button>
     </th>
   );
@@ -235,28 +238,41 @@ function ProbsTable({
 export function BetPlayPhaseProbsHeatmap() {
   const { enabled, probs, meta, isLoading, isFetching, phase } =
     useBetPlayPhaseProbs();
+  const exportRef = useRef<HTMLDivElement>(null);
 
   if (!enabled) return null;
 
-  const phaseLabel =
-    phase === "apertura" ? " · Apertura" : phase === "clausura" ? " · Clausura" : "";
+  const phaseName = phase === "apertura" ? "Apertura" : "Clausura";
+  const phaseLabel = phase === "apertura" || phase === "clausura" ? ` · ${phaseName}` : "";
+  const canExport = !isLoading && probs.length > 0;
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg">
-          Liga BetPlay — Probabilidades de éxito por fase{phaseLabel}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground font-normal">
-          Torneo actual ({phase === "apertura" ? "Apertura" : "Clausura"}):{" "}
-          {meta.maxPlayed} partido{meta.maxPlayed === 1 ? "" : "s"} jugado
-          {meta.maxPlayed === 1 ? "" : "s"} · {meta.pendingCount} por simular ·{" "}
-          {meta.simulations} sims
-          {meta.historyFixtureCount > meta.pendingCount
-            ? " · H2H/forma con historial de temporada"
-            : ""}
-          {isFetching && !isLoading ? " · recalculando…" : ""}
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <CardTitle className="text-lg">
+              Liga BetPlay — Probabilidades de éxito por fase{phaseLabel}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground font-normal mt-1">
+              Torneo actual ({phaseName}):{" "}
+              {meta.maxPlayed} partido{meta.maxPlayed === 1 ? "" : "s"} jugado
+              {meta.maxPlayed === 1 ? "" : "s"} · {meta.pendingCount} por simular ·{" "}
+              {meta.simulations} sims
+              {meta.historyFixtureCount > meta.pendingCount
+                ? " · H2H/forma con historial de temporada"
+                : ""}
+              {isFetching && !isLoading ? " · recalculando…" : ""}
+            </p>
+          </div>
+          {canExport && (
+            <DomImageExportButtons
+              targetRef={exportRef}
+              filename={`betplay-probs-${phaseName.toLowerCase()}.png`}
+              className="shrink-0"
+            />
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -271,7 +287,21 @@ export function BetPlayPhaseProbsHeatmap() {
             probabilidades.
           </p>
         ) : (
-          <ProbsTable rows={probs} maxPlayed={meta.maxPlayed} />
+          <div
+            ref={exportRef}
+            className="rounded-xl border border-border/60 bg-card p-3 sm:p-4"
+          >
+            <div className="mb-3 border-b border-border/60 pb-2">
+              <p className="text-sm font-semibold text-foreground">
+                Liga BetPlay — Probabilidades por fase · {phaseName}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Fútbol Américas · {meta.maxPlayed} PJ · {meta.pendingCount} pendientes ·{" "}
+                {meta.simulations} sims
+              </p>
+            </div>
+            <ProbsTable rows={probs} maxPlayed={meta.maxPlayed} />
+          </div>
         )}
       </CardContent>
     </Card>

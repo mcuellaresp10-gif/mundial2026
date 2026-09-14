@@ -36,8 +36,17 @@ function withTemporaryExportStyles<T>(node: HTMLElement, run: () => Promise<T>):
   const previousZoom = zoomTarget?.style.zoom ?? "";
   if (zoomTarget) zoomTarget.style.zoom = "1";
 
+  const hideNodes = [...node.querySelectorAll<HTMLElement>("[data-export-hide]")];
+  const previousDisplay = hideNodes.map((el) => el.style.display);
+  for (const el of hideNodes) {
+    el.style.display = "none";
+  }
+
   return run().finally(() => {
     if (zoomTarget) zoomTarget.style.zoom = previousZoom;
+    hideNodes.forEach((el, i) => {
+      el.style.display = previousDisplay[i] ?? "";
+    });
   });
 }
 

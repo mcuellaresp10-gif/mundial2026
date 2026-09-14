@@ -1,7 +1,18 @@
 "use client";
 
+import { Suspense } from "react";
 import { MatchSimulationPanel } from "@/components/Estadisticas/MatchSimulationPanel";
 import { LeagueSelector } from "@/components/shared/LeagueSelector";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function SimulacionPanelFallback() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-10 w-full max-w-md" />
+      <Skeleton className="h-40 w-full" />
+    </div>
+  );
+}
 
 export default function SimulacionPage() {
   return (
@@ -18,7 +29,9 @@ export default function SimulacionPage() {
         <LeagueSelector variant="page" />
       </div>
 
-      <MatchSimulationPanel />
+      <Suspense fallback={<SimulacionPanelFallback />}>
+        <MatchSimulationPanel />
+      </Suspense>
     </div>
   );
 }

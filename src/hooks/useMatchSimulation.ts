@@ -20,7 +20,8 @@ export interface UseMatchSimulationResult {
 /** Equipo A = local, Equipo B = visitante. */
 export function useMatchSimulation(
   teamAId: number,
-  teamBId: number
+  teamBId: number,
+  options?: { fallbackTeams?: Team[] }
 ): UseMatchSimulationResult {
   const { data: teams = [], isLoading: loadingTeams } = useTeams();
   const { data: standingsRaw = [], isLoading: loadingStandings } = useStandings();
@@ -30,8 +31,17 @@ export function useMatchSimulation(
   const { data: playersB = [], isFetching: fetchingPlayersB } = useTeamPlayers(teamBId);
   const { avgGoalsPerMatch, playedCount, startedCount } = useEstadisticasAggregadas();
 
-  const teamA = teams.find((t) => t.id === teamAId);
-  const teamB = teams.find((t) => t.id === teamBId);
+  const resolvedTeams = useMemo(() => {
+    const byId = new Map<number, Team>();
+    for (const t of teams) byId.set(t.id, t);
+    for (const t of options?.fallbackTeams ?? []) {
+      if (!byId.has(t.id)) byId.set(t.id, t);
+    }
+    return byId;
+  }, [teams, options?.fallbackTeams]);
+
+  const teamA = resolvedTeams.get(teamAId);
+  const teamB = resolvedTeams.get(teamBId);
   const sameTeam = teamAId > 0 && teamAId === teamBId;
 
   const pickA = useMemo(

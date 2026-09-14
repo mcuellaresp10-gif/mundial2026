@@ -2,7 +2,7 @@
 
 import { useState, memo } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Dices } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,8 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
     isLive && elapsed != null
       ? `${formatStatus(fixture.fixture.status.short)} · ${elapsed}'`
       : formatStatus(fixture.fixture.status.short);
+
+  const simulateHref = `/simulacion?home=${fixture.teams.home.id}&away=${fixture.teams.away.id}&league=${fixture.league.id}&homeName=${encodeURIComponent(fixture.teams.home.name)}&awayName=${encodeURIComponent(fixture.teams.away.name)}&homeLogo=${encodeURIComponent(fixture.teams.home.logo)}&awayLogo=${encodeURIComponent(fixture.teams.away.logo)}`;
 
   return (
     <Card
@@ -87,6 +89,12 @@ export const PartidoCard = memo(function PartidoCard({ fixture }: PartidoCardPro
         <div className="flex flex-wrap gap-2 mt-4">
           <Button size="sm" variant="outline" asChild>
             <Link href={`/partidos/${fixture.fixture.id}`}>📊 Análisis</Link>
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={simulateHref}>
+              <Dices className="h-4 w-4 mr-1.5" />
+              Simular
+            </Link>
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setExpanded(!expanded)}>
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}

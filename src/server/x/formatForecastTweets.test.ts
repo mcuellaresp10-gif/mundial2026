@@ -45,7 +45,7 @@ describe("formatForecastTweets", () => {
     assert.ok(thread[0].length <= 280);
   });
 
-  it("varios partidos → cabecera + un tuit por partido", () => {
+  it("varios partidos → cabecera+primer partido, luego replies", () => {
     const thread = buildForecastThread([
       {
         homeName: "A",
@@ -62,8 +62,11 @@ describe("formatForecastTweets", () => {
         winAway: 0.3,
       },
     ]);
-    assert.equal(thread[0], "Partidos de hoy de Liga BetPlay");
-    assert.equal(thread.length, 3);
+    assert.equal(thread.length, 2);
+    assert.ok(thread[0].startsWith("Partidos de hoy de Liga BetPlay"));
+    assert.ok(thread[0].includes("A") || thread[0].includes("🆚"));
+    assert.ok(thread[1].includes("🆚"));
+    assert.ok(!thread[1].includes("Partidos de hoy"));
   });
 
   it("preview Telegram incluye aviso de validación", () => {

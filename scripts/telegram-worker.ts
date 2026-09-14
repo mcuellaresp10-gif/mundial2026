@@ -1,18 +1,14 @@
 /**
- * Worker de Telegram: long polling + alertas en vivo + borrador diario X (BetPlay).
+ * Worker Telegram → generador de contenido X (@MundialAnalisis).
  * Uso: npm run telegram:worker
  * Requiere: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, API_FOOTBALL_KEY
  * Para publicar en X tras aprobar: TWITTER_API_KEY/SECRET + ACCESS_TOKEN/SECRET
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { shouldPollFixtures, isFixtureFinished } from "../src/lib/liveRefresh";
-import { isFixtureMuted, unmuteFinishedFixtures } from "../src/server/telegram/mutedFixtures";
-import { getFixturesForNotifications } from "../src/server/footballClient";
 import { getAuthorizedChatId, requireBotToken } from "../src/server/telegram/auth";
 import { createTelegramBot, registerBotCommands } from "../src/server/telegram/bot";
 import { mainReplyKeyboard } from "../src/server/telegram/keyboards";
-import { NotifierState } from "../src/server/telegram/notifier";
 import {
   getBogotaDayKey,
   getBogotaHour,
@@ -21,8 +17,8 @@ import { getForecastDraftForDay } from "../src/server/x/forecastDraftStore";
 import { sendBetPlayForecastPreviewToTelegram } from "../src/server/x/sendForecastPreview";
 
 const ROOT = process.cwd();
-const FAST_POLL_MS = 30 * 1000;
-const SLOW_POLL_MS = 5 * 60 * 1000;
+/** Revisa la hora Bogotá cada 5 min para el borrador diario. */
+const FORECAST_TICK_MS = 5 * 60 * 1000;
 /** Hora local Bogotá para enviar el borrador a Telegram. */
 const FORECAST_HOUR_BOGOTA = Number(process.env.X_FORECASTS_HOUR ?? "13");
 
@@ -47,14 +43,13 @@ loadEnv();
 const chatId = getAuthorizedChatId();
 if (!chatId) {
   console.warn(
-    "⚠ TELEGRAM_CHAT_ID not set — alertas desactivadas. Envía /start al bot; el chat_id aparecerá en el log."
+    "⚠ TELEGRAM_CHAT_ID not set — el borrador diario no se enviará solo. Envía /start; el chat_id aparece en el log."
   );
 }
 
 requireBotToken();
 
 const bot = createTelegramBot();
-const notifier = new NotifierState();
 /** Evita reenviar el borrador el mismo día en este proceso. */
 let lastForecastTickDay: string | null = null;
 
@@ -85,54 +80,24 @@ async function maybeSendDailyXForecastDraft(): Promise<void> {
   }
 }
 
-async function pollNotifications(): Promise<number> {
-  await maybeSendDailyXForecastDraft();
-
-  if (!chatId) return SLOW_POLL_MS;
-  try {
-    const fixtures = await getFixturesForNotifications();
-
-    const finishedIds = fixtures
-      .filter((f) => isFixtureFinished(f.fixture.status.short))
-      .map((f) => f.fixture.id);
-    unmuteFinishedFixtures(finishedIds);
-
-    const events = notifier.process(fixtures);
-
-    for (const event of events) {
-      if (isFixtureMuted(event.fixtureId)) continue;
-      console.info(`[telegram] Notify: fixture ${event.fixtureId}`);
-      await bot.api.sendMessage(chatId, event.message, {
-        parse_mode: "Markdown",
-        reply_markup: event.replyMarkup,
-      });
-    }
-
-    return shouldPollFixtures(fixtures) ? FAST_POLL_MS : SLOW_POLL_MS;
-  } catch (e) {
-    console.error("[telegram] Poll error:", e);
-    return SLOW_POLL_MS;
-  }
-}
-
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-function schedulePoll(delayMs: number): void {
+function scheduleForecastTick(delayMs: number): void {
   if (pollTimer) clearTimeout(pollTimer);
   pollTimer = setTimeout(async () => {
-    const next = await pollNotifications();
-    schedulePoll(next);
+    await maybeSendDailyXForecastDraft();
+    scheduleForecastTick(FORECAST_TICK_MS);
   }, delayMs);
 }
 
 async function main(): Promise<void> {
-  console.info("[telegram] Worker starting...");
+  console.info("[telegram] X content worker starting...");
   console.info(`[telegram] Authorized chat_id=${chatId}`);
   console.info(
     `[x-forecast] Daily draft hour (Bogota)=${FORECAST_HOUR_BOGOTA}`
   );
 
-  schedulePoll(chatId ? 5000 : SLOW_POLL_MS);
+  scheduleForecastTick(chatId ? 5000 : FORECAST_TICK_MS);
 
   await registerBotCommands(bot);
 
@@ -140,14 +105,14 @@ async function main(): Promise<void> {
     await bot.api
       .sendMessage(
         chatId,
-        "🤖 *¡Listo!* Toca los botones de abajo o pregúntame lo que quieras.\n\n_Pronósticos X BetPlay: /pronosticos_",
+        "🐦 *Generador X listo.*\n\n~13:00 Bogotá te mando el borrador BetPlay.\nO toca *Pronósticos X* / /pronosticos ahora.",
         { parse_mode: "Markdown", reply_markup: mainReplyKeyboard() }
       )
       .catch(() => undefined);
   }
 
   bot.start({
-    onStart: () => console.info("[telegram] Long polling active"),
+    onStart: () => console.info("[telegram] Long polling active (X content)"),
   });
 }
 

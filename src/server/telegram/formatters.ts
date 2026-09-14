@@ -271,26 +271,16 @@ export function greeting(name?: string): string {
 export const WELCOME_MESSAGE = (name?: string) =>
   `${greeting(name)}
 
-🏆 *Soy tu compañero del fútbol Américas*
+🐦 *Generador de contenido para X* (@MundialAnalisis)
 
-Puedes usar los *botones de abajo* o hablarme normal:
-• _"partidos de hoy"_
-• _"cómo va Millonarios"_
-• _"quién juega en vivo"_
-• _"líderes de la tabla"_
+Cada día ~*13:00 Bogotá* te mando el borrador de pronósticos *Liga BetPlay* (1X2). Tú apruebas o descartas; solo si apruebas se publica el hilo.
 
-Te aviso solo cuando hay *goles, inicios y finales* ⚽🔔`;
+Usa *🐦 Pronósticos X* o /pronosticos para regenerar el borrador ahora.`;
 
-export const HELP_MESSAGE = `❓ *Guía rápida*
+export const HELP_MESSAGE = `❓ *Cómo funciona*
 
-*Botones* — siempre abajo del chat
-*Pregúntame en lenguaje natural*, por ejemplo:
-• _"alineaciones de los partidos en vivo"_
-• _"¿en qué club juega Messi?"_
-• _"próximos partidos de Libertadores"_
-• _"tabla de Liga BetPlay"_
-• _"silenciar partido en vivo"_
+1. ~13:00 Bogotá genero sims 1X2 de los partidos de hoy (Liga BetPlay).
+2. Te llega el *borrador* con botones *Publicar en X* / *Descartar*.
+3. Solo si apruebas se publica el hilo en *@MundialAnalisis*.
 
-🔕 *Alertas:* usa los botones *Silenciar* / *Silenciados* para mutear goles de un partido.
-
-Comandos: /hoy /vivo /colombia /tabla /silenciar /silenciados`;
+Comandos: /pronosticos · /ayuda · /start`;

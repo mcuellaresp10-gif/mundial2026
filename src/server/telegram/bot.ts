@@ -17,39 +17,9 @@ export function createTelegramBot(): Bot {
 
   bot.command("help", (ctx) => handleIntent(ctx, { type: "help" }));
   bot.command("ayuda", (ctx) => handleIntent(ctx, { type: "help" }));
-  bot.command("hoy", (ctx) => handleIntent(ctx, { type: "today" }));
-  bot.command("vivo", (ctx) => handleIntent(ctx, { type: "live" }));
-  bot.command("proximo", (ctx) => handleIntent(ctx, { type: "next" }));
-  bot.command("tabla", (ctx) => handleIntent(ctx, { type: "standings" }));
-  bot.command("colombia", (ctx) => handleIntent(ctx, { type: "colombia" }));
-  bot.command("lineups", (ctx) => handleIntent(ctx, { type: "lineups" }));
-  bot.command("alineaciones", (ctx) => handleIntent(ctx, { type: "lineups" }));
-  bot.command("resumen", (ctx) => handleIntent(ctx, { type: "digest" }));
   bot.command("pronosticos", (ctx) =>
     handleIntent(ctx, { type: "x_forecasts", force: true })
   );
-  bot.command("silenciar", async (ctx) => {
-    const idStr = (ctx.message?.text ?? "").split(/\s+/)[1];
-    const id = Number(idStr);
-    if (Number.isFinite(id) && id > 0) {
-      await handleIntent(ctx, { type: "mute", id });
-      return;
-    }
-    await handleIntent(ctx, { type: "mute_menu" });
-  });
-  bot.command("silenciados", (ctx) => handleIntent(ctx, { type: "muted_list" }));
-
-  bot.command("partido", async (ctx) => {
-    const idStr = (ctx.message?.text ?? "").split(/\s+/)[1];
-    const id = Number(idStr);
-    if (!Number.isFinite(id) || id <= 0) {
-      await ctx.reply("Dime el ID así: /partido 1489370\n\nO toca un partido en los botones 🔴 En vivo / 📅 Hoy", {
-        reply_markup: mainReplyKeyboard(),
-      });
-      return;
-    }
-    await handleIntent(ctx, { type: "fixture", id });
-  });
 
   bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;

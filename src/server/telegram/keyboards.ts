@@ -5,34 +5,20 @@ import { iterateStandingsTables } from "./standingsUtils";
 import { isFixtureLive, isPlausibleLiveFixture, isFixtureFinished } from "@/lib/liveRefresh";
 import { isFixtureMuted } from "./mutedFixtures";
 
-/** Teclado fijo abajo del chat — siempre visible. */
+/** Teclado fijo — bot de contenido X (@MundialAnalisis). */
 export function mainReplyKeyboard(): Keyboard {
   return new Keyboard()
-    .text("📅 Partidos hoy")
-    .text("🔴 En vivo")
-    .row()
-    .text("📊 Tablas")
-    .text("⏭️ Próximo")
-    .row()
-    .text("🇨🇴 Colombia")
-    .text("⚡ Resumen")
+    .text("🐦 Pronósticos X")
     .row()
     .text("❓ Ayuda")
-    .text("🔄 Actualizar")
-    .row()
-    .text("🔕 Silenciar")
-    .text("🔔 Silenciados")
     .resized()
     .persistent();
 }
 
 export function afterActionKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("🔄 Actualizar", "act:refresh")
-    .text("🔴 En vivo", "act:live")
-    .row()
-    .text("📅 Hoy", "act:today")
-    .text("⚡ Resumen", "act:digest");
+    .text("🐦 Pronósticos X", "act:pronosticos")
+    .text("❓ Ayuda", "act:help");
 }
 
 export function liveFixturesKeyboard(fixtures: Fixture[]): InlineKeyboard {
@@ -140,13 +126,7 @@ export function xForecastApprovalKeyboard(dayKey: string): InlineKeyboard {
 }
 
 export const BOT_COMMANDS = [
-  { command: "start", description: "Menú principal" },
-  { command: "hoy", description: "Partidos de hoy" },
-  { command: "vivo", description: "Marcadores en vivo" },
-  { command: "colombia", description: "Todo sobre Colombia" },
-  { command: "tabla", description: "Posiciones por grupo" },
-  { command: "resumen", description: "Resumen express del día" },
-  { command: "pronosticos", description: "Borrador X BetPlay (validar)" },
-  { command: "silenciar", description: "Silenciar alertas de un partido" },
-  { command: "silenciados", description: "Partidos silenciados" },
+  { command: "start", description: "Inicio · contenido X" },
+  { command: "pronosticos", description: "Generar borrador BetPlay → X" },
+  { command: "ayuda", description: "Cómo funciona" },
 ] as const;

@@ -39,7 +39,13 @@ export function buildForecastThread(
   dayLabel?: string
 ): string[] {
   if (matches.length === 0) return [];
-  return [formatForecastHeader(dayLabel), ...matches.map(formatForecastMatchTweet)];
+  const header = formatForecastHeader(dayLabel);
+  // Un solo partido → un solo tuit (cabecera + probs), sin hilo.
+  if (matches.length === 1) {
+    const combined = `${header}\n\n${formatForecastMatchTweet(matches[0])}`;
+    return [combined.length > 280 ? combined.slice(0, 277) + "…" : combined];
+  }
+  return [header, ...matches.map(formatForecastMatchTweet)];
 }
 
 /** Preview multiparte para Telegram (sin límite 280 por bloque). */

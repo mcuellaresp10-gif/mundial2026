@@ -218,17 +218,22 @@ export async function getLeagueStandings(
   );
 }
 
-/** Partidos de un día civil (API date=YYYY-MM-DD) filtrados por liga. */
+/** Partidos de un día civil en zona Bogotá, filtrados por liga (season requerida por API). */
 export async function getFixturesByDateLeague(
   date: string,
-  leagueId: number
+  leagueId: number,
+  season = DEFAULT_SEASON
 ): Promise<Fixture[]> {
-  const list = await apiGetCached<Fixture[]>(
+  return apiGetCached<Fixture[]>(
     "fixtures",
-    { date },
+    {
+      date,
+      league: leagueId,
+      season,
+      timezone: "America/Bogota",
+    },
     TTL_LEAGUE_FIXTURES_MS
   );
-  return list.filter((f) => f.league.id === leagueId);
 }
 
 /** Fixtures de temporada completa de una liga. */

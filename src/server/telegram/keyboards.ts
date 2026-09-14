@@ -9,6 +9,7 @@ import { isFixtureMuted } from "./mutedFixtures";
 export function mainReplyKeyboard(): Keyboard {
   return new Keyboard()
     .text("🐦 Pronósticos X")
+    .text("📊 Cuadrangulares X")
     .row()
     .text("❓ Ayuda")
     .resized()
@@ -18,6 +19,8 @@ export function mainReplyKeyboard(): Keyboard {
 export function afterActionKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("🐦 Pronósticos X", "act:pronosticos")
+    .text("📊 Cuadrangulares", "act:cuadrangulares")
+    .row()
     .text("❓ Ayuda", "act:help");
 }
 
@@ -125,8 +128,16 @@ export function xForecastApprovalKeyboard(dayKey: string): InlineKeyboard {
     .text("❌ Descartar", `x:reject:${dayKey}`);
 }
 
+/** Validación del post de probs de cuadrangulares → X. */
+export function xPhaseProbsApprovalKeyboard(dayKey: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Publicar en X", `xp:approve:${dayKey}`)
+    .text("❌ Descartar", `xp:reject:${dayKey}`);
+}
+
 export const BOT_COMMANDS = [
   { command: "start", description: "Inicio · contenido X" },
-  { command: "pronosticos", description: "Generar borrador BetPlay → X" },
+  { command: "pronosticos", description: "Borrador partidos hoy → X" },
+  { command: "cuadrangulares", description: "Borrador probs clasificar → X" },
   { command: "ayuda", description: "Cómo funciona" },
 ] as const;

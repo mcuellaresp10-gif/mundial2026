@@ -17,8 +17,11 @@ export type BotIntent =
   | { type: "mute"; id: number }
   | { type: "unmute"; id: number }
   | { type: "x_forecasts"; force?: boolean }
+  | { type: "x_phase_probs"; force?: boolean }
   | { type: "x_approve"; dayKey: string }
   | { type: "x_reject"; dayKey: string }
+  | { type: "xp_approve"; dayKey: string }
+  | { type: "xp_reject"; dayKey: string }
   | { type: "ai"; question: string };
 
 function normalize(text: string): string {
@@ -40,6 +43,8 @@ const BUTTON_MAP: Record<string, BotIntent> = {
   ayuda: { type: "help" },
   pronosticos: { type: "x_forecasts", force: true },
   "pronosticos x": { type: "x_forecasts", force: true },
+  cuadrangulares: { type: "x_phase_probs", force: true },
+  "cuadrangulares x": { type: "x_phase_probs", force: true },
 };
 
 export function resolveIntent(raw: string): BotIntent {
@@ -58,6 +63,17 @@ export function resolveIntent(raw: string): BotIntent {
 
   if (
     includesAny(text, [
+      "cuadrangulares",
+      "clasificar",
+      "probabilidades de clasificar",
+      "probs cuadrangulares",
+    ])
+  ) {
+    return { type: "x_phase_probs", force: true };
+  }
+
+  if (
+    includesAny(text, [
       "pronosticos",
       "pronósticos",
       "borrador x",
@@ -71,7 +87,6 @@ export function resolveIntent(raw: string): BotIntent {
     return { type: "x_forecasts", force: true };
   }
 
-  // Bot de contenido X: sin alertas ni Q&A del Mundial.
   return { type: "help" };
 }
 
@@ -81,23 +96,17 @@ export function callbackToIntent(data: string): BotIntent | null {
     const map: Record<string, BotIntent> = {
       help: { type: "help" },
       pronosticos: { type: "x_forecasts", force: true },
+      cuadrangulares: { type: "x_phase_probs", force: true },
     };
     return map[act] ?? null;
   }
-  if (data.startsWith("grp:")) {
-    return { type: "standings", group: data.slice(4).toUpperCase() };
+  if (data.startsWith("xp:approve:")) {
+    const dayKey = data.slice("xp:approve:".length);
+    return dayKey ? { type: "xp_approve", dayKey } : null;
   }
-  if (data.startsWith("fx:")) {
-    const id = Number(data.slice(3));
-    return Number.isFinite(id) ? { type: "fixture", id } : null;
-  }
-  if (data.startsWith("mute:")) {
-    const id = Number(data.slice(5));
-    return Number.isFinite(id) ? { type: "mute", id } : null;
-  }
-  if (data.startsWith("unmute:")) {
-    const id = Number(data.slice(7));
-    return Number.isFinite(id) ? { type: "unmute", id } : null;
+  if (data.startsWith("xp:reject:")) {
+    const dayKey = data.slice("xp:reject:".length);
+    return dayKey ? { type: "xp_reject", dayKey } : null;
   }
   if (data.startsWith("x:approve:")) {
     const dayKey = data.slice("x:approve:".length);

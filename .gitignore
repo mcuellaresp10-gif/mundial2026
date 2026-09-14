@@ -39,6 +39,7 @@ skills-lock.json
 # telegram bot local state
 /data/telegram-muted.json
 /data/x-forecast-draft.json
+/data/x-phase-probs-draft.json
 
 # typescript
 *.tsbuildinfo

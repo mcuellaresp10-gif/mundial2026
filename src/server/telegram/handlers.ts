@@ -42,6 +42,11 @@ import {
   publishApprovedForecastThread,
   rejectForecastDraft,
 } from "@/server/x/publishForecastThread";
+import { sendBetPlayPhaseProbsPreviewToTelegram } from "@/server/x/sendPhaseProbsPreview";
+import {
+  publishApprovedPhaseProbsThread,
+  rejectPhaseProbsDraft,
+} from "@/server/x/publishPhaseProbsThread";
 
 async function withTyping(ctx: Context, fn: () => Promise<void>): Promise<void> {
   await ctx.replyWithChatAction("typing");
@@ -251,6 +256,16 @@ export async function handleIntent(ctx: Context, intent: BotIntent): Promise<voi
       });
       return;
 
+    case "x_phase_probs":
+      await withTyping(ctx, async () => {
+        const chatId = ctx.chat?.id;
+        if (!chatId) return;
+        await sendBetPlayPhaseProbsPreviewToTelegram(ctx.api, chatId, {
+          force: intent.force === true,
+        });
+      });
+      return;
+
     case "x_approve":
       await withTyping(ctx, async () => {
         const result = await publishApprovedForecastThread(intent.dayKey);
@@ -291,6 +306,46 @@ export async function handleIntent(ctx: Context, intent: BotIntent): Promise<voi
       });
       return;
 
+    case "xp_approve":
+      await withTyping(ctx, async () => {
+        const result = await publishApprovedPhaseProbsThread(intent.dayKey);
+        if (result.ok && result.error === "already_published") {
+          await ctx.reply(`✅ Ya estaba publicado (${intent.dayKey}).`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        if (!result.ok) {
+          await ctx.reply(`❌ No se pudo publicar: ${result.error ?? "error"}`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        const link =
+          result.rootId && result.rootId !== "dry-run"
+            ? `\nhttps://x.com/i/web/status/${result.rootId}`
+            : result.rootId === "dry-run"
+              ? "\n_(dry-run: no se envió a X)_"
+              : "";
+        await ctx.reply(`✅ *Cuadrangulares publicado en X* · ${intent.dayKey}${link}`, {
+          parse_mode: "Markdown",
+          reply_markup: afterActionKeyboard(),
+        });
+      });
+      return;
+
+    case "xp_reject":
+      await withTyping(ctx, async () => {
+        const ok = rejectPhaseProbsDraft(intent.dayKey);
+        await ctx.reply(
+          ok
+            ? `❌ Borrador de cuadrangulares *${intent.dayKey}* descartado.`
+            : `No hay borrador de cuadrangulares para ${intent.dayKey}.`,
+          { parse_mode: "Markdown", reply_markup: afterActionKeyboard() }
+        );
+      });
+      return;
+
     case "refresh":
       await handleIntent(ctx, { type: "digest" });
       return;
@@ -325,9 +380,9 @@ export async function answerCallback(ctx: Context, intent: BotIntent): Promise<v
       ? "Silenciado 🔕"
       : intent.type === "unmute"
         ? "Alertas activadas 🔔"
-        : intent.type === "x_approve"
+        : intent.type === "x_approve" || intent.type === "xp_approve"
           ? "Publicando…"
-          : intent.type === "x_reject"
+          : intent.type === "x_reject" || intent.type === "xp_reject"
             ? "Descartado"
             : undefined;
   await ctx.answerCallbackQuery(toast ? { text: toast } : undefined);

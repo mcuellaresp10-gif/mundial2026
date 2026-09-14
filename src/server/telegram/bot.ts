@@ -20,6 +20,9 @@ export function createTelegramBot(): Bot {
   bot.command("pronosticos", (ctx) =>
     handleIntent(ctx, { type: "x_forecasts", force: true })
   );
+  bot.command("cuadrangulares", (ctx) =>
+    handleIntent(ctx, { type: "x_phase_probs", force: true })
+  );
 
   bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;

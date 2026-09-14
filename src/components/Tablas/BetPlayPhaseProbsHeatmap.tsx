@@ -138,7 +138,7 @@ function ProbsTable({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border/60">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[640px] text-sm border-collapse">
         <thead>
           <tr className="border-b bg-muted/40 text-muted-foreground">
             <SortableHeader
@@ -194,11 +194,12 @@ function ProbsTable({
                       width={22}
                       height={22}
                       className="rounded-full shrink-0"
+                      unoptimized
                     />
                   ) : (
                     <span className="h-[22px] w-[22px] rounded-full bg-muted shrink-0" />
                   )}
-                  <span className="truncate font-medium">
+                  <span className="font-medium whitespace-normal">
                     {translateTeamName(row.teamName)}
                   </span>
                 </Link>

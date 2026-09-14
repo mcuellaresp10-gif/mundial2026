@@ -37,6 +37,11 @@ import {
   muteFixture,
   unmuteFixture,
 } from "./mutedFixtures";
+import { sendBetPlayForecastPreviewToTelegram } from "@/server/x/sendForecastPreview";
+import {
+  publishApprovedForecastThread,
+  rejectForecastDraft,
+} from "@/server/x/publishForecastThread";
 
 async function withTyping(ctx: Context, fn: () => Promise<void>): Promise<void> {
   await ctx.replyWithChatAction("typing");
@@ -236,6 +241,56 @@ export async function handleIntent(ctx: Context, intent: BotIntent): Promise<voi
       });
       return;
 
+    case "x_forecasts":
+      await withTyping(ctx, async () => {
+        const chatId = ctx.chat?.id;
+        if (!chatId) return;
+        await sendBetPlayForecastPreviewToTelegram(ctx.api, chatId, {
+          force: intent.force === true,
+        });
+      });
+      return;
+
+    case "x_approve":
+      await withTyping(ctx, async () => {
+        const result = await publishApprovedForecastThread(intent.dayKey);
+        if (result.ok && result.error === "already_published") {
+          await ctx.reply(`✅ Ya estaba publicado (${intent.dayKey}).`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        if (!result.ok) {
+          await ctx.reply(`❌ No se pudo publicar: ${result.error ?? "error"}`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        const link =
+          result.rootId && result.rootId !== "dry-run"
+            ? `\nhttps://x.com/i/web/status/${result.rootId}`
+            : result.rootId === "dry-run"
+              ? "\n_(dry-run: no se envió a X)_"
+              : "";
+        await ctx.reply(`✅ *Publicado en X* · ${intent.dayKey}${link}`, {
+          parse_mode: "Markdown",
+          reply_markup: afterActionKeyboard(),
+        });
+      });
+      return;
+
+    case "x_reject":
+      await withTyping(ctx, async () => {
+        const ok = rejectForecastDraft(intent.dayKey);
+        await ctx.reply(
+          ok
+            ? `❌ Borrador de *${intent.dayKey}* descartado. No se publica en X.`
+            : `No hay borrador pendiente para ${intent.dayKey}.`,
+          { parse_mode: "Markdown", reply_markup: afterActionKeyboard() }
+        );
+      });
+      return;
+
     case "refresh":
       await handleIntent(ctx, { type: "digest" });
       return;
@@ -270,7 +325,11 @@ export async function answerCallback(ctx: Context, intent: BotIntent): Promise<v
       ? "Silenciado 🔕"
       : intent.type === "unmute"
         ? "Alertas activadas 🔔"
-        : undefined;
+        : intent.type === "x_approve"
+          ? "Publicando…"
+          : intent.type === "x_reject"
+            ? "Descartado"
+            : undefined;
   await ctx.answerCallbackQuery(toast ? { text: toast } : undefined);
   if (ctx.callbackQuery?.message) {
     await handleIntent(ctx, intent);

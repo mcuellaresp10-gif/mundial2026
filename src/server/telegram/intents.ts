@@ -18,6 +18,9 @@ export type BotIntent =
   | { type: "muted_list" }
   | { type: "mute"; id: number }
   | { type: "unmute"; id: number }
+  | { type: "x_forecasts"; force?: boolean }
+  | { type: "x_approve"; dayKey: string }
+  | { type: "x_reject"; dayKey: string }
   | { type: "ai"; question: string };
 
 const TEAM_ALIASES: Record<string, string> = {
@@ -107,6 +110,8 @@ const BUTTON_MAP: Record<string, BotIntent> = {
   actualizar: { type: "refresh" },
   silenciar: { type: "mute_menu" },
   silenciados: { type: "muted_list" },
+  pronosticos: { type: "x_forecasts", force: true },
+  "pronosticos x": { type: "x_forecasts", force: true },
 };
 
 export function resolveIntent(raw: string): BotIntent {
@@ -130,6 +135,18 @@ export function resolveIntent(raw: string): BotIntent {
 
   if (includesAny(text, ["actualizar", "refresh", "update", "recargar"])) {
     return { type: "refresh" };
+  }
+
+  if (
+    includesAny(text, [
+      "pronosticos",
+      "pronósticos",
+      "borrador x",
+      "publicar en x",
+      "tweets betplay",
+    ])
+  ) {
+    return { type: "x_forecasts", force: true };
   }
 
   if (
@@ -293,6 +310,14 @@ export function callbackToIntent(data: string): BotIntent | null {
   if (data.startsWith("unmute:")) {
     const id = Number(data.slice(7));
     return Number.isFinite(id) ? { type: "unmute", id } : null;
+  }
+  if (data.startsWith("x:approve:")) {
+    const dayKey = data.slice("x:approve:".length);
+    return dayKey ? { type: "x_approve", dayKey } : null;
+  }
+  if (data.startsWith("x:reject:")) {
+    const dayKey = data.slice("x:reject:".length);
+    return dayKey ? { type: "x_reject", dayKey } : null;
   }
   return null;
 }

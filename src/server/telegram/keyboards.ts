@@ -132,6 +132,13 @@ export function unmuteKeyboard(muted: { id: number; label: string }[]): InlineKe
   return kb;
 }
 
+/** Validación humana del hilo diario de pronósticos BetPlay → X. */
+export function xForecastApprovalKeyboard(dayKey: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Publicar en X", `x:approve:${dayKey}`)
+    .text("❌ Descartar", `x:reject:${dayKey}`);
+}
+
 export const BOT_COMMANDS = [
   { command: "start", description: "Menú principal" },
   { command: "hoy", description: "Partidos de hoy" },
@@ -139,6 +146,7 @@ export const BOT_COMMANDS = [
   { command: "colombia", description: "Todo sobre Colombia" },
   { command: "tabla", description: "Posiciones por grupo" },
   { command: "resumen", description: "Resumen express del día" },
+  { command: "pronosticos", description: "Borrador X BetPlay (validar)" },
   { command: "silenciar", description: "Silenciar alertas de un partido" },
   { command: "silenciados", description: "Partidos silenciados" },
 ] as const;

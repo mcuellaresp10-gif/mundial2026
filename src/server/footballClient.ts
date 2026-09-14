@@ -206,3 +206,49 @@ export async function getWorldCupPlayersPage(
   return result;
 }
 
+/** Standings de una liga de club (p. ej. BetPlay 239). */
+export async function getLeagueStandings(
+  leagueId: number,
+  season = DEFAULT_SEASON
+): Promise<StandingsGroup[]> {
+  return apiGetCached<StandingsGroup[]>(
+    "standings",
+    { league: leagueId, season },
+    TTL_STANDINGS_MS
+  );
+}
+
+/** Partidos de un día civil (API date=YYYY-MM-DD) filtrados por liga. */
+export async function getFixturesByDateLeague(
+  date: string,
+  leagueId: number
+): Promise<Fixture[]> {
+  const list = await apiGetCached<Fixture[]>(
+    "fixtures",
+    { date },
+    TTL_LEAGUE_FIXTURES_MS
+  );
+  return list.filter((f) => f.league.id === leagueId);
+}
+
+/** Fixtures de temporada completa de una liga. */
+export async function getLeagueSeasonFixtures(
+  leagueId: number,
+  season = DEFAULT_SEASON
+): Promise<Fixture[]> {
+  return apiGetCached<Fixture[]>(
+    "fixtures",
+    { league: leagueId, season },
+    TTL_LEAGUE_FIXTURES_MS
+  );
+}
+
+/** Head-to-head entre dos equipos. */
+export async function getH2H(teamA: number, teamB: number): Promise<Fixture[]> {
+  return apiGetCached<Fixture[]>(
+    "fixtures/headtohead",
+    { h2h: `${teamA}-${teamB}` },
+    TTL_LEAGUE_FIXTURES_MS
+  );
+}
+

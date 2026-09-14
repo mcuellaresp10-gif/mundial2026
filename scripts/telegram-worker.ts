@@ -1,6 +1,8 @@
 /**
- * Worker de Telegram: long polling + alertas en vivo.
- * Uso: npm run telegram:worker  (requiere TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, API_FOOTBALL_KEY)
+ * Worker de Telegram: long polling + alertas en vivo + borrador diario X (BetPlay).
+ * Uso: npm run telegram:worker
+ * Requiere: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, API_FOOTBALL_KEY
+ * Para publicar en X tras aprobar: TWITTER_API_KEY/SECRET + ACCESS_TOKEN/SECRET
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -11,10 +13,18 @@ import { getAuthorizedChatId, requireBotToken } from "../src/server/telegram/aut
 import { createTelegramBot, registerBotCommands } from "../src/server/telegram/bot";
 import { mainReplyKeyboard } from "../src/server/telegram/keyboards";
 import { NotifierState } from "../src/server/telegram/notifier";
+import {
+  getBogotaDayKey,
+  getBogotaHour,
+} from "../src/server/x/buildBetPlayForecastDraft";
+import { getForecastDraftForDay } from "../src/server/x/forecastDraftStore";
+import { sendBetPlayForecastPreviewToTelegram } from "../src/server/x/sendForecastPreview";
 
 const ROOT = process.cwd();
 const FAST_POLL_MS = 30 * 1000;
 const SLOW_POLL_MS = 5 * 60 * 1000;
+/** Hora local Bogotá para enviar el borrador a Telegram. */
+const FORECAST_HOUR_BOGOTA = Number(process.env.X_FORECASTS_HOUR ?? "13");
 
 function loadEnv(): void {
   for (const file of [".env.local", ".env"]) {
@@ -45,8 +55,39 @@ requireBotToken();
 
 const bot = createTelegramBot();
 const notifier = new NotifierState();
+/** Evita reenviar el borrador el mismo día en este proceso. */
+let lastForecastTickDay: string | null = null;
+
+async function maybeSendDailyXForecastDraft(): Promise<void> {
+  if (!chatId) return;
+  const hour = getBogotaHour();
+  const dayKey = getBogotaDayKey();
+  if (hour < FORECAST_HOUR_BOGOTA) return;
+  if (lastForecastTickDay === dayKey) return;
+
+  const existing = getForecastDraftForDay(dayKey);
+  if (existing?.status === "published" || existing?.status === "rejected") {
+    lastForecastTickDay = dayKey;
+    return;
+  }
+  if (existing?.status === "pending" && (existing.telegramMessageIds?.length ?? 0) > 0) {
+    lastForecastTickDay = dayKey;
+    return;
+  }
+
+  try {
+    console.info(`[x-forecast] Daily tick ${dayKey} hour=${hour}`);
+    const result = await sendBetPlayForecastPreviewToTelegram(bot.api, chatId);
+    console.info(`[x-forecast] Preview result:`, result);
+    lastForecastTickDay = dayKey;
+  } catch (e) {
+    console.error("[x-forecast] Daily tick failed:", e);
+  }
+}
 
 async function pollNotifications(): Promise<number> {
+  await maybeSendDailyXForecastDraft();
+
   if (!chatId) return SLOW_POLL_MS;
   try {
     const fixtures = await getFixturesForNotifications();
@@ -87,6 +128,9 @@ function schedulePoll(delayMs: number): void {
 async function main(): Promise<void> {
   console.info("[telegram] Worker starting...");
   console.info(`[telegram] Authorized chat_id=${chatId}`);
+  console.info(
+    `[x-forecast] Daily draft hour (Bogota)=${FORECAST_HOUR_BOGOTA}`
+  );
 
   schedulePoll(chatId ? 5000 : SLOW_POLL_MS);
 
@@ -96,7 +140,7 @@ async function main(): Promise<void> {
     await bot.api
       .sendMessage(
         chatId,
-        "🤖 *¡Listo!* Toca los botones de abajo o pregúntame lo que quieras.\n\n_Ejemplo: \"¿cómo va Colombia?\"_",
+        "🤖 *¡Listo!* Toca los botones de abajo o pregúntame lo que quieras.\n\n_Pronósticos X BetPlay: /pronosticos_",
         { parse_mode: "Markdown", reply_markup: mainReplyKeyboard() }
       )
       .catch(() => undefined);

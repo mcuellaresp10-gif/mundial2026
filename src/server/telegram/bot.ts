@@ -25,6 +25,9 @@ export function createTelegramBot(): Bot {
   bot.command("lineups", (ctx) => handleIntent(ctx, { type: "lineups" }));
   bot.command("alineaciones", (ctx) => handleIntent(ctx, { type: "lineups" }));
   bot.command("resumen", (ctx) => handleIntent(ctx, { type: "digest" }));
+  bot.command("pronosticos", (ctx) =>
+    handleIntent(ctx, { type: "x_forecasts", force: true })
+  );
   bot.command("silenciar", async (ctx) => {
     const idStr = (ctx.message?.text ?? "").split(/\s+/)[1];
     const id = Number(idStr);

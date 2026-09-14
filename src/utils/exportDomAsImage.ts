@@ -1,5 +1,9 @@
 import type { Options } from "html-to-image/lib/types";
 
+type CaptureOptions = Options & {
+  onClone?: (document: Document, element: HTMLElement) => void;
+};
+
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
@@ -31,7 +35,73 @@ export function resolveDirectImageUrl(src: string): string {
   return src;
 }
 
-function withTemporaryExportStyles<T>(node: HTMLElement, run: () => Promise<T>): Promise<T> {
+interface StyleSnapshot {
+  element: HTMLElement;
+  overflow: string;
+  overflowX: string;
+  overflowY: string;
+  maxHeight: string;
+  maxWidth: string;
+  height: string;
+  width: string;
+  whiteSpace: string;
+  textOverflow: string;
+}
+
+function collectSubtree(node: HTMLElement): HTMLElement[] {
+  return [node, ...node.querySelectorAll<HTMLElement>("*")];
+}
+
+function isScrollConstraint(value: string): boolean {
+  return value === "auto" || value === "scroll" || value === "hidden" || value === "clip";
+}
+
+/** Expande overflow/max-size para que html-to-image no recorte filas ni columnas. */
+function expandNodeForFullCapture(node: HTMLElement): () => void {
+  const snapshots: StyleSnapshot[] = [];
+
+  for (const el of collectSubtree(node)) {
+    const computed = getComputedStyle(el);
+    const needsOverflowFix =
+      isScrollConstraint(computed.overflowX) ||
+      isScrollConstraint(computed.overflowY) ||
+      isScrollConstraint(computed.overflow);
+    const needsMaxFix =
+      (computed.maxHeight !== "none" && computed.maxHeight !== "0px") ||
+      (computed.maxWidth !== "none" && el !== node && computed.maxWidth.endsWith("px"));
+    const needsTruncateFix =
+      computed.textOverflow === "ellipsis" || computed.whiteSpace === "nowrap";
+
+    if (!needsOverflowFix && !needsMaxFix && !needsTruncateFix) continue;
+
+    snapshots.push({
+      element: el,
+      overflow: el.style.overflow,
+      overflowX: el.style.overflowX,
+      overflowY: el.style.overflowY,
+      maxHeight: el.style.maxHeight,
+      maxWidth: el.style.maxWidth,
+      height: el.style.height,
+      width: el.style.width,
+      whiteSpace: el.style.whiteSpace,
+      textOverflow: el.style.textOverflow,
+    });
+
+    if (needsOverflowFix) {
+      el.style.overflow = "visible";
+      el.style.overflowX = "visible";
+      el.style.overflowY = "visible";
+    }
+    if (needsMaxFix) {
+      el.style.maxHeight = "none";
+      if (el !== node) el.style.maxWidth = "none";
+    }
+    if (needsTruncateFix) {
+      el.style.whiteSpace = "normal";
+      el.style.textOverflow = "clip";
+    }
+  }
+
   const zoomTarget = node.querySelector<HTMLElement>("[data-bracket-zoom]");
   const previousZoom = zoomTarget?.style.zoom ?? "";
   if (zoomTarget) zoomTarget.style.zoom = "1";
@@ -42,15 +112,62 @@ function withTemporaryExportStyles<T>(node: HTMLElement, run: () => Promise<T>):
     el.style.display = "none";
   }
 
-  return run().finally(() => {
+  return () => {
     if (zoomTarget) zoomTarget.style.zoom = previousZoom;
     hideNodes.forEach((el, i) => {
       el.style.display = previousDisplay[i] ?? "";
     });
+    for (const snap of snapshots) {
+      const el = snap.element;
+      el.style.overflow = snap.overflow;
+      el.style.overflowX = snap.overflowX;
+      el.style.overflowY = snap.overflowY;
+      el.style.maxHeight = snap.maxHeight;
+      el.style.maxWidth = snap.maxWidth;
+      el.style.height = snap.height;
+      el.style.width = snap.width;
+      el.style.whiteSpace = snap.whiteSpace;
+      el.style.textOverflow = snap.textOverflow;
+    }
+  };
+}
+
+/** Tamaño real del contenido (incluye tablas/scroll internos ya expandidos). */
+export function measureExportNodeSize(node: HTMLElement): { width: number; height: number } {
+  const rect = node.getBoundingClientRect();
+  let width = Math.max(node.scrollWidth, node.offsetWidth, Math.ceil(rect.width));
+  let height = Math.max(node.scrollHeight, node.offsetHeight, Math.ceil(rect.height));
+
+  for (const el of collectSubtree(node)) {
+    width = Math.max(width, el.scrollWidth, el.offsetWidth);
+    height = Math.max(height, el.scrollHeight, el.offsetHeight);
+  }
+
+  return {
+    width: Math.ceil(width),
+    height: Math.ceil(height),
+  };
+}
+
+function withTemporaryExportStyles<T>(node: HTMLElement, run: () => Promise<T>): Promise<T> {
+  const restore = expandNodeForFullCapture(node);
+  return run().finally(restore);
+}
+
+function rewriteImageSrcForExport(cloned: HTMLElement): void {
+  const imgs = cloned.querySelectorAll("img");
+  imgs.forEach((img) => {
+    const current = img.getAttribute("src");
+    if (!current) return;
+    const direct = resolveDirectImageUrl(current);
+    if (direct !== current) img.setAttribute("src", direct);
   });
 }
 
-export function getDomImageCaptureOptions(node?: HTMLElement, overrides?: Partial<Options>): Options {
+export function getDomImageCaptureOptions(
+  node?: HTMLElement,
+  overrides?: Partial<CaptureOptions>
+): CaptureOptions {
   return {
     cacheBust: true,
     includeQueryParams: true,
@@ -65,20 +182,70 @@ export function getDomImageCaptureOptions(node?: HTMLElement, overrides?: Partia
 
 async function captureFromNode<T>(
   node: HTMLElement,
-  overrides: Partial<Options> | undefined,
-  capture: (target: HTMLElement, options: Options) => Promise<T>
+  overrides: Partial<CaptureOptions> | undefined,
+  capture: (target: HTMLElement, options: CaptureOptions) => Promise<T>
 ): Promise<T> {
   return withTemporaryExportStyles(node, async () => {
+    // Esperar layout tras expandir overflow.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+    const size = measureExportNodeSize(node);
+    const userOnClone = overrides?.onClone;
+    const { onClone: _ignored, ...restOverrides } = overrides ?? {};
+
     const options = getDomImageCaptureOptions(node, {
-      width: node.scrollWidth,
-      height: node.scrollHeight,
-      ...overrides,
+      width: size.width,
+      height: size.height,
+      style: {
+        overflow: "visible",
+        height: `${size.height}px`,
+        width: `${size.width}px`,
+      },
+      filter: (domNode) => {
+        if (domNode instanceof HTMLElement && domNode.hasAttribute("data-export-hide")) {
+          return false;
+        }
+        return true;
+      },
+      onClone: (clonedDoc: Document, clonedNode: HTMLElement) => {
+        if (clonedNode instanceof HTMLElement) {
+          rewriteImageSrcForExport(clonedNode);
+          clonedNode.style.overflow = "visible";
+          clonedNode.style.maxHeight = "none";
+          clonedNode.style.height = `${size.height}px`;
+          clonedNode.style.width = `${size.width}px`;
+          for (const el of collectSubtree(clonedNode)) {
+            const computed = (clonedDoc.defaultView ?? window).getComputedStyle(el);
+            if (
+              isScrollConstraint(computed.overflow) ||
+              isScrollConstraint(computed.overflowX) ||
+              isScrollConstraint(computed.overflowY)
+            ) {
+              el.style.overflow = "visible";
+              el.style.overflowX = "visible";
+              el.style.overflowY = "visible";
+            }
+            if (computed.maxHeight !== "none") {
+              el.style.maxHeight = "none";
+            }
+            if (computed.textOverflow === "ellipsis") {
+              el.style.textOverflow = "clip";
+              el.style.whiteSpace = "normal";
+            }
+          }
+        }
+        userOnClone?.(clonedDoc, clonedNode);
+      },
+      ...restOverrides,
     });
     return capture(node, options);
   });
 }
 
-export async function captureDomAsBlob(node: HTMLElement, overrides?: Partial<Options>): Promise<Blob> {
+export async function captureDomAsBlob(
+  node: HTMLElement,
+  overrides?: Partial<CaptureOptions>
+): Promise<Blob> {
   return captureFromNode(node, overrides, async (target, options) => {
     const { toBlob } = await import("html-to-image");
     const blob = await toBlob(target, options);
@@ -87,7 +254,10 @@ export async function captureDomAsBlob(node: HTMLElement, overrides?: Partial<Op
   });
 }
 
-export async function captureDomAsPngDataUrl(node: HTMLElement, overrides?: Partial<Options>): Promise<string> {
+export async function captureDomAsPngDataUrl(
+  node: HTMLElement,
+  overrides?: Partial<CaptureOptions>
+): Promise<string> {
   return captureFromNode(node, overrides, async (target, options) => {
     const { toPng } = await import("html-to-image");
     return toPng(target, options);
@@ -97,7 +267,7 @@ export async function captureDomAsPngDataUrl(node: HTMLElement, overrides?: Part
 export async function downloadDomAsPng(
   node: HTMLElement,
   filename: string,
-  overrides?: Partial<Options>
+  overrides?: Partial<CaptureOptions>
 ): Promise<void> {
   const dataUrl = await captureDomAsPngDataUrl(node, overrides);
   const link = document.createElement("a");
@@ -118,7 +288,10 @@ export function canCopyImagesToClipboard(): boolean {
   );
 }
 
-export async function copyDomAsImage(node: HTMLElement, overrides?: Partial<Options>): Promise<void> {
+export async function copyDomAsImage(
+  node: HTMLElement,
+  overrides?: Partial<CaptureOptions>
+): Promise<void> {
   if (!canCopyImagesToClipboard()) {
     throw new Error("CLIPBOARD_UNAVAILABLE");
   }

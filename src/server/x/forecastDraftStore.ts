@@ -12,6 +12,8 @@ export interface ForecastDraftMatch {
   winHome: number;
   draw: number;
   winAway: number;
+  /** Etiqueta de competición (Conmebol). */
+  competition?: string;
 }
 
 export interface ForecastDraft {

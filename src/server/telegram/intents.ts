@@ -18,10 +18,13 @@ export type BotIntent =
   | { type: "unmute"; id: number }
   | { type: "x_forecasts"; force?: boolean }
   | { type: "x_phase_probs"; force?: boolean }
+  | { type: "x_conmebol"; force?: boolean }
   | { type: "x_approve"; dayKey: string }
   | { type: "x_reject"; dayKey: string }
   | { type: "xp_approve"; dayKey: string }
   | { type: "xp_reject"; dayKey: string }
+  | { type: "xc_approve"; dayKey: string }
+  | { type: "xc_reject"; dayKey: string }
   | { type: "ai"; question: string };
 
 function normalize(text: string): string {
@@ -45,6 +48,8 @@ const BUTTON_MAP: Record<string, BotIntent> = {
   "pronosticos x": { type: "x_forecasts", force: true },
   cuadrangulares: { type: "x_phase_probs", force: true },
   "cuadrangulares x": { type: "x_phase_probs", force: true },
+  conmebol: { type: "x_conmebol", force: true },
+  "conmebol x": { type: "x_conmebol", force: true },
 };
 
 export function resolveIntent(raw: string): BotIntent {
@@ -59,6 +64,17 @@ export function resolveIntent(raw: string): BotIntent {
 
   if (includesAny(text, ["ayuda", "help", "como funciona", "cómo funciona", "menu", "menú", "comandos"])) {
     return { type: "help" };
+  }
+
+  if (
+    includesAny(text, [
+      "conmebol",
+      "libertadores",
+      "sudamericana",
+      "sudaca",
+    ])
+  ) {
+    return { type: "x_conmebol", force: true };
   }
 
   if (
@@ -97,8 +113,17 @@ export function callbackToIntent(data: string): BotIntent | null {
       help: { type: "help" },
       pronosticos: { type: "x_forecasts", force: true },
       cuadrangulares: { type: "x_phase_probs", force: true },
+      conmebol: { type: "x_conmebol", force: true },
     };
     return map[act] ?? null;
+  }
+  if (data.startsWith("xc:approve:")) {
+    const dayKey = data.slice("xc:approve:".length);
+    return dayKey ? { type: "xc_approve", dayKey } : null;
+  }
+  if (data.startsWith("xc:reject:")) {
+    const dayKey = data.slice("xc:reject:".length);
+    return dayKey ? { type: "xc_reject", dayKey } : null;
   }
   if (data.startsWith("xp:approve:")) {
     const dayKey = data.slice("xp:approve:".length);

@@ -69,6 +69,25 @@ describe("formatForecastTweets", () => {
     assert.ok(!thread[1].includes("Partidos de hoy"));
   });
 
+  it("acepta título Conmebol y etiqueta de competición", () => {
+    const thread = buildForecastThread(
+      [
+        {
+          homeName: "Flamengo",
+          awayName: "Palmeiras",
+          winHome: 0.4,
+          draw: 0.3,
+          winAway: 0.3,
+          competition: "🏆 Libertadores",
+        },
+      ],
+      { title: "Partidos de hoy · Libertadores y Sudamericana" }
+    );
+    assert.equal(thread.length, 1);
+    assert.ok(thread[0].includes("Libertadores y Sudamericana"));
+    assert.ok(thread[0].includes("🏆 Libertadores"));
+  });
+
   it("preview Telegram incluye aviso de validación", () => {
     const preview = formatTelegramForecastPreview(
       [

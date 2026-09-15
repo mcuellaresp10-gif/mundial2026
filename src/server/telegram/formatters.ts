@@ -273,21 +273,18 @@ export const WELCOME_MESSAGE = (name?: string) =>
 
 🐦 *Generador de contenido para X* (@MundialAnalisis)
 
-• *🐦 Pronósticos X* — sims 1X2 de los partidos de hoy (BetPlay)
-• *📊 Cuadrangulares X* — probs de clasificar (mismo motor que la web)
+• *🐦 Pronósticos X* — sims 1X2 partidos de hoy (BetPlay)
+• *📊 Cuadrangulares X* — probs de clasificar (BetPlay)
+• *🏆 Conmebol X* — sims 1X2 Libertadores + Sudamericana de hoy
 
-Apruebas o descartas en Telegram; solo si apruebas se publica.
-
-También ~*13:00 Bogotá* llega el borrador de partidos del día.`;
+Apruebas o descartas; solo si apruebas se publica.`;
 
 export const HELP_MESSAGE = `❓ *Cómo funciona*
 
-*Pronósticos X* (/pronosticos)
-Sims 1X2 de partidos de hoy → borrador → Publicar/Descartar.
+*Pronósticos X* (/pronosticos) — BetPlay hoy
+*Cuadrangulares X* (/cuadrangulares) — top 8 probs clasificar
+*Conmebol X* (/conmebol) — Libertadores + Sudamericana hoy
 
-*Cuadrangulares X* (/cuadrangulares)
-Top 8 por prob. de clasificar (1000 sims, como en Tablas) → borrador → Publicar/Descartar.
+Cada uno genera borrador → *Publicar en X* / *Descartar*.
 
-Por ahora los posts de cuadrangulares van en *texto* (sin la imagen de la tabla).
-
-Comandos: /pronosticos · /cuadrangulares · /ayuda · /start`;
+Comandos: /pronosticos · /cuadrangulares · /conmebol · /ayuda · /start`;

@@ -11,6 +11,7 @@ export function mainReplyKeyboard(): Keyboard {
     .text("🐦 Pronósticos X")
     .text("📊 Cuadrangulares X")
     .row()
+    .text("🏆 Conmebol X")
     .text("❓ Ayuda")
     .resized()
     .persistent();
@@ -18,9 +19,10 @@ export function mainReplyKeyboard(): Keyboard {
 
 export function afterActionKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("🐦 Pronósticos X", "act:pronosticos")
+    .text("🐦 Pronósticos", "act:pronosticos")
     .text("📊 Cuadrangulares", "act:cuadrangulares")
     .row()
+    .text("🏆 Conmebol", "act:conmebol")
     .text("❓ Ayuda", "act:help");
 }
 
@@ -135,9 +137,17 @@ export function xPhaseProbsApprovalKeyboard(dayKey: string): InlineKeyboard {
     .text("❌ Descartar", `xp:reject:${dayKey}`);
 }
 
+/** Validación del hilo Libertadores + Sudamericana → X. */
+export function xConmebolForecastApprovalKeyboard(dayKey: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Publicar en X", `xc:approve:${dayKey}`)
+    .text("❌ Descartar", `xc:reject:${dayKey}`);
+}
+
 export const BOT_COMMANDS = [
   { command: "start", description: "Inicio · contenido X" },
-  { command: "pronosticos", description: "Borrador partidos hoy → X" },
+  { command: "pronosticos", description: "Borrador BetPlay hoy → X" },
   { command: "cuadrangulares", description: "Borrador probs clasificar → X" },
+  { command: "conmebol", description: "Borrador Libertadores/Sudaca → X" },
   { command: "ayuda", description: "Cómo funciona" },
 ] as const;

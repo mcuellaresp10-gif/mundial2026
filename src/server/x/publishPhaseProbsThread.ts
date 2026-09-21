@@ -3,6 +3,7 @@ import {
   getPhaseProbsDraftForDay,
   setPhaseProbsDraftStatus,
 } from "@/server/x/phaseProbsDraftStore";
+import { renderPhaseProbsTablePng } from "@/server/x/renderPhaseProbsTablePng";
 
 export async function publishApprovedPhaseProbsThread(dayKey: string): Promise<{
   ok: boolean;
@@ -22,7 +23,21 @@ export async function publishApprovedPhaseProbsThread(dayKey: string): Promise<{
   }
 
   try {
-    const { rootId } = await postTweetThread(draft.tweets);
+    let mediaBuffers: Buffer[] | undefined;
+    try {
+      const png = await renderPhaseProbsTablePng(draft.rows, {
+        jornada: draft.jornada,
+        phase: draft.phase,
+        maxPlayed: draft.jornada,
+        simulations: 1000,
+      });
+      mediaBuffers = [png];
+      console.info(`[x-phase] PNG table ${png.length} bytes`);
+    } catch (imgErr) {
+      console.error("[x-phase] PNG render failed, publishing text only:", imgErr);
+    }
+
+    const { rootId } = await postTweetThread(draft.tweets, { mediaBuffers });
     setPhaseProbsDraftStatus(dayKey, "published", { publishedTweetId: rootId });
     return { ok: true, rootId };
   } catch (e) {

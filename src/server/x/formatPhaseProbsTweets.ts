@@ -87,7 +87,7 @@ export function formatTelegramPhaseProbsPreview(
     ),
     "",
     "_Nada se publica en X hasta que apruebes._",
-    "_Nota: por ahora es texto (sin imagen de la tabla)._",
+    "_Al publicar se adjunta la imagen de la tabla de probs._",
   ];
   return lines.join("\n");
 }

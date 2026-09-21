@@ -21,8 +21,16 @@ export function createTwitterClient(): TwitterApi {
   });
 }
 
+export interface PostTweetThreadOptions {
+  /** Imágenes adjuntas solo al primer tuit del hilo. */
+  mediaBuffers?: Buffer[];
+}
+
 /** Publica un hilo (primer tuit + replies). Devuelve id del tuit cabecera. */
-export async function postTweetThread(tweets: string[]): Promise<{ rootId: string }> {
+export async function postTweetThread(
+  tweets: string[],
+  options?: PostTweetThreadOptions
+): Promise<{ rootId: string }> {
   if (tweets.length === 0) {
     throw new Error("Empty tweet thread");
   }
@@ -30,17 +38,37 @@ export async function postTweetThread(tweets: string[]): Promise<{ rootId: strin
   if (isXForecastsDryRun()) {
     console.info("[x] DRY RUN — thread not posted:");
     tweets.forEach((t, i) => console.info(`--- ${i + 1}/${tweets.length} ---\n${t}\n`));
+    if (options?.mediaBuffers?.length) {
+      console.info(`[x] DRY RUN — ${options.mediaBuffers.length} media buffer(s) on root tweet`);
+    }
     return { rootId: "dry-run" };
   }
 
   const client = createTwitterClient().readWrite;
+  let rootMediaIds: string[] | undefined;
+
+  if (options?.mediaBuffers?.length) {
+    const rwClient = createTwitterClient();
+    rootMediaIds = [];
+    for (const buf of options.mediaBuffers) {
+      const mediaId = await rwClient.v1.uploadMedia(buf, { mimeType: "image/png" });
+      rootMediaIds.push(mediaId);
+    }
+  }
+
   let rootId = "";
   let replyTo: string | undefined;
 
-  for (const text of tweets) {
-    const res = await client.v2.tweet(
-      replyTo ? { text, reply: { in_reply_to_tweet_id: replyTo } } : { text }
-    );
+  for (let i = 0; i < tweets.length; i++) {
+    const text = tweets[i];
+    const isRoot = i === 0;
+    const res = await client.v2.tweet({
+      text,
+      ...(replyTo ? { reply: { in_reply_to_tweet_id: replyTo } } : {}),
+      ...(isRoot && rootMediaIds?.length
+        ? { media: { media_ids: rootMediaIds as [string] | [string, string] | [string, string, string] | [string, string, string, string] } }
+        : {}),
+    });
     const id = res.data.id;
     if (!rootId) rootId = id;
     replyTo = id;

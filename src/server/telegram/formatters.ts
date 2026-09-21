@@ -282,7 +282,7 @@ Apruebas o descartas; solo si apruebas se publica.`;
 export const HELP_MESSAGE = `❓ *Cómo funciona*
 
 *Pronósticos X* (/pronosticos) — BetPlay hoy
-*Cuadrangulares X* (/cuadrangulares) — top 8 probs clasificar
+*Cuadrangulares X* (/cuadrangulares) — top 8 probs clasificar (+ imagen tabla)
 *Conmebol X* (/conmebol) — Libertadores + Sudamericana hoy
 
 Cada uno genera borrador → *Publicar en X* / *Descartar*.

@@ -28,33 +28,40 @@ function splitMessage(text: string): string[] {
 export async function sendBrazilForecastPreviewToTelegram(
   api: Api,
   chatId: number,
-  options?: { force?: boolean }
+  options?: { force?: boolean; quiet?: boolean }
 ): Promise<{ sent: boolean; reason?: string }> {
-  await api.sendMessage(chatId, "⏳ Generando sims Brasileirão de hoy…");
+  const quiet = options?.quiet === true;
+  if (!quiet) {
+    await api.sendMessage(chatId, "⏳ Generando sims Brasileirão de hoy…");
+  }
 
   const { draft, skippedReason } = await buildBrazilForecastDraft({
     force: options?.force,
   });
 
   if (!draft) {
-    await api.sendMessage(
-      chatId,
-      skippedReason === "no_fixtures"
-        ? "📋 No hay partidos pendientes de Brasileirão para hoy (hora BR)."
-        : "📋 No se pudo generar el borrador Brasileirão."
-    );
+    if (!quiet) {
+      await api.sendMessage(
+        chatId,
+        skippedReason === "no_fixtures"
+          ? "📋 No hay partidos pendientes de Brasileirão para hoy (hora BR)."
+          : "📋 No se pudo generar el borrador Brasileirão."
+      );
+    }
     return { sent: false, reason: skippedReason ?? "no_draft" };
   }
 
   if (skippedReason === "already_published") {
-    await api.sendMessage(
-      chatId,
-      `✅ El hilo Brasileirão de *${draft.dayKey}* ya fue publicado.` +
-        (draft.publishedTweetId && draft.publishedTweetId !== "dry-run"
-          ? `\nhttps://x.com/i/web/status/${draft.publishedTweetId}`
-          : ""),
-      { parse_mode: "Markdown" }
-    );
+    if (!quiet) {
+      await api.sendMessage(
+        chatId,
+        `✅ El hilo Brasileirão de *${draft.dayKey}* ya fue publicado.` +
+          (draft.publishedTweetId && draft.publishedTweetId !== "dry-run"
+            ? `\nhttps://x.com/i/web/status/${draft.publishedTweetId}`
+            : ""),
+        { parse_mode: "Markdown" }
+      );
+    }
     return { sent: false, reason: skippedReason };
   }
 

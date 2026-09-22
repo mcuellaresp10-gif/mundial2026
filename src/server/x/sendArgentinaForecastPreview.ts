@@ -28,33 +28,43 @@ function splitMessage(text: string): string[] {
 export async function sendArgentinaForecastPreviewToTelegram(
   api: Api,
   chatId: number,
-  options?: { force?: boolean }
+  options?: { force?: boolean; quiet?: boolean }
 ): Promise<{ sent: boolean; reason?: string }> {
-  await api.sendMessage(chatId, "⏳ Generando sims Liga Profesional Argentina de hoy…");
+  const quiet = options?.quiet === true;
+  if (!quiet) {
+    await api.sendMessage(
+      chatId,
+      "⏳ Generando sims Liga Profesional Argentina de hoy…"
+    );
+  }
 
   const { draft, skippedReason } = await buildArgentinaForecastDraft({
     force: options?.force,
   });
 
   if (!draft) {
-    await api.sendMessage(
-      chatId,
-      skippedReason === "no_fixtures"
-        ? "📋 No hay partidos pendientes de Liga Profesional Argentina para hoy (hora AR)."
-        : "📋 No se pudo generar el borrador Argentina."
-    );
+    if (!quiet) {
+      await api.sendMessage(
+        chatId,
+        skippedReason === "no_fixtures"
+          ? "📋 No hay partidos pendientes de Liga Profesional Argentina para hoy (hora AR)."
+          : "📋 No se pudo generar el borrador Argentina."
+      );
+    }
     return { sent: false, reason: skippedReason ?? "no_draft" };
   }
 
   if (skippedReason === "already_published") {
-    await api.sendMessage(
-      chatId,
-      `✅ El hilo Argentina de *${draft.dayKey}* ya fue publicado.` +
-        (draft.publishedTweetId && draft.publishedTweetId !== "dry-run"
-          ? `\nhttps://x.com/i/web/status/${draft.publishedTweetId}`
-          : ""),
-      { parse_mode: "Markdown" }
-    );
+    if (!quiet) {
+      await api.sendMessage(
+        chatId,
+        `✅ El hilo Argentina de *${draft.dayKey}* ya fue publicado.` +
+          (draft.publishedTweetId && draft.publishedTweetId !== "dry-run"
+            ? `\nhttps://x.com/i/web/status/${draft.publishedTweetId}`
+            : ""),
+        { parse_mode: "Markdown" }
+      );
+    }
     return { sent: false, reason: skippedReason };
   }
 

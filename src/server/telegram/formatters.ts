@@ -295,4 +295,6 @@ export const HELP_MESSAGE = `❓ *Cómo funciona*
 
 Cada uno → borrador → *Publicar en X* / *Descartar*.
 
+~13:00 Bogotá el bot revisa solo *partidos del día* (BetPlay, Conmebol, Argentina, Brasil) y te manda borrador si hay fixtures. Tablas/probs son manuales.
+
 Comandos: /pronosticos · /cuadrangulares · /conmebol · /argentina · /playoffsar · /brasil · /tablabr · /ayuda`;

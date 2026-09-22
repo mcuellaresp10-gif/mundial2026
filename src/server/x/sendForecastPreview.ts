@@ -28,31 +28,36 @@ function splitMessage(text: string): string[] {
 export async function sendBetPlayForecastPreviewToTelegram(
   api: Api,
   chatId: number,
-  options?: { force?: boolean }
+  options?: { force?: boolean; quiet?: boolean }
 ): Promise<{ sent: boolean; reason?: string }> {
+  const quiet = options?.quiet === true;
   const { draft, skippedReason } = await buildBetPlayForecastDraft({
     force: options?.force,
   });
 
   if (!draft) {
-    await api.sendMessage(
-      chatId,
-      skippedReason === "no_fixtures"
-        ? "📋 No hay partidos pendientes de Liga BetPlay para hoy. No hay borrador X."
-        : "📋 No se pudo generar el borrador de pronósticos."
-    );
+    if (!quiet) {
+      await api.sendMessage(
+        chatId,
+        skippedReason === "no_fixtures"
+          ? "📋 No hay partidos pendientes de Liga BetPlay para hoy. No hay borrador X."
+          : "📋 No se pudo generar el borrador de pronósticos."
+      );
+    }
     return { sent: false, reason: skippedReason ?? "no_draft" };
   }
 
   if (skippedReason === "already_published") {
-    await api.sendMessage(
-      chatId,
-      `✅ El hilo de *${draft.dayKey}* ya fue publicado en X.` +
-        (draft.publishedTweetId && draft.publishedTweetId !== "dry-run"
-          ? `\nhttps://x.com/i/web/status/${draft.publishedTweetId}`
-          : ""),
-      { parse_mode: "Markdown" }
-    );
+    if (!quiet) {
+      await api.sendMessage(
+        chatId,
+        `✅ El hilo de *${draft.dayKey}* ya fue publicado en X.` +
+          (draft.publishedTweetId && draft.publishedTweetId !== "dry-run"
+            ? `\nhttps://x.com/i/web/status/${draft.publishedTweetId}`
+            : ""),
+        { parse_mode: "Markdown" }
+      );
+    }
     return { sent: false, reason: skippedReason };
   }
 

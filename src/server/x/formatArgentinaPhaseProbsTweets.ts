@@ -11,6 +11,10 @@ export function formatPct1(value: number): string {
   return `${(Math.max(0, Math.min(1, value)) * 100).toFixed(1)}%`;
 }
 
+function clampTweet(text: string): string {
+  return text.length > 280 ? text.slice(0, 277) + "…" : text;
+}
+
 function shortName(name: string): string {
   const t = translateTeamName(name);
   if (/independ\.?\s*rivadavia/i.test(t)) return "Ind. Rivadavia";
@@ -24,53 +28,86 @@ function shortName(name: string): string {
   if (/sarmiento/i.test(t)) return "Sarmiento";
   if (/barracas/i.test(t)) return "Barracas";
   if (/atletico tucuman|atlético tucumán/i.test(t)) return "Atl. Tucumán";
+  if (/velez|vélez/i.test(t)) return "Vélez";
+  if (/boca/i.test(t)) return "Boca";
+  if (/river/i.test(t)) return "River";
+  if (/rosario/i.test(t)) return "Rosario";
+  if (/belgrano/i.test(t)) return "Belgrano";
+  if (/lanus|lanús/i.test(t)) return "Lanús";
+  if (/huracan|huracán/i.test(t)) return "Huracán";
+  if (/independiente/i.test(t)) return "Independiente";
+  if (/racing/i.test(t)) return "Racing";
+  if (/san lorenzo/i.test(t)) return "San Lorenzo";
+  if (/taller/i.test(t)) return "Talleres";
+  if (/union|unión/i.test(t)) return "Unión";
+  if (/platense/i.test(t)) return "Platense";
+  if (/banfield/i.test(t)) return "Banfield";
+  if (/godoy/i.test(t)) return "Godoy Cruz";
+  if (/aldosivi/i.test(t)) return "Aldosivi";
   return t;
 }
 
-/** Top 8 por zona según prob. de octavos. */
-export function formatArgentinaPlayoffsListTweet(
+function pickZone(rows: ArgentinaPhaseTweetRow[], z: "A" | "B") {
+  return [...rows]
+    .filter((r) => r.zone === z)
+    .sort((a, b) => b.probPlayoffs - a.probPlayoffs)
+    .slice(0, ARGENTINA_ZONE_QUALIFYING_SPOTS);
+}
+
+/** Zona A sola (≤280). La imagen lleva el detalle. */
+export function formatArgentinaZoneATweet(
   rows: ArgentinaPhaseTweetRow[],
   jornada: number,
   phase: "apertura" | "clausura"
 ): string {
   const phaseLabel = phase === "apertura" ? "Apertura" : "Clausura";
-  const pickZone = (z: "A" | "B") =>
-    [...rows]
-      .filter((r) => r.zone === z)
-      .sort((a, b) => b.probPlayoffs - a.probPlayoffs)
-      .slice(0, ARGENTINA_ZONE_QUALIFYING_SPOTS);
-
-  const a = pickZone("A");
-  const b = pickZone("B");
-
-  const lines = [
-    `Liga Argentina (${phaseLabel}) — Prob. de clasificar a octavos — Jornada ${jornada}:`,
-    "",
-    "Zona A:",
-    ...a.map((r, i) => `${i + 1}. ${shortName(r.teamName)}`),
-    "",
-    "Zona B:",
-    ...b.map((r, i) => `${i + 1}. ${shortName(r.teamName)}`),
-  ];
-  const text = lines.join("\n");
-  return text.length > 280 ? text.slice(0, 277) + "…" : text;
+  const a = pickZone(rows, "A");
+  return clampTweet(
+    [
+      `Liga Argentina (${phaseLabel}) — Prob. octavos · J${jornada}`,
+      "",
+      "Zona A (top 8):",
+      ...a.map((r, i) => `${i + 1}. ${shortName(r.teamName)}`),
+    ].join("\n")
+  );
 }
 
+/** Zona B sola (≤280). */
+export function formatArgentinaZoneBTweet(rows: ArgentinaPhaseTweetRow[]): string {
+  const b = pickZone(rows, "B");
+  return clampTweet(
+    [
+      "Zona B (top 8):",
+      ...b.map((r, i) => `${i + 1}. ${shortName(r.teamName)}`),
+    ].join("\n")
+  );
+}
+
+/** Reply con % de los 8 más altos (mezcla zonas). */
 export function formatArgentinaPlayoffsPctTweet(
   rows: ArgentinaPhaseTweetRow[]
 ): string {
   const top = [...rows]
     .sort((a, b) => b.probPlayoffs - a.probPlayoffs)
-    .slice(0, 12);
-  const lines = [
-    "Prob. octavos (top):",
-    ...top.map(
-      (r, i) =>
-        `${i + 1}. ${shortName(r.teamName)} (Z${r.zone}) ${formatPct1(r.probPlayoffs)}`
-    ),
-  ];
-  const text = lines.join("\n");
-  return text.length > 280 ? text.slice(0, 277) + "…" : text;
+    .slice(0, 8);
+  return clampTweet(
+    [
+      "Prob. octavos:",
+      ...top.map(
+        (r, i) =>
+          `${i + 1}. ${shortName(r.teamName)} (Z${r.zone}) ${formatPct1(r.probPlayoffs)}`
+      ),
+    ].join("\n")
+  );
+}
+
+/** @deprecated Preferir formatArgentinaZoneATweet; se mantiene por compat. */
+export function formatArgentinaPlayoffsListTweet(
+  rows: ArgentinaPhaseTweetRow[],
+  jornada: number,
+  phase: "apertura" | "clausura"
+): string {
+  return formatArgentinaZoneATweet(rows, jornada, phase);
 }
 
 export function buildArgentinaPhaseProbsThread(
@@ -80,7 +117,8 @@ export function buildArgentinaPhaseProbsThread(
 ): string[] {
   if (rows.length === 0) return [];
   return [
-    formatArgentinaPlayoffsListTweet(rows, jornada, phase),
+    formatArgentinaZoneATweet(rows, jornada, phase),
+    formatArgentinaZoneBTweet(rows),
     formatArgentinaPlayoffsPctTweet(rows),
   ];
 }
@@ -92,20 +130,25 @@ export function formatTelegramArgentinaPhasePreview(
   phase: "apertura" | "clausura"
 ): string {
   const phaseLabel = phase === "apertura" ? "Apertura" : "Clausura";
-  const top = [...rows]
-    .sort((a, b) => b.probPlayoffs - a.probPlayoffs)
-    .slice(0, 16);
+  const a = pickZone(rows, "A");
+  const b = pickZone(rows, "B");
   return [
     `📋 *Borrador X — Playoffs Liga Argentina (${phaseLabel})*`,
     `_Jornada ${jornada} · ${dayKey}_`,
     "",
-    "Top 16 por prob. de octavos (8 por zona en el post):",
-    ...top.map(
+    "*Zona A* (prob. octavos):",
+    ...a.map(
       (r, i) =>
-        `${i + 1}. ${shortName(r.teamName)} Z${r.zone} — ${formatPct1(r.probPlayoffs)}`
+        `${i + 1}. ${shortName(r.teamName)} — ${formatPct1(r.probPlayoffs)}`
     ),
     "",
+    "*Zona B* (prob. octavos):",
+    ...b.map(
+      (r, i) =>
+        `${i + 1}. ${shortName(r.teamName)} — ${formatPct1(r.probPlayoffs)}`
+    ),
+    "",
+    "_Hilo X: Zona A → Zona B → % · + imagen._",
     "_Reglas LPF 2026: 2 zonas × top 8 → eliminación directa._",
-    "_Al publicar se adjunta la imagen de la tabla._",
   ].join("\n");
 }

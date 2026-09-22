@@ -26,6 +26,12 @@ export function createTelegramBot(): Bot {
   bot.command("conmebol", (ctx) =>
     handleIntent(ctx, { type: "x_conmebol", force: true })
   );
+  bot.command("argentina", (ctx) =>
+    handleIntent(ctx, { type: "x_argentina", force: true })
+  );
+  bot.command("playoffsar", (ctx) =>
+    handleIntent(ctx, { type: "x_argentina_phase", force: true })
+  );
 
   bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;

@@ -12,6 +12,9 @@ export function mainReplyKeyboard(): Keyboard {
     .text("📊 Cuadrangulares X")
     .row()
     .text("🏆 Conmebol X")
+    .text("🇦🇷 Argentina X")
+    .row()
+    .text("🏁 Playoffs AR")
     .text("❓ Ayuda")
     .resized()
     .persistent();
@@ -19,10 +22,13 @@ export function mainReplyKeyboard(): Keyboard {
 
 export function afterActionKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("🐦 Pronósticos", "act:pronosticos")
+    .text("🐦 BetPlay", "act:pronosticos")
     .text("📊 Cuadrangulares", "act:cuadrangulares")
     .row()
     .text("🏆 Conmebol", "act:conmebol")
+    .text("🇦🇷 Argentina", "act:argentina")
+    .row()
+    .text("🏁 Playoffs AR", "act:playoffs_ar")
     .text("❓ Ayuda", "act:help");
 }
 
@@ -144,10 +150,26 @@ export function xConmebolForecastApprovalKeyboard(dayKey: string): InlineKeyboar
     .text("❌ Descartar", `xc:reject:${dayKey}`);
 }
 
+/** Validación partidos hoy Liga Argentina → X. */
+export function xArgentinaForecastApprovalKeyboard(dayKey: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Publicar en X", `xa:approve:${dayKey}`)
+    .text("❌ Descartar", `xa:reject:${dayKey}`);
+}
+
+/** Validación playoffs / probs Liga Argentina → X. */
+export function xArgentinaPhaseApprovalKeyboard(dayKey: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Publicar en X", `xap:approve:${dayKey}`)
+    .text("❌ Descartar", `xap:reject:${dayKey}`);
+}
+
 export const BOT_COMMANDS = [
   { command: "start", description: "Inicio · contenido X" },
   { command: "pronosticos", description: "Borrador BetPlay hoy → X" },
   { command: "cuadrangulares", description: "Borrador probs clasificar → X" },
   { command: "conmebol", description: "Borrador Libertadores/Sudaca → X" },
+  { command: "argentina", description: "Borrador Liga Argentina hoy → X" },
+  { command: "playoffsar", description: "Borrador playoffs Argentina → X" },
   { command: "ayuda", description: "Cómo funciona" },
 ] as const;

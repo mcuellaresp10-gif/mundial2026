@@ -41,6 +41,8 @@ skills-lock.json
 /data/x-forecast-draft.json
 /data/x-phase-probs-draft.json
 /data/x-conmebol-forecast-draft.json
+/data/x-argentina-forecast-draft.json
+/data/x-argentina-phase-draft.json
 
 # typescript
 *.tsbuildinfo

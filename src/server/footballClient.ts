@@ -218,11 +218,12 @@ export async function getLeagueStandings(
   );
 }
 
-/** Partidos de un día civil en zona Bogotá, filtrados por liga (season requerida por API). */
+/** Partidos de un día civil en zona dada (default Bogotá), filtrados por liga. */
 export async function getFixturesByDateLeague(
   date: string,
   leagueId: number,
-  season = DEFAULT_SEASON
+  season = DEFAULT_SEASON,
+  timezone = "America/Bogota"
 ): Promise<Fixture[]> {
   return apiGetCached<Fixture[]>(
     "fixtures",
@@ -230,7 +231,7 @@ export async function getFixturesByDateLeague(
       date,
       league: leagueId,
       season,
-      timezone: "America/Bogota",
+      timezone,
     },
     TTL_LEAGUE_FIXTURES_MS
   );

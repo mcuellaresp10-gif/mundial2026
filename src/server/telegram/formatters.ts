@@ -273,18 +273,22 @@ export const WELCOME_MESSAGE = (name?: string) =>
 
 🐦 *Generador de contenido para X* (@MundialAnalisis)
 
-• *🐦 Pronósticos X* — sims 1X2 partidos de hoy (BetPlay)
-• *📊 Cuadrangulares X* — probs de clasificar (BetPlay)
-• *🏆 Conmebol X* — sims 1X2 Libertadores + Sudamericana de hoy
+• *🐦 Pronósticos X* — BetPlay hoy (1X2)
+• *📊 Cuadrangulares X* — probs clasificar BetPlay
+• *🏆 Conmebol X* — Libertadores + Sudamericana
+• *🇦🇷 Argentina X* — Liga Profesional hoy (1X2)
+• *🏁 Playoffs AR* — probs octavos (2 zonas × top 8)
 
 Apruebas o descartas; solo si apruebas se publica.`;
 
 export const HELP_MESSAGE = `❓ *Cómo funciona*
 
-*Pronósticos X* (/pronosticos) — BetPlay hoy
-*Cuadrangulares X* (/cuadrangulares) — top 8 probs clasificar (+ imagen tabla)
-*Conmebol X* (/conmebol) — Libertadores + Sudamericana hoy
+*Pronósticos X* — BetPlay hoy
+*Cuadrangulares X* — top 8 probs BetPlay (+ imagen)
+*Conmebol X* — Libertadores + Sudamericana hoy
+*Argentina X* — Liga Profesional hoy (hora AR)
+*Playoffs AR* — probs octavos LPF (zonas A/B, reglamento 2026) + imagen
 
-Cada uno genera borrador → *Publicar en X* / *Descartar*.
+Cada uno → borrador → *Publicar en X* / *Descartar*.
 
-Comandos: /pronosticos · /cuadrangulares · /conmebol · /ayuda · /start`;
+Comandos: /pronosticos · /cuadrangulares · /conmebol · /argentina · /playoffsar · /ayuda`;

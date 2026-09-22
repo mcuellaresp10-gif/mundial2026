@@ -383,7 +383,7 @@ function getPairLambdas(
   return lambdas.get(pairKey(homeId, awayId)) ?? { home: 1.3, away: 1.1 };
 }
 
-function sampleNoisyScore(
+export function sampleNoisyScore(
   pairLambdas: Map<string, LambdaPair>,
   homeId: number,
   awayId: number,

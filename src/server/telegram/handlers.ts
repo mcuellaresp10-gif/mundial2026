@@ -52,6 +52,16 @@ import {
   publishApprovedConmebolForecastThread,
   rejectConmebolForecastDraft,
 } from "@/server/x/publishConmebolForecastThread";
+import { sendArgentinaForecastPreviewToTelegram } from "@/server/x/sendArgentinaForecastPreview";
+import {
+  publishApprovedArgentinaForecastThread,
+  rejectArgentinaForecastDraft,
+} from "@/server/x/publishArgentinaForecastThread";
+import { sendArgentinaPhaseProbsPreviewToTelegram } from "@/server/x/sendArgentinaPhaseProbsPreview";
+import {
+  publishApprovedArgentinaPhaseThread,
+  rejectArgentinaPhaseDraft,
+} from "@/server/x/publishArgentinaPhaseProbsThread";
 
 async function withTyping(ctx: Context, fn: () => Promise<void>): Promise<void> {
   await ctx.replyWithChatAction("typing");
@@ -281,6 +291,26 @@ export async function handleIntent(ctx: Context, intent: BotIntent): Promise<voi
       });
       return;
 
+    case "x_argentina":
+      await withTyping(ctx, async () => {
+        const chatId = ctx.chat?.id;
+        if (!chatId) return;
+        await sendArgentinaForecastPreviewToTelegram(ctx.api, chatId, {
+          force: intent.force === true,
+        });
+      });
+      return;
+
+    case "x_argentina_phase":
+      await withTyping(ctx, async () => {
+        const chatId = ctx.chat?.id;
+        if (!chatId) return;
+        await sendArgentinaPhaseProbsPreviewToTelegram(ctx.api, chatId, {
+          force: intent.force === true,
+        });
+      });
+      return;
+
     case "x_approve":
       await withTyping(ctx, async () => {
         const result = await publishApprovedForecastThread(intent.dayKey);
@@ -401,6 +431,86 @@ export async function handleIntent(ctx: Context, intent: BotIntent): Promise<voi
       });
       return;
 
+    case "xa_approve":
+      await withTyping(ctx, async () => {
+        const result = await publishApprovedArgentinaForecastThread(intent.dayKey);
+        if (result.ok && result.error === "already_published") {
+          await ctx.reply(`✅ Ya estaba publicado (${intent.dayKey}).`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        if (!result.ok) {
+          await ctx.reply(`❌ No se pudo publicar: ${result.error ?? "error"}`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        const link =
+          result.rootId && result.rootId !== "dry-run"
+            ? `\nhttps://x.com/i/web/status/${result.rootId}`
+            : result.rootId === "dry-run"
+              ? "\n_(dry-run: no se envió a X)_"
+              : "";
+        await ctx.reply(`✅ *Argentina publicado en X* · ${intent.dayKey}${link}`, {
+          parse_mode: "Markdown",
+          reply_markup: afterActionKeyboard(),
+        });
+      });
+      return;
+
+    case "xa_reject":
+      await withTyping(ctx, async () => {
+        const ok = rejectArgentinaForecastDraft(intent.dayKey);
+        await ctx.reply(
+          ok
+            ? `❌ Borrador Argentina *${intent.dayKey}* descartado.`
+            : `No hay borrador Argentina para ${intent.dayKey}.`,
+          { parse_mode: "Markdown", reply_markup: afterActionKeyboard() }
+        );
+      });
+      return;
+
+    case "xap_approve":
+      await withTyping(ctx, async () => {
+        const result = await publishApprovedArgentinaPhaseThread(intent.dayKey);
+        if (result.ok && result.error === "already_published") {
+          await ctx.reply(`✅ Ya estaba publicado (${intent.dayKey}).`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        if (!result.ok) {
+          await ctx.reply(`❌ No se pudo publicar: ${result.error ?? "error"}`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        const link =
+          result.rootId && result.rootId !== "dry-run"
+            ? `\nhttps://x.com/i/web/status/${result.rootId}`
+            : result.rootId === "dry-run"
+              ? "\n_(dry-run: no se envió a X)_"
+              : "";
+        await ctx.reply(
+          `✅ *Playoffs AR publicado en X* · ${intent.dayKey}${link}`,
+          { parse_mode: "Markdown", reply_markup: afterActionKeyboard() }
+        );
+      });
+      return;
+
+    case "xap_reject":
+      await withTyping(ctx, async () => {
+        const ok = rejectArgentinaPhaseDraft(intent.dayKey);
+        await ctx.reply(
+          ok
+            ? `❌ Borrador playoffs AR *${intent.dayKey}* descartado.`
+            : `No hay borrador playoffs AR para ${intent.dayKey}.`,
+          { parse_mode: "Markdown", reply_markup: afterActionKeyboard() }
+        );
+      });
+      return;
+
     case "refresh":
       await handleIntent(ctx, { type: "digest" });
       return;
@@ -437,11 +547,15 @@ export async function answerCallback(ctx: Context, intent: BotIntent): Promise<v
         ? "Alertas activadas 🔔"
         : intent.type === "x_approve" ||
             intent.type === "xp_approve" ||
-            intent.type === "xc_approve"
+            intent.type === "xc_approve" ||
+            intent.type === "xa_approve" ||
+            intent.type === "xap_approve"
           ? "Publicando…"
           : intent.type === "x_reject" ||
               intent.type === "xp_reject" ||
-              intent.type === "xc_reject"
+              intent.type === "xc_reject" ||
+              intent.type === "xa_reject" ||
+              intent.type === "xap_reject"
             ? "Descartado"
             : undefined;
   await ctx.answerCallbackQuery(toast ? { text: toast } : undefined);

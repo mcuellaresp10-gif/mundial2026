@@ -15,6 +15,9 @@ export function mainReplyKeyboard(): Keyboard {
     .text("🇦🇷 Argentina X")
     .row()
     .text("🏁 Playoffs AR")
+    .text("🇧🇷 Brasil X")
+    .row()
+    .text("📊 Tabla BR")
     .text("❓ Ayuda")
     .resized()
     .persistent();
@@ -23,12 +26,15 @@ export function mainReplyKeyboard(): Keyboard {
 export function afterActionKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("🐦 BetPlay", "act:pronosticos")
-    .text("📊 Cuadrangulares", "act:cuadrangulares")
+    .text("📊 Cuadrang.", "act:cuadrangulares")
     .row()
     .text("🏆 Conmebol", "act:conmebol")
     .text("🇦🇷 Argentina", "act:argentina")
     .row()
     .text("🏁 Playoffs AR", "act:playoffs_ar")
+    .text("🇧🇷 Brasil", "act:brazil")
+    .row()
+    .text("📊 Tabla BR", "act:tabla_br")
     .text("❓ Ayuda", "act:help");
 }
 
@@ -164,6 +170,20 @@ export function xArgentinaPhaseApprovalKeyboard(dayKey: string): InlineKeyboard 
     .text("❌ Descartar", `xap:reject:${dayKey}`);
 }
 
+/** Validación partidos hoy Brasileirão → X. */
+export function xBrazilForecastApprovalKeyboard(dayKey: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Publicar en X", `xb:approve:${dayKey}`)
+    .text("❌ Descartar", `xb:reject:${dayKey}`);
+}
+
+/** Validación probs tabla Brasileirão → X. */
+export function xBrazilPhaseApprovalKeyboard(dayKey: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Publicar en X", `xbp:approve:${dayKey}`)
+    .text("❌ Descartar", `xbp:reject:${dayKey}`);
+}
+
 export const BOT_COMMANDS = [
   { command: "start", description: "Inicio · contenido X" },
   { command: "pronosticos", description: "Borrador BetPlay hoy → X" },
@@ -171,5 +191,7 @@ export const BOT_COMMANDS = [
   { command: "conmebol", description: "Borrador Libertadores/Sudaca → X" },
   { command: "argentina", description: "Borrador Liga Argentina hoy → X" },
   { command: "playoffsar", description: "Borrador playoffs Argentina → X" },
+  { command: "brasil", description: "Borrador Brasileirão hoy → X" },
+  { command: "tablabr", description: "Borrador probs tabla BR → X" },
   { command: "ayuda", description: "Cómo funciona" },
 ] as const;

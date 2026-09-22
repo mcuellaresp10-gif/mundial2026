@@ -21,6 +21,8 @@ export type BotIntent =
   | { type: "x_conmebol"; force?: boolean }
   | { type: "x_argentina"; force?: boolean }
   | { type: "x_argentina_phase"; force?: boolean }
+  | { type: "x_brazil"; force?: boolean }
+  | { type: "x_brazil_phase"; force?: boolean }
   | { type: "x_approve"; dayKey: string }
   | { type: "x_reject"; dayKey: string }
   | { type: "xp_approve"; dayKey: string }
@@ -31,6 +33,10 @@ export type BotIntent =
   | { type: "xa_reject"; dayKey: string }
   | { type: "xap_approve"; dayKey: string }
   | { type: "xap_reject"; dayKey: string }
+  | { type: "xb_approve"; dayKey: string }
+  | { type: "xb_reject"; dayKey: string }
+  | { type: "xbp_approve"; dayKey: string }
+  | { type: "xbp_reject"; dayKey: string }
   | { type: "ai"; question: string };
 
 function normalize(text: string): string {
@@ -59,6 +65,11 @@ const BUTTON_MAP: Record<string, BotIntent> = {
   "argentina x": { type: "x_argentina", force: true },
   "playoffs ar": { type: "x_argentina_phase", force: true },
   playoffsar: { type: "x_argentina_phase", force: true },
+  brasil: { type: "x_brazil", force: true },
+  "brasil x": { type: "x_brazil", force: true },
+  brazil: { type: "x_brazil", force: true },
+  "tabla br": { type: "x_brazil_phase", force: true },
+  tablabr: { type: "x_brazil_phase", force: true },
 };
 
 export function resolveIntent(raw: string): BotIntent {
@@ -73,6 +84,14 @@ export function resolveIntent(raw: string): BotIntent {
 
   if (includesAny(text, ["ayuda", "help", "como funciona", "cómo funciona", "menu", "menú", "comandos"])) {
     return { type: "help" };
+  }
+
+  if (includesAny(text, ["tabla br", "tabla brasil", "clasificacion brasil", "clasificación brasil", "libertadores brasil"])) {
+    return { type: "x_brazil_phase", force: true };
+  }
+
+  if (includesAny(text, ["brasil", "brazil", "brasileirao", "brasileirão"])) {
+    return { type: "x_brazil", force: true };
   }
 
   if (includesAny(text, ["playoffs ar", "playoffs argentina", "octavos argentina", "probs argentina"])) {
@@ -125,10 +144,16 @@ export function callbackToIntent(data: string): BotIntent | null {
       conmebol: { type: "x_conmebol", force: true },
       argentina: { type: "x_argentina", force: true },
       playoffs_ar: { type: "x_argentina_phase", force: true },
+      brazil: { type: "x_brazil", force: true },
+      tabla_br: { type: "x_brazil_phase", force: true },
     };
     return map[act] ?? null;
   }
   const prefixes: Array<[string, BotIntent["type"]]> = [
+    ["xbp:approve:", "xbp_approve"],
+    ["xbp:reject:", "xbp_reject"],
+    ["xb:approve:", "xb_approve"],
+    ["xb:reject:", "xb_reject"],
     ["xap:approve:", "xap_approve"],
     ["xap:reject:", "xap_reject"],
     ["xa:approve:", "xa_approve"],

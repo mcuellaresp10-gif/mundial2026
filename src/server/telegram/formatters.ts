@@ -278,6 +278,8 @@ export const WELCOME_MESSAGE = (name?: string) =>
 • *🏆 Conmebol X* — Libertadores + Sudamericana
 • *🇦🇷 Argentina X* — Liga Profesional hoy (1X2)
 • *🏁 Playoffs AR* — probs octavos (2 zonas × top 8)
+• *🇧🇷 Brasil X* — Brasileirão hoy (1X2)
+• *📊 Tabla BR* — Campeón / G4 / G6 / Sudaca / descenso
 
 Apruebas o descartas; solo si apruebas se publica.`;
 
@@ -288,7 +290,9 @@ export const HELP_MESSAGE = `❓ *Cómo funciona*
 *Conmebol X* — Libertadores + Sudamericana hoy
 *Argentina X* — Liga Profesional hoy (hora AR)
 *Playoffs AR* — probs octavos LPF (zonas A/B, reglamento 2026) + imagen
+*Brasil X* — Brasileirão Serie A hoy (hora BR)
+*Tabla BR* — probs título, Libertadores, Sudamericana y descenso (+ imagen)
 
 Cada uno → borrador → *Publicar en X* / *Descartar*.
 
-Comandos: /pronosticos · /cuadrangulares · /conmebol · /argentina · /playoffsar · /ayuda`;
+Comandos: /pronosticos · /cuadrangulares · /conmebol · /argentina · /playoffsar · /brasil · /tablabr · /ayuda`;

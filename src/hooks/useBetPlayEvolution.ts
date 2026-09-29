@@ -16,6 +16,7 @@ import {
 import {
   BETPLAY_EVOLUTION_SIMULATIONS,
   buildPointsEvolution,
+  fingerprintFinishedSignature,
   finishedFixturesSignature,
   loadCachedProbEvolution,
   runBetPlayProbBacktest,
@@ -125,7 +126,7 @@ export function useBetPlayEvolution() {
         league.id,
         league.defaultSeason,
         tournamentPhase,
-        finishedSig.slice(0, 120),
+        fingerprintFinishedSignature(finishedSig),
         BETPLAY_EVOLUTION_SIMULATIONS,
       ].join("|"),
     [league.id, league.defaultSeason, tournamentPhase, finishedSig]

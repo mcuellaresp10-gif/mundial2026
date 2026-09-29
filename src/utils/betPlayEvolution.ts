@@ -430,7 +430,21 @@ export function finishedFixturesSignature(fixtures: Fixture[]): string {
     .join("|");
 }
 
-const LS_PREFIX = "betplay-evolution-probs:v1:";
+/**
+ * Huella corta de la firma completa (no truncar el string: si solo se usan
+ * los primeros N chars, partidos nuevos no invalidan el cache).
+ */
+export function fingerprintFinishedSignature(sig: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < sig.length; i++) {
+    hash ^= sig.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const finishedCount = sig ? sig.split("|").length : 0;
+  return `${finishedCount}:${(hash >>> 0).toString(36)}`;
+}
+
+const LS_PREFIX = "betplay-evolution-probs:v2:";
 
 export function loadCachedProbEvolution(
   cacheKey: string

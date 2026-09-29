@@ -4,6 +4,8 @@ import type { Fixture, Team } from "@/types";
 import {
   buildPointsEvolution,
   buildStandingsAtMatchday,
+  fingerprintFinishedSignature,
+  finishedFixturesSignature,
   listBetPlayMatchdayCuts,
   parseBetPlayMatchday,
   pendingFixturesAfterMatchday,
@@ -151,5 +153,22 @@ describe("pendingFixturesAfterMatchday", () => {
     const pending = pendingFixturesAfterMatchday(list, 1);
     assert.equal(pending.length, 2);
     assert.ok(pending.every((f) => f.fixture.status.short === "NS"));
+  });
+});
+
+describe("fingerprintFinishedSignature", () => {
+  it("cambia cuando hay más partidos FT (no se queda en el prefijo)", () => {
+    const early = [
+      fixture(1, 1, 2, "Clausura - 1", "FT", 1, 0),
+      fixture(2, 2, 3, "Clausura - 1", "FT", 2, 1),
+    ];
+    const later = [
+      ...early,
+      fixture(99, 1, 3, "Clausura - 10", "FT", 0, 0),
+    ];
+    const a = fingerprintFinishedSignature(finishedFixturesSignature(early));
+    const b = fingerprintFinishedSignature(finishedFixturesSignature(later));
+    assert.notEqual(a, b);
+    assert.ok(b.startsWith("3:"));
   });
 });

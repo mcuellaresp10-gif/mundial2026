@@ -33,6 +33,16 @@ export function getBrazilDayKey(now = new Date()): string {
   }).format(now);
 }
 
+export function getBrazilHour(now = new Date()): number {
+  const hourStr = new Intl.DateTimeFormat("en-US", {
+    timeZone: BRAZIL_TZ,
+    hour: "numeric",
+    hour12: false,
+  }).format(now);
+  const h = Number(hourStr);
+  return h === 24 ? 0 : h;
+}
+
 function flattenStandings(groups: StandingsGroup[]): StandingTeam[] {
   const rows: StandingTeam[] = [];
   for (const g of groups) {

@@ -4,8 +4,10 @@
  * Requiere: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, API_FOOTBALL_KEY
  * Para publicar en X tras aprobar: TWITTER_API_KEY/SECRET + ACCESS_TOKEN/SECRET
  *
- * Tick diario (~13:00 Bogotá): borradores de partidos del día BetPlay, Conmebol,
- * Argentina y Brasileirão (solo si hay fixtures; tablas/probs siguen manuales).
+ * Ticks diarios de partidos del día (tablas/probs siguen manuales):
+ * - BetPlay + Conmebol: ~13:00 Bogotá
+ * - Argentina: ~10:00 Buenos Aires
+ * - Brasileirão: ~10:00 São Paulo
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,8 +18,14 @@ import {
   getBogotaDayKey,
   getBogotaHour,
 } from "../src/server/x/buildBetPlayForecastDraft";
-import { getArgentinaDayKey } from "../src/server/x/buildArgentinaForecastDraft";
-import { getBrazilDayKey } from "../src/server/x/buildBrazilForecastDraft";
+import {
+  getArgentinaDayKey,
+  getArgentinaHour,
+} from "../src/server/x/buildArgentinaForecastDraft";
+import {
+  getBrazilDayKey,
+  getBrazilHour,
+} from "../src/server/x/buildBrazilForecastDraft";
 import { getForecastDraftForDay } from "../src/server/x/forecastDraftStore";
 import { getConmebolForecastDraftForDay } from "../src/server/x/conmebolForecastDraftStore";
 import { getArgentinaForecastDraftForDay } from "../src/server/x/argentinaForecastDraftStore";
@@ -28,10 +36,12 @@ import { sendArgentinaForecastPreviewToTelegram } from "../src/server/x/sendArge
 import { sendBrazilForecastPreviewToTelegram } from "../src/server/x/sendBrazilForecastPreview";
 
 const ROOT = process.cwd();
-/** Revisa la hora Bogotá cada 5 min para los borradores diarios. */
+/** Revisa cada 5 min si toca enviar algún borrador diario. */
 const FORECAST_TICK_MS = 5 * 60 * 1000;
-/** Hora local Bogotá para enviar borradores a Telegram. */
+/** Hora Bogotá para BetPlay + Conmebol. */
 const FORECAST_HOUR_BOGOTA = Number(process.env.X_FORECASTS_HOUR ?? "13");
+/** Hora local AR/BR para borradores de partidos del día. */
+const FORECAST_HOUR_AR_BR = Number(process.env.X_FORECASTS_HOUR_AR_BR ?? "10");
 
 type DailyLeague = "betplay" | "conmebol" | "argentina" | "brazil";
 
@@ -118,26 +128,35 @@ async function runLeagueTick(
 
 async function maybeSendDailyXForecastDrafts(): Promise<void> {
   if (!chatId) return;
-  const hour = getBogotaHour();
-  if (hour < FORECAST_HOUR_BOGOTA) return;
 
-  const bogotaDay = getBogotaDayKey();
-  const argentinaDay = getArgentinaDayKey();
-  const brazilDay = getBrazilDayKey();
   const quiet = { quiet: true as const };
+  const bogotaHour = getBogotaHour();
+  const argentinaHour = getArgentinaHour();
+  const brazilHour = getBrazilHour();
 
-  await runLeagueTick("betplay", bogotaDay, () =>
-    sendBetPlayForecastPreviewToTelegram(bot.api, chatId, quiet)
-  );
-  await runLeagueTick("conmebol", bogotaDay, () =>
-    sendConmebolForecastPreviewToTelegram(bot.api, chatId, quiet)
-  );
-  await runLeagueTick("argentina", argentinaDay, () =>
-    sendArgentinaForecastPreviewToTelegram(bot.api, chatId, quiet)
-  );
-  await runLeagueTick("brazil", brazilDay, () =>
-    sendBrazilForecastPreviewToTelegram(bot.api, chatId, quiet)
-  );
+  if (bogotaHour >= FORECAST_HOUR_BOGOTA) {
+    const bogotaDay = getBogotaDayKey();
+    await runLeagueTick("betplay", bogotaDay, () =>
+      sendBetPlayForecastPreviewToTelegram(bot.api, chatId, quiet)
+    );
+    await runLeagueTick("conmebol", bogotaDay, () =>
+      sendConmebolForecastPreviewToTelegram(bot.api, chatId, quiet)
+    );
+  }
+
+  if (argentinaHour >= FORECAST_HOUR_AR_BR) {
+    const argentinaDay = getArgentinaDayKey();
+    await runLeagueTick("argentina", argentinaDay, () =>
+      sendArgentinaForecastPreviewToTelegram(bot.api, chatId, quiet)
+    );
+  }
+
+  if (brazilHour >= FORECAST_HOUR_AR_BR) {
+    const brazilDay = getBrazilDayKey();
+    await runLeagueTick("brazil", brazilDay, () =>
+      sendBrazilForecastPreviewToTelegram(bot.api, chatId, quiet)
+    );
+  }
 }
 
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -154,7 +173,7 @@ async function main(): Promise<void> {
   console.info("[telegram] X content worker starting...");
   console.info(`[telegram] Authorized chat_id=${chatId}`);
   console.info(
-    `[x-forecast] Daily match drafts hour (Bogota)=${FORECAST_HOUR_BOGOTA} · BetPlay + Conmebol + AR + BR`
+    `[x-forecast] Hours · Bogotá ${FORECAST_HOUR_BOGOTA} (BetPlay/Conmebol) · AR/BR ${FORECAST_HOUR_AR_BR}`
   );
 
   scheduleForecastTick(chatId ? 5000 : FORECAST_TICK_MS);
@@ -165,7 +184,7 @@ async function main(): Promise<void> {
     await bot.api
       .sendMessage(
         chatId,
-        "🐦 *Generador X listo.*\n\n~13:00 Bogotá te mando borradores de *partidos del día* (BetPlay, Conmebol, Argentina, Brasil) si hay fixtures.\nTablas/probs siguen con los botones.",
+        "🐦 *Generador X listo.*\n\nBorradores de *partidos del día*:\n• BetPlay / Conmebol ~13:00 Bogotá\n• Argentina / Brasil ~10:00 hora local\n\nTablas/probs siguen con los botones.",
         { parse_mode: "Markdown", reply_markup: mainReplyKeyboard() }
       )
       .catch(() => undefined);

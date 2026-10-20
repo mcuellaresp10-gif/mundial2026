@@ -7,7 +7,7 @@ import {
   getLeagueStandings,
 } from "@/server/footballClient";
 import { pickStandingForClub } from "@/utils/clubMatchCalibration";
-import { runScoreSimulation } from "@/utils/matchSimulation";
+import { runScoreSimulation, topScorelines } from "@/utils/matchSimulation";
 import type { StandingTeam, StandingsGroup } from "@/types";
 import {
   buildForecastThread,
@@ -160,9 +160,14 @@ export async function buildArgentinaForecastDraft(options?: {
       awayId,
       homeName: f.teams.home.name,
       awayName: f.teams.away.name,
+      homeLogo: f.teams.home.logo,
+      awayLogo: f.teams.away.logo,
       winHome: result.outcomeProbs.winA,
       draw: result.outcomeProbs.draw,
       winAway: result.outcomeProbs.winB,
+      xgHome: result.expectedGoals.home,
+      xgAway: result.expectedGoals.away,
+      topScores: topScorelines(result.matrix, 3),
       competition: f.league.round?.includes("Clausura")
         ? "🇦🇷 Clausura"
         : f.league.round?.includes("Apertura")

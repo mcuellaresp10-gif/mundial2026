@@ -132,15 +132,21 @@ function sliceMatrix(
   return rows;
 }
 
-function findMostLikely(matrix: number[][]): { home: number; away: number; prob: number } {
-  let best = { home: 0, away: 0, prob: 0 };
+export function topScorelines(
+  matrix: number[][],
+  n = 3
+): { home: number; away: number; prob: number }[] {
+  const entries: { home: number; away: number; prob: number }[] = [];
   for (let i = 0; i < matrix.length; i++) {
     for (let j = 0; j < (matrix[i]?.length ?? 0); j++) {
-      const p = matrix[i][j] ?? 0;
-      if (p > best.prob) best = { home: i, away: j, prob: p };
+      entries.push({ home: i, away: j, prob: matrix[i][j] ?? 0 });
     }
   }
-  return best;
+  return entries.sort((a, b) => b.prob - a.prob).slice(0, n);
+}
+
+function findMostLikely(matrix: number[][]): { home: number; away: number; prob: number } {
+  return topScorelines(matrix, 1)[0] ?? { home: 0, away: 0, prob: 0 };
 }
 
 function blendMatrices(a: number[][], b: number[][], weightB: number): number[][] {

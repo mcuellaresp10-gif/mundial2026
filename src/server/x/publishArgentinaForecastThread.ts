@@ -1,4 +1,4 @@
-import { postTweetThread } from "@/server/x/client";
+import { publishForecastMatchPosts } from "@/server/x/publishForecastMatchPosts";
 import {
   getArgentinaForecastDraftForDay,
   setArgentinaForecastDraftStatus,
@@ -18,7 +18,7 @@ export async function publishApprovedArgentinaForecastThread(
   if (draft.tweets.length === 0) return { ok: false, error: "Borrador vacío." };
 
   try {
-    const { rootId } = await postTweetThread(draft.tweets);
+    const { rootId } = await publishForecastMatchPosts(draft.matches, draft.tweets);
     setArgentinaForecastDraftStatus(dayKey, "published", { publishedTweetId: rootId });
     return { ok: true, rootId };
   } catch (e) {

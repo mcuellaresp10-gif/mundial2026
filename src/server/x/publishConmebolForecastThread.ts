@@ -1,4 +1,4 @@
-import { postTweetThread } from "@/server/x/client";
+import { publishForecastMatchPosts } from "@/server/x/publishForecastMatchPosts";
 import {
   getConmebolForecastDraftForDay,
   setConmebolForecastDraftStatus,
@@ -24,7 +24,7 @@ export async function publishApprovedConmebolForecastThread(
   }
 
   try {
-    const { rootId } = await postTweetThread(draft.tweets);
+    const { rootId } = await publishForecastMatchPosts(draft.matches, draft.tweets);
     setConmebolForecastDraftStatus(dayKey, "published", {
       publishedTweetId: rootId,
     });

@@ -26,6 +26,11 @@ export interface PostTweetThreadOptions {
   mediaBuffers?: Buffer[];
 }
 
+export interface IndependentTweet {
+  text: string;
+  mediaBuffer?: Buffer;
+}
+
 /** Publica un hilo (primer tuit + replies). Devuelve id del tuit cabecera. */
 export async function postTweetThread(
   tweets: string[],
@@ -75,4 +80,49 @@ export async function postTweetThread(
   }
 
   return { rootId };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Publica posts independientes (un partido = un tuit, cada uno con su imagen). */
+export async function postIndependentTweets(
+  tweets: IndependentTweet[]
+): Promise<{ rootId: string; ids: string[] }> {
+  if (tweets.length === 0) throw new Error("Empty tweet list");
+
+  if (isXForecastsDryRun()) {
+    console.info("[x] DRY RUN — independent posts:");
+    tweets.forEach((t, i) => {
+      console.info(`--- ${i + 1}/${tweets.length} ---\n${t.text}\n`);
+      if (t.mediaBuffer) {
+        console.info(`[x] DRY RUN — media ${t.mediaBuffer.length} bytes`);
+      }
+    });
+    return { rootId: "dry-run", ids: tweets.map(() => "dry-run") };
+  }
+
+  const client = createTwitterClient().readWrite;
+  const uploader = createTwitterClient();
+  const ids: string[] = [];
+
+  for (let i = 0; i < tweets.length; i++) {
+    const item = tweets[i]!;
+    let mediaIds: [string] | undefined;
+    if (item.mediaBuffer) {
+      const mediaId = await uploader.v1.uploadMedia(item.mediaBuffer, {
+        mimeType: "image/png",
+      });
+      mediaIds = [mediaId];
+    }
+    const res = await client.v2.tweet({
+      text: item.text,
+      ...(mediaIds ? { media: { media_ids: mediaIds } } : {}),
+    });
+    ids.push(res.data.id);
+    if (i < tweets.length - 1) await sleep(1500);
+  }
+
+  return { rootId: ids[0]!, ids };
 }

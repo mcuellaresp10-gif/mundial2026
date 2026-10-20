@@ -6,6 +6,8 @@ import {
   formatPct,
   formatTelegramForecastPreview,
 } from "./formatForecastTweets.ts";
+import { xHandleForTeam } from "./xTeamHandles.ts";
+import { renderForecastMatchPng } from "./renderForecastMatchPng.ts";
 
 describe("formatForecastTweets", () => {
   it("formatea porcentajes a 1 decimal", () => {
@@ -13,23 +15,24 @@ describe("formatForecastTweets", () => {
     assert.equal(formatPct(0.281), "28.1%");
   });
 
-  it("arma tuit de partido ≤280", () => {
+  it("arma tuit corto de partido ≤280", () => {
     const text = formatForecastMatchTweet({
-      homeName: "Boyaca Chico",
-      awayName: "Fortaleza FC",
-      winHome: 0.405,
-      draw: 0.281,
-      winAway: 0.314,
+      homeName: "Millonarios",
+      awayName: "Once Caldas",
+      winHome: 0.56,
+      draw: 0.29,
+      winAway: 0.15,
     });
-    assert.ok(text.includes("🆚"));
-    assert.ok(text.includes("40.5%"));
-    assert.ok(text.includes("28.1%"));
-    assert.ok(text.includes("31.4%"));
+    assert.ok(text.includes("#LigaBetPlay"));
+    assert.ok(text.includes("@MillosFCoficial"));
+    assert.ok(text.includes("@oncecaldas"));
+    assert.ok(text.includes("Las probs aquí"));
+    assert.ok(!text.includes("40.5%"));
     assert.ok(text.length <= 280);
   });
 
-  it("un solo partido → un tuit (sin hilo)", () => {
-    const thread = buildForecastThread([
+  it("un partido o varios → un tuit por partido", () => {
+    const one = buildForecastThread([
       {
         homeName: "A",
         awayName: "B",
@@ -38,14 +41,9 @@ describe("formatForecastTweets", () => {
         winAway: 0.3,
       },
     ]);
-    assert.equal(thread.length, 1);
-    assert.ok(thread[0].startsWith("Partidos de hoy de Liga BetPlay"));
-    assert.ok(thread[0].includes("🆚"));
-    assert.ok(thread[0].includes("40.0%"));
-    assert.ok(thread[0].length <= 280);
-  });
+    assert.equal(one.length, 1);
+    assert.ok(one[0].includes("vs"));
 
-  it("varios partidos → cabecera+primer partido, luego replies", () => {
     const thread = buildForecastThread([
       {
         homeName: "A",
@@ -63,13 +61,11 @@ describe("formatForecastTweets", () => {
       },
     ]);
     assert.equal(thread.length, 2);
-    assert.ok(thread[0].startsWith("Partidos de hoy de Liga BetPlay"));
-    assert.ok(thread[0].includes("A") || thread[0].includes("🆚"));
-    assert.ok(thread[1].includes("🆚"));
-    assert.ok(!thread[1].includes("Partidos de hoy"));
+    assert.ok(!thread[0].includes("Partidos de hoy"));
+    assert.ok(thread[1].includes("vs"));
   });
 
-  it("acepta título Conmebol y etiqueta de competición", () => {
+  it("usa hashtag Conmebol según competición", () => {
     const thread = buildForecastThread(
       [
         {
@@ -84,8 +80,8 @@ describe("formatForecastTweets", () => {
       { title: "Partidos de hoy · Libertadores y Sudamericana" }
     );
     assert.equal(thread.length, 1);
-    assert.ok(thread[0].includes("Libertadores y Sudamericana"));
-    assert.ok(thread[0].includes("🏆 Libertadores"));
+    assert.ok(thread[0].includes("#Libertadores"));
+    assert.ok(thread[0].includes("@Flamengo"));
   });
 
   it("preview Telegram incluye aviso de validación", () => {
@@ -104,5 +100,40 @@ describe("formatForecastTweets", () => {
     assert.ok(preview.includes("Borrador X"));
     assert.ok(preview.includes("2026-09-14"));
     assert.ok(preview.includes("apruebes"));
+    assert.ok(preview.includes("Un post por partido"));
+  });
+});
+
+describe("xTeamHandles", () => {
+  it("resuelve handles conocidos", () => {
+    assert.equal(xHandleForTeam("Millonarios"), "MillosFCoficial");
+    assert.equal(xHandleForTeam("Once Caldas"), "oncecaldas");
+    assert.equal(xHandleForTeam("Boca Juniors"), "BocaJrsOficial");
+  });
+
+  it("no inventa handle si no está mapeado", () => {
+    assert.equal(xHandleForTeam("Club Inventado FC"), null);
+  });
+});
+
+describe("renderForecastMatchPng", () => {
+  it("genera PNG de la tarjeta 1X2", async () => {
+    const png = await renderForecastMatchPng({
+      homeName: "Millonarios",
+      awayName: "Once Caldas",
+      winHome: 0.56,
+      draw: 0.29,
+      winAway: 0.15,
+      xgHome: 1.32,
+      xgAway: 0.55,
+      topScores: [
+        { home: 1, away: 0, prob: 0.21 },
+        { home: 0, away: 0, prob: 0.16 },
+        { home: 2, away: 0, prob: 0.13 },
+      ],
+    });
+    assert.ok(png.length > 1000);
+    assert.equal(png[0], 0x89);
+    assert.equal(png[1], 0x50);
   });
 });

@@ -7,7 +7,7 @@ import {
   getLeagueStandings,
 } from "@/server/footballClient";
 import { pickStandingForClub } from "@/utils/clubMatchCalibration";
-import { runScoreSimulation } from "@/utils/matchSimulation";
+import { runScoreSimulation, topScorelines } from "@/utils/matchSimulation";
 import type { Fixture, StandingTeam, StandingsGroup } from "@/types";
 import {
   buildForecastThread,
@@ -139,9 +139,14 @@ async function simulateMatch(
     awayId,
     homeName: f.teams.home.name,
     awayName: f.teams.away.name,
+    homeLogo: f.teams.home.logo,
+    awayLogo: f.teams.away.logo,
     winHome: result.outcomeProbs.winA,
     draw: result.outcomeProbs.draw,
     winAway: result.outcomeProbs.winB,
+    xgHome: result.expectedGoals.home,
+    xgAway: result.expectedGoals.away,
+    topScores: topScorelines(result.matrix, 3),
     competition: bundle.label,
   };
 }

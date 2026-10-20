@@ -1,4 +1,4 @@
-import { postTweetThread } from "@/server/x/client";
+import { publishForecastMatchPosts } from "@/server/x/publishForecastMatchPosts";
 import {
   getForecastDraftForDay,
   setForecastDraftStatus,
@@ -22,7 +22,7 @@ export async function publishApprovedForecastThread(dayKey: string): Promise<{
   }
 
   try {
-    const { rootId } = await postTweetThread(draft.tweets);
+    const { rootId } = await publishForecastMatchPosts(draft.matches, draft.tweets);
     setForecastDraftStatus(dayKey, "published", { publishedTweetId: rootId });
     return { ok: true, rootId };
   } catch (e) {

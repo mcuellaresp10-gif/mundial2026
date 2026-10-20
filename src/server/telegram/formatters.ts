@@ -285,12 +285,12 @@ Apruebas o descartas; solo si apruebas se publica.`;
 
 export const HELP_MESSAGE = `❓ *Cómo funciona*
 
-*Pronósticos X* — BetPlay hoy
+*Pronósticos X* — BetPlay hoy · un post por partido + imagen 1X2
 *Cuadrangulares X* — top 8 probs BetPlay (+ imagen)
-*Conmebol X* — Libertadores + Sudamericana hoy
-*Argentina X* — Liga Profesional hoy (hora AR)
+*Conmebol X* — Libertadores + Sudamericana hoy · un post por partido + imagen
+*Argentina X* — Liga Profesional hoy (hora AR) · un post por partido + imagen
 *Playoffs AR* — probs octavos LPF (zonas A/B, reglamento 2026) + imagen
-*Brasil X* — Brasileirão Serie A hoy (hora BR)
+*Brasil X* — Brasileirão Serie A hoy (hora BR) · un post por partido + imagen
 *Tabla BR* — probs título, Libertadores, Sudamericana y descenso (+ imagen)
 
 Cada uno → borrador → *Publicar en X* / *Descartar*.

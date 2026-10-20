@@ -109,6 +109,10 @@ describe("xTeamHandles", () => {
     assert.equal(xHandleForTeam("Millonarios"), "MillosFCoficial");
     assert.equal(xHandleForTeam("Once Caldas"), "oncecaldas");
     assert.equal(xHandleForTeam("Boca Juniors"), "BocaJrsOficial");
+    assert.equal(xHandleForTeam("Boyaca Chico"), "BCHICOFCOFICIAL");
+    assert.equal(xHandleForTeam("Internacional de Bogotá"), "InterBogOficial");
+    assert.equal(xHandleForTeam("Cúcuta Deportivo"), "Cucutaoficial");
+    assert.equal(xHandleForTeam("Internacional"), "SCInternacional");
   });
 
   it("no inventa handle si no está mapeado", () => {

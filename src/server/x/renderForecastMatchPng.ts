@@ -78,37 +78,71 @@ function donutSlice(
   return `<path d="M ${p1.x} ${p1.y} A ${rOut} ${rOut} 0 ${large} 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rIn} ${rIn} 0 ${large} 0 ${p4.x} ${p4.y} Z" fill="${color}"/>`;
 }
 
-function donutSlices(
+function sliceWithGap(
   cx: number,
   cy: number,
   rOut: number,
   rIn: number,
-  slices: { pct: number; color: string }[]
+  start: number,
+  sweep: number,
+  color: string
 ): string {
-  const total = slices.reduce((s, x) => s + Math.max(0, x.pct), 0) || 1;
   const GAP = 3.2;
-  let angle = 0;
-  const parts: string[] = [];
-  for (const slice of slices) {
-    const sweep = (Math.max(0, slice.pct) / total) * 360;
-    if (sweep < 0.4) {
-      angle += sweep;
-      continue;
-    }
-    if (sweep >= 359.5) {
-      parts.push(
-        `<circle cx="${cx}" cy="${cy}" r="${rOut}" fill="${slice.color}"/>`,
-        `<circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${C.bgBot}"/>`
-      );
-      return parts.join("\n");
-    }
-    const gap = sweep > GAP * 2 + 2 ? GAP : 0;
-    parts.push(
-      donutSlice(cx, cy, rOut, rIn, angle + gap / 2, angle + sweep - gap / 2, slice.color)
-    );
-    angle += sweep;
+  if (sweep < 0.4) return "";
+  if (sweep >= 359.5) {
+    return [
+      `<circle cx="${cx}" cy="${cy}" r="${rOut}" fill="${color}"/>`,
+      `<circle cx="${cx}" cy="${cy}" r="${rIn}" fill="${C.bgBot}"/>`,
+    ].join("\n");
   }
-  return parts.join("\n");
+  const gap = sweep > GAP * 2 + 2 ? GAP : 0;
+  return donutSlice(cx, cy, rOut, rIn, start + gap / 2, start + sweep - gap / 2, color);
+}
+
+function outcomeSweeps(homePct: number, drawPct: number, awayPct: number) {
+  const total =
+    Math.max(0, homePct) + Math.max(0, drawPct) + Math.max(0, awayPct) || 1;
+  const homeSweep = (Math.max(0, homePct) / total) * 360;
+  const awaySweep = (Math.max(0, awayPct) / total) * 360;
+  const drawSweep = (Math.max(0, drawPct) / total) * 360;
+  return { homeSweep, awaySweep, drawSweep };
+}
+
+function donutPctLabel(
+  cx: number,
+  cy: number,
+  r: number,
+  angle: number,
+  text: string,
+  size: number
+): string {
+  const p = polar(cx, cy, r, angle);
+  return `<text x="${p.x}" y="${p.y + size * 0.35}" text-anchor="middle" fill="${C.text}" stroke="${C.hole}" stroke-width="4" paint-order="stroke" font-size="${size}" font-weight="800" font-family="${FONT}">${text}</text>`;
+}
+
+/**
+ * Local a la izquierda, visitante a la derecha, empate abajo.
+ * Parte desde las 12 para que el favorito local no quede del lado del visita.
+ */
+function matchupDonut(
+  cx: number,
+  cy: number,
+  rOut: number,
+  rIn: number,
+  home: { pct: number; color: string },
+  draw: { pct: number; color: string },
+  away: { pct: number; color: string }
+): string {
+  const { homeSweep, awaySweep, drawSweep } = outcomeSweeps(
+    home.pct,
+    draw.pct,
+    away.pct
+  );
+  return [
+    sliceWithGap(cx, cy, rOut, rIn, 360 - homeSweep, homeSweep, home.color),
+    sliceWithGap(cx, cy, rOut, rIn, 0, awaySweep, away.color),
+    sliceWithGap(cx, cy, rOut, rIn, awaySweep, drawSweep, draw.color),
+  ].join("\n");
 }
 
 function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
@@ -262,13 +296,54 @@ export async function renderForecastMatchPng(
   const cy = 318;
   const rOut = 148;
   const rIn = 94;
-  const slices = donutSlices(
+  const slices = matchupDonut(
     cx,
     cy,
     rOut,
     rIn,
-    outcomes.map((o) => ({ pct: o.pct, color: o.color }))
+    { pct: match.winHome, color: homeColor },
+    { pct: match.draw, color: C.draw },
+    { pct: match.winAway, color: awayColor }
   );
+  const { homeSweep, awaySweep, drawSweep } = outcomeSweeps(
+    match.winHome,
+    match.draw,
+    match.winAway
+  );
+  const labelR = (rOut + rIn) / 2;
+  const homeLabel =
+    homeSweep >= 22
+      ? donutPctLabel(
+          cx,
+          cy,
+          labelR,
+          360 - homeSweep / 2,
+          formatPct(match.winHome),
+          favorite.key === "local" ? 26 : 18
+        )
+      : "";
+  const awayLabel =
+    awaySweep >= 22
+      ? donutPctLabel(
+          cx,
+          cy,
+          labelR,
+          awaySweep / 2,
+          formatPct(match.winAway),
+          favorite.key === "away" ? 26 : 18
+        )
+      : "";
+  const drawLabel =
+    drawSweep >= 22
+      ? donutPctLabel(
+          cx,
+          cy,
+          labelR,
+          awaySweep + drawSweep / 2,
+          formatPct(match.draw),
+          favorite.key === "draw" ? 26 : 16
+        )
+      : "";
 
   const legend = outcomes
     .map((o, i) => {
@@ -338,8 +413,9 @@ export async function renderForecastMatchPng(
   <circle cx="${cx}" cy="${cy}" r="168" fill="${C.bgTop}" stroke="${C.panelStroke}" stroke-width="1"/>
   ${slices}
   <circle cx="${cx}" cy="${cy}" r="${rIn - 2}" fill="${C.hole}"/>
-  <text x="${cx}" y="${cy - 8}" text-anchor="middle" fill="${C.text}" font-size="42" font-weight="800" font-family="${FONT}">${formatPct(favorite.pct)}</text>
-  <text x="${cx}" y="${cy + 22}" text-anchor="middle" fill="${favorite.color}" font-size="14" font-weight="700" font-family="${FONT}" letter-spacing="2">${escapeXml(favorite.label.toUpperCase())}</text>
+  ${homeLabel}
+  ${awayLabel}
+  ${drawLabel}
 
   ${legend}
 

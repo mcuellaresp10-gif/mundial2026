@@ -258,3 +258,85 @@ export async function getH2H(teamA: number, teamB: number): Promise<Fixture[]> {
   );
 }
 
+/** Goleadores de una liga de club. */
+export async function getLeagueTopScorers(
+  leagueId: number,
+  season = DEFAULT_SEASON
+): Promise<Player[]> {
+  return apiGetCached<Player[]>(
+    "players/topscorers",
+    { league: leagueId, season },
+    TTL_PLAYERS_MS
+  );
+}
+
+/** Página de jugadores con stats de una liga. */
+export async function getLeaguePlayersPage(
+  leagueId: number,
+  season = DEFAULT_SEASON,
+  page = 1
+): Promise<{ players: Player[]; paging: { current: number; total: number } }> {
+  const qs = new URLSearchParams({
+    league: String(leagueId),
+    season: String(season),
+    page: String(page),
+  }).toString();
+  const url = `${getApiBaseUrl()}/players?${qs}`;
+  const key = cacheKey("league-players", { league: leagueId, season, page });
+  const cached = getCached<{ players: Player[]; paging: { current: number; total: number } }>(
+    key,
+    TTL_PLAYERS_MS
+  );
+  if (cached) return cached;
+
+  const res = await fetch(url, {
+    headers: { "x-apisports-key": getApiKey() },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`API-Football players → ${res.status}`);
+  const json = (await res.json()) as ApiResponse<Player[]>;
+  const result = {
+    players: json.response ?? [],
+    paging: json.paging ?? { current: page, total: page },
+  };
+  setCached(key, result);
+  return result;
+}
+
+/**
+ * Pool compacto para Once Ideal (topscorers + primeras páginas).
+ * Evita quemar cuota: tope de páginas configurable.
+ */
+export async function getLeaguePlayerPoolForOnceIdeal(
+  leagueId: number,
+  season = DEFAULT_SEASON,
+  maxPages = 8
+): Promise<Player[]> {
+  const byId = new Map<number, Player>();
+  const merge = (rows: Player[]) => {
+    for (const p of rows) {
+      if (!byId.has(p.player.id)) byId.set(p.player.id, p);
+    }
+  };
+
+  try {
+    merge(await getLeagueTopScorers(leagueId, season));
+  } catch (e) {
+    console.warn("[footballClient] topscorers once-ideal:", e);
+  }
+
+  const first = await getLeaguePlayersPage(leagueId, season, 1);
+  merge(first.players);
+  const total = Math.min(Math.max(first.paging.total, 1), maxPages);
+  for (let page = 2; page <= total; page++) {
+    try {
+      const next = await getLeaguePlayersPage(leagueId, season, page);
+      merge(next.players);
+    } catch (e) {
+      console.warn(`[footballClient] players page ${page}:`, e);
+      break;
+    }
+  }
+  return [...byId.values()];
+}
+

@@ -6,9 +6,13 @@ export type PhaseProbsDraftStatus = "pending" | "published" | "rejected";
 export interface PhaseProbsDraftRow {
   teamId: number;
   teamName: string;
+  teamLogo?: string;
+  group?: "A" | "B";
+  isSeed?: boolean;
   probCuadrangulares: number;
   probFinal: number;
   probChampion: number;
+  projectedPoints?: number;
 }
 
 export interface PhaseProbsDraft {
@@ -18,6 +22,9 @@ export interface PhaseProbsDraft {
   updatedAt: string;
   jornada: number;
   phase: "apertura" | "clausura";
+  /** regular = top-8; semis = grupos A/B ya sorteados */
+  mode?: "regular" | "semis";
+  simulations?: number;
   tweets: string[];
   rows: PhaseProbsDraftRow[];
   telegramMessageIds?: number[];

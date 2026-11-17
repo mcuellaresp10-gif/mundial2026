@@ -7,11 +7,14 @@ import {
   fixturesBetweenTeams,
   formatBetPlayPct,
   isMathematicallyEliminatedFromTopN,
+  rankCuadrangularStates,
   rankTeamStates,
   remainingMatchesByTeam,
   shrinkPairLambdas,
+  simulateBetPlayCuadrangularesSemis,
   simulateBetPlayPhaseProbabilities,
   simulateBetPlayPhaseProbabilitiesDetailed,
+  softenStandingForSemis,
   strengthConfidenceWeight,
   type BetPlayPhaseProbs,
 } from "./betPlaySeasonSimulation";
@@ -462,5 +465,70 @@ describe("simulateBetPlayPhaseProbabilities", () => {
     assert.equal(rem.get(1), 2);
     assert.equal(rem.get(2), 1);
     assert.equal(rem.get(3), 1);
+  });
+
+  it("punto invisible desempata por semilla", () => {
+    const ranked = rankCuadrangularStates(
+      [
+        state(1, "Seed", 9, 5, 2, 80),
+        state(2, "Other", 9, 6, 1, 70),
+      ],
+      1
+    );
+    assert.equal(ranked[0]!.teamId, 1);
+  });
+
+  it("simula cuadrangulares A/B con probs que suman ~1 por grupo", () => {
+    const standings = [
+      standing(1, "Atletico Nacional", 40, 19, 30, 10, 1),
+      standing(2, "America de Cali", 38, 19, 28, 12, 2),
+      standing(3, "Once Caldas", 30, 19, 22, 18, 3),
+      standing(4, "Atletico Bucaramanga", 29, 19, 21, 18, 4),
+      standing(5, "Independiente Santa Fe", 28, 19, 20, 19, 5),
+      standing(6, "Millonarios", 27, 19, 19, 18, 6),
+      standing(7, "Independiente Medellin", 26, 19, 18, 20, 7),
+      standing(8, "Deportivo Cali", 25, 19, 17, 21, 8),
+    ];
+    const result = simulateBetPlayCuadrangularesSemis({
+      standings,
+      fixtures: [],
+      groupANames: [
+        "Atletico Nacional",
+        "Once Caldas",
+        "Independiente Santa Fe",
+        "Independiente Medellin",
+      ],
+      groupBNames: [
+        "America de Cali",
+        "Atletico Bucaramanga",
+        "Millonarios",
+        "Deportivo Cali",
+      ],
+      seedAName: "Atletico Nacional",
+      seedBName: "America de Cali",
+      simulations: 200,
+      rng: seededRng(11),
+    });
+    const sumA = result.groupA.reduce((s, t) => s + t.probFinal, 0);
+    const sumB = result.groupB.reduce((s, t) => s + t.probFinal, 0);
+    assert.ok(Math.abs(sumA - 1) < 0.02);
+    assert.ok(Math.abs(sumB - 1) < 0.02);
+    assert.equal(result.groupA.find((t) => t.teamId === 1)?.isSeed, true);
+    assert.equal(result.groupB.find((t) => t.teamId === 2)?.isSeed, true);
+    // Borrón y cuenta nueva: el 7º de tabla no queda aplastado en el B.
+    const millos = result.groupB.find((t) => t.teamId === 6)!;
+    assert.ok(millos.probFinal >= 0.18, `Millonarios too low: ${millos.probFinal}`);
+  });
+
+  it("softenStandingForSemis acerca PPG a la media del grupo", () => {
+    const peers = [
+      standing(1, "A", 40, 19, 30, 10, 1),
+      standing(2, "B", 30, 19, 20, 20, 2),
+    ];
+    const soft = softenStandingForSemis(peers[0]!, peers, 0.18);
+    const rawPpg = 40 / 19;
+    const softPpg = soft.points / soft.all.played;
+    assert.ok(softPpg < rawPpg);
+    assert.ok(softPpg < rawPpg - 0.15);
   });
 });

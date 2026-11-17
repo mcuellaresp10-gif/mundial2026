@@ -9,15 +9,16 @@ import {
   getLeagueStandings,
 } from "@/server/footballClient";
 import {
-  BETPLAY_DEFAULT_SIMULATIONS,
-  simulateBetPlayPhaseProbabilitiesDetailed,
+  BETPLAY_SEMIS_SIMULATIONS,
+  CLAUSURA_2026_CUADRANGULARES,
+  simulateBetPlayCuadrangularesSemis,
 } from "@/utils/betPlaySeasonSimulation";
 import type { StandingTeam, StandingsGroup } from "@/types";
 import { getBogotaDayKey } from "@/server/x/buildBetPlayForecastDraft";
 import {
-  buildPhaseProbsThread,
-  formatTelegramPhaseProbsPreview,
-} from "@/server/x/formatPhaseProbsTweets";
+  buildCuadrangularesSemisThread,
+  formatTelegramCuadrangularesSemisPreview,
+} from "@/server/x/formatCuadrangularesSemisTweets";
 import {
   getPhaseProbsDraftForDay,
   savePhaseProbsDraft,
@@ -80,13 +81,13 @@ export interface BuildPhaseProbsResult {
 }
 
 /**
- * Genera borrador de probs de cuadrangulares (mismo motor que la web).
- * Torneo vigente: Clausura (como el dashboard en "all").
+ * Borrador de cuadrangulares semifinales (grupos A/B ya sorteados).
  */
 export async function buildBetPlayPhaseProbsDraft(options?: {
   force?: boolean;
   now?: Date;
   tournamentPhase?: "apertura" | "clausura";
+  simulations?: number;
 }): Promise<BuildPhaseProbsResult> {
   const now = options?.now ?? new Date();
   const dayKey = getBogotaDayKey(now);
@@ -111,6 +112,7 @@ export async function buildBetPlayPhaseProbsDraft(options?: {
   }
 
   const tournamentPhase = options?.tournamentPhase ?? "clausura";
+  const simulations = options?.simulations ?? BETPLAY_SEMIS_SIMULATIONS;
   const [standingsRaw, seasonFixtures] = await Promise.all([
     getLeagueStandings(BETPLAY_LEAGUE_ID, DEFAULT_SEASON),
     getLeagueSeasonFixtures(BETPLAY_LEAGUE_ID, DEFAULT_SEASON),
@@ -121,34 +123,51 @@ export async function buildBetPlayPhaseProbsDraft(options?: {
     return { draft: null, skippedReason: "no_standings" };
   }
 
-  const tournamentFixtures = seasonFixtures.filter((f) =>
-    matchesLeaguePhase(f.league.round, league, tournamentPhase)
-  );
+  const groups = CLAUSURA_2026_CUADRANGULARES;
+  let semis;
+  try {
+    semis = simulateBetPlayCuadrangularesSemis({
+      standings,
+      fixtures: seasonFixtures,
+      historyFixtures: seasonFixtures,
+      groupANames: groups.groupA.names,
+      groupBNames: groups.groupB.names,
+      seedAName: groups.groupA.seedName,
+      seedBName: groups.groupB.seedName,
+      simulations,
+    });
+  } catch (e) {
+    console.error("[x-phase] semis sim failed:", e);
+    return { draft: null, skippedReason: "sim_failed" };
+  }
 
-  const { rows, meta } = simulateBetPlayPhaseProbabilitiesDetailed({
-    standings,
-    fixtures: tournamentFixtures,
-    historyFixtures: seasonFixtures,
-    simulations: BETPLAY_DEFAULT_SIMULATIONS,
-  });
-
-  const jornada = Math.max(meta.maxPlayed, 1);
-  const draftRows = rows.map((r) => ({
+  const draftRows = [...semis.groupA, ...semis.groupB].map((r) => ({
     teamId: r.teamId,
     teamName: r.teamName,
-    probCuadrangulares: r.probCuadrangulares,
+    teamLogo: r.teamLogo,
+    group: r.group,
+    isSeed: r.isSeed,
+    probCuadrangulares: 1,
     probFinal: r.probFinal,
     probChampion: r.probChampion,
+    projectedPoints: r.projectedPoints,
   }));
 
-  const tweets = buildPhaseProbsThread(draftRows, jornada);
+  const tweets = buildCuadrangularesSemisThread(
+    semis.groupA,
+    semis.groupB,
+    semis.meta.simulations
+  );
+
   const draft: PhaseProbsDraft = {
     dayKey,
     status: "pending",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    jornada,
+    jornada: Math.max(semis.meta.maxPlayed, 1),
     phase: tournamentPhase,
+    mode: "semis",
+    simulations: semis.meta.simulations,
     tweets,
     rows: draftRows,
   };
@@ -157,5 +176,34 @@ export async function buildBetPlayPhaseProbsDraft(options?: {
 }
 
 export function getTelegramPhaseProbsPreviewText(draft: PhaseProbsDraft): string {
-  return formatTelegramPhaseProbsPreview(draft.rows, draft.dayKey, draft.jornada);
+  const groupA = draft.rows
+    .filter((r) => r.group === "A")
+    .map((r) => ({
+      teamId: r.teamId,
+      teamName: r.teamName,
+      teamLogo: r.teamLogo ?? "",
+      group: "A" as const,
+      isSeed: r.isSeed ?? false,
+      probFinal: r.probFinal,
+      probChampion: r.probChampion,
+      projectedPoints: r.projectedPoints ?? 0,
+    }));
+  const groupB = draft.rows
+    .filter((r) => r.group === "B")
+    .map((r) => ({
+      teamId: r.teamId,
+      teamName: r.teamName,
+      teamLogo: r.teamLogo ?? "",
+      group: "B" as const,
+      isSeed: r.isSeed ?? false,
+      probFinal: r.probFinal,
+      probChampion: r.probChampion,
+      projectedPoints: r.projectedPoints ?? 0,
+    }));
+  return formatTelegramCuadrangularesSemisPreview(
+    groupA,
+    groupB,
+    draft.dayKey,
+    draft.simulations ?? BETPLAY_SEMIS_SIMULATIONS
+  );
 }

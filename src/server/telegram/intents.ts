@@ -18,6 +18,7 @@ export type BotIntent =
   | { type: "unmute"; id: number }
   | { type: "x_forecasts"; force?: boolean }
   | { type: "x_phase_probs"; force?: boolean }
+  | { type: "x_once_ideal"; force?: boolean }
   | { type: "x_conmebol"; force?: boolean }
   | { type: "x_argentina"; force?: boolean }
   | { type: "x_argentina_phase"; force?: boolean }
@@ -27,6 +28,8 @@ export type BotIntent =
   | { type: "x_reject"; dayKey: string }
   | { type: "xp_approve"; dayKey: string }
   | { type: "xp_reject"; dayKey: string }
+  | { type: "xo_approve"; dayKey: string }
+  | { type: "xo_reject"; dayKey: string }
   | { type: "xc_approve"; dayKey: string }
   | { type: "xc_reject"; dayKey: string }
   | { type: "xa_approve"; dayKey: string }
@@ -59,6 +62,9 @@ const BUTTON_MAP: Record<string, BotIntent> = {
   "pronosticos x": { type: "x_forecasts", force: true },
   cuadrangulares: { type: "x_phase_probs", force: true },
   "cuadrangulares x": { type: "x_phase_probs", force: true },
+  "once ideal": { type: "x_once_ideal", force: true },
+  "once ideal x": { type: "x_once_ideal", force: true },
+  onceideal: { type: "x_once_ideal", force: true },
   conmebol: { type: "x_conmebol", force: true },
   "conmebol x": { type: "x_conmebol", force: true },
   argentina: { type: "x_argentina", force: true },
@@ -119,6 +125,18 @@ export function resolveIntent(raw: string): BotIntent {
 
   if (
     includesAny(text, [
+      "once ideal",
+      "onceideal",
+      "xi ideal",
+      "equipo ideal",
+      "todos contra todos",
+    ])
+  ) {
+    return { type: "x_once_ideal", force: true };
+  }
+
+  if (
+    includesAny(text, [
       "pronosticos",
       "pronósticos",
       "borrador x",
@@ -141,6 +159,7 @@ export function callbackToIntent(data: string): BotIntent | null {
       help: { type: "help" },
       pronosticos: { type: "x_forecasts", force: true },
       cuadrangulares: { type: "x_phase_probs", force: true },
+      once_ideal: { type: "x_once_ideal", force: true },
       conmebol: { type: "x_conmebol", force: true },
       argentina: { type: "x_argentina", force: true },
       playoffs_ar: { type: "x_argentina_phase", force: true },
@@ -158,6 +177,8 @@ export function callbackToIntent(data: string): BotIntent | null {
     ["xap:reject:", "xap_reject"],
     ["xa:approve:", "xa_approve"],
     ["xa:reject:", "xa_reject"],
+    ["xo:approve:", "xo_approve"],
+    ["xo:reject:", "xo_reject"],
     ["xp:approve:", "xp_approve"],
     ["xp:reject:", "xp_reject"],
     ["xc:approve:", "xc_approve"],

@@ -274,7 +274,8 @@ export const WELCOME_MESSAGE = (name?: string) =>
 🐦 *Generador de contenido para X* (@MundialAnalisis)
 
 • *🐦 Pronósticos X* — BetPlay hoy (1X2)
-• *📊 Cuadrangulares X* — probs clasificar BetPlay
+• *📊 Cuadrangulares X* — proyección semis A/B BetPlay
+• *⭐ Once Ideal X* — XI todos contra todos BetPlay
 • *🏆 Conmebol X* — Libertadores + Sudamericana
 • *🇦🇷 Argentina X* — Liga Profesional hoy (1X2)
 • *🏁 Playoffs AR* — probs octavos (2 zonas × top 8)
@@ -286,7 +287,8 @@ Apruebas o descartas; solo si apruebas se publica.`;
 export const HELP_MESSAGE = `❓ *Cómo funciona*
 
 *Pronósticos X* — BetPlay hoy · un post por partido + imagen 1X2
-*Cuadrangulares X* — top 8 probs BetPlay (+ imagen)
+*Cuadrangulares X* — semis A/B · % final y % campeón (+ imagen)
+*Once Ideal X* — XI 4-3-3 Clausura · rating por minutos (+ imagen)
 *Conmebol X* — Libertadores + Sudamericana hoy · un post por partido + imagen
 *Argentina X* — Liga Profesional hoy (hora AR) · un post por partido + imagen
 *Playoffs AR* — probs octavos LPF (zonas A/B, reglamento 2026) + imagen
@@ -295,6 +297,6 @@ export const HELP_MESSAGE = `❓ *Cómo funciona*
 
 Cada uno → borrador → *Publicar en X* / *Descartar*.
 
-~13:00 Bogotá: BetPlay y Conmebol (partidos del día). ~10:00 hora local: Argentina y Brasil. Solo si hay fixtures. Tablas/probs son manuales.
+~13:00 Bogotá: BetPlay y Conmebol (partidos del día). ~10:00 hora local: Argentina y Brasil. Solo si hay fixtures. Tablas/probs / Once Ideal son manuales.
 
-Comandos: /pronosticos · /cuadrangulares · /conmebol · /argentina · /playoffsar · /brasil · /tablabr · /ayuda`;
+Comandos: /pronosticos · /cuadrangulares · /onceideal · /conmebol · /argentina · /playoffsar · /brasil · /tablabr · /ayuda`;

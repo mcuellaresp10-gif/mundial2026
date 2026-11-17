@@ -23,6 +23,9 @@ export function createTelegramBot(): Bot {
   bot.command("cuadrangulares", (ctx) =>
     handleIntent(ctx, { type: "x_phase_probs", force: true })
   );
+  bot.command("onceideal", (ctx) =>
+    handleIntent(ctx, { type: "x_once_ideal", force: true })
+  );
   bot.command("conmebol", (ctx) =>
     handleIntent(ctx, { type: "x_conmebol", force: true })
   );

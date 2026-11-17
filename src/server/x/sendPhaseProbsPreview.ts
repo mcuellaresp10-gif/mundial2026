@@ -32,7 +32,7 @@ export async function sendBetPlayPhaseProbsPreviewToTelegram(
 ): Promise<{ sent: boolean; reason?: string }> {
   await api.sendMessage(
     chatId,
-    "⏳ Calculando probs de cuadrangulares (1000 sims)… puede tardar unos segundos."
+    "⏳ Calculando proyección de cuadrangulares A/B (5000 sims)… puede tardar unos segundos."
   );
 
   const { draft, skippedReason } = await buildBetPlayPhaseProbsDraft({

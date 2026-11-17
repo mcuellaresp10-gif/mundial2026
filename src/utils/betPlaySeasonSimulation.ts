@@ -333,11 +333,14 @@ function buildAllPairLambdas(
   /** Historial para H2H + forma (puede incluir Apertura). */
   historyFixtures: Fixture[],
   baseTotalGoals: number,
-  isPreTournament: boolean
+  isPreTournament: boolean,
+  /** Si se pasa, sustituye el historial solo para forma reciente (semis). */
+  recentFormFixtures?: Fixture[]
 ): Map<string, LambdaPair> {
   const map = new Map<string, LambdaPair>();
   const stateById = new Map(baseStates.map((s) => [s.teamId, s]));
   const h2hCache = new Map<string, Fixture[]>();
+  const formFixtures = recentFormFixtures ?? historyFixtures;
 
   for (let i = 0; i < baseStates.length; i++) {
     for (let j = 0; j < baseStates.length; j++) {
@@ -366,7 +369,7 @@ function buildAllPairLambdas(
         clubCalibration: {
           enabled: true,
           // Forma reciente / calibración club: mira historial (Apertura incluido).
-          leagueFixtures: historyFixtures,
+          leagueFixtures: formFixtures,
         },
       });
       map.set(pairKey(homeId, awayId), { home, away });
@@ -668,4 +671,450 @@ export function simulateBetPlayPhaseProbabilities(
   input: BetPlaySimInput
 ): BetPlayPhaseProbs[] {
   return simulateBetPlayPhaseProbabilitiesDetailed(input).rows;
+}
+
+/** Grupos oficiales Clausura 2026 (sorteo Dimayor). Cabezas = punto invisible. */
+export const CLAUSURA_2026_CUADRANGULARES = {
+  groupA: {
+    seedName: "Atletico Nacional",
+    names: [
+      "Atletico Nacional",
+      "Once Caldas",
+      "Independiente Santa Fe",
+      "Independiente Medellin",
+    ],
+  },
+  groupB: {
+    seedName: "America de Cali",
+    names: [
+      "America de Cali",
+      "Atletico Bucaramanga",
+      "Millonarios",
+      "Deportivo Cali",
+    ],
+  },
+} as const;
+
+export const BETPLAY_SEMIS_SIMULATIONS = 5000;
+/**
+ * Cuadrangulares = borrón y cuenta nueva.
+ * La tabla regular solo aporta esta fracción; el resto se nivela a la media del top-8.
+ */
+export const BETPLAY_SEMIS_TABLE_BLEND = 0.18;
+/** Más ruido / menos “congelar” diferencias de fase regular. */
+export const BETPLAY_SEMIS_STRENGTH_WEIGHT = 0.28;
+
+export interface CuadrangularSemisTeamProbs {
+  teamId: number;
+  teamName: string;
+  teamLogo: string;
+  group: "A" | "B";
+  isSeed: boolean;
+  probFinal: number;
+  probChampion: number;
+  projectedPoints: number;
+}
+
+export interface CuadrangularSemisResult {
+  groupA: CuadrangularSemisTeamProbs[];
+  groupB: CuadrangularSemisTeamProbs[];
+  meta: BetPlaySimMeta & { seedAId: number; seedBId: number };
+}
+
+function normalizeClubKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(fc|cf|sc|ca|club|de)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function matchStandingByName(
+  standings: StandingTeam[],
+  targetName: string
+): StandingTeam | null {
+  const target = normalizeClubKey(targetName);
+  const exact = standings.find((s) => normalizeClubKey(s.team.name) === target);
+  if (exact) return exact;
+  const aliases: Record<string, string[]> = {
+    "atletico nacional": ["nacional"],
+    "america de cali": ["america"],
+    "independiente medellin": ["medellin", "dim"],
+    "independiente santa fe": ["santa fe"],
+    "atletico bucaramanga": ["bucaramanga"],
+  };
+  const alts = aliases[target] ?? [];
+  for (const s of standings) {
+    const key = normalizeClubKey(s.team.name);
+    if (alts.some((a) => key === a || key.includes(a))) return s;
+  }
+  for (const s of standings) {
+    const key = normalizeClubKey(s.team.name);
+    if (key.includes(target) || target.includes(key)) return s;
+  }
+  return null;
+}
+
+function isCuadrangularRound(round: string | undefined): boolean {
+  const r = (round ?? "").toLowerCase();
+  return (
+    r.includes("cuadrangular") ||
+    r.includes("semifinal") ||
+    /grupo\s*[ab]/i.test(r) ||
+    /group\s*[ab]/i.test(r)
+  );
+}
+
+function blendRecord(
+  record: StandingTeam["all"],
+  avg: { ppg: number; gf: number; ga: number },
+  blend: number,
+  played: number
+): StandingTeam["all"] {
+  const w = Math.min(1, Math.max(0, blend));
+  const ppg = (record.win * 3 + record.draw) / Math.max(1, record.played);
+  const gf = record.goals.for / Math.max(1, record.played);
+  const ga = record.goals.against / Math.max(1, record.played);
+  const mixedPpg = avg.ppg * (1 - w) + ppg * w;
+  const mixedGf = avg.gf * (1 - w) + gf * w;
+  const mixedGa = avg.ga * (1 - w) + ga * w;
+  const pts = mixedPpg * played;
+  const win = Math.round(pts / 3);
+  const draw = Math.max(0, Math.round(pts - win * 3));
+  const lose = Math.max(0, played - win - draw);
+  return {
+    played,
+    win,
+    draw,
+    lose,
+    goals: {
+      for: Math.round(mixedGf * played),
+      against: Math.round(mixedGa * played),
+    },
+  };
+}
+
+/** Suaviza la tabla regular para no arrastrar la fase todos-contra-todos a semis. */
+export function softenStandingForSemis(
+  standing: StandingTeam,
+  peers: StandingTeam[],
+  tableBlend: number = BETPLAY_SEMIS_TABLE_BLEND
+): StandingTeam {
+  const played = Math.max(1, ...peers.map((p) => p.all.played), standing.all.played);
+  let ppgSum = 0;
+  let gfSum = 0;
+  let gaSum = 0;
+  for (const p of peers) {
+    const pj = Math.max(1, p.all.played);
+    ppgSum += (p.points ?? p.all.win * 3 + p.all.draw) / pj;
+    gfSum += p.all.goals.for / pj;
+    gaSum += p.all.goals.against / pj;
+  }
+  const n = Math.max(1, peers.length);
+  const avg = { ppg: ppgSum / n, gf: gfSum / n, ga: gaSum / n };
+  const all = blendRecord(standing.all, avg, tableBlend, played);
+  const home = blendRecord(
+    standing.home.played > 0 ? standing.home : standing.all,
+    avg,
+    tableBlend,
+    Math.max(1, Math.floor(played / 2))
+  );
+  const away = blendRecord(
+    standing.away.played > 0 ? standing.away : standing.all,
+    avg,
+    tableBlend,
+    Math.max(1, Math.ceil(played / 2))
+  );
+  return {
+    ...standing,
+    points: all.win * 3 + all.draw,
+    goalsDiff: all.goals.for - all.goals.against,
+    all,
+    home,
+    away,
+  };
+}
+
+/** Ranking cuadrangular: pts → punto invisible (semilla) → DIF → GF. */
+export function rankCuadrangularStates(
+  states: TeamGroupState[],
+  seedId: number
+): TeamGroupState[] {
+  return [...states].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (a.teamId === seedId && b.teamId !== seedId) return -1;
+    if (b.teamId === seedId && a.teamId !== seedId) return 1;
+    const gdA = a.goalsFor - a.goalsAgainst;
+    const gdB = b.goalsFor - b.goalsAgainst;
+    if (gdB !== gdA) return gdB - gdA;
+    if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+    return a.teamId - b.teamId;
+  });
+}
+
+function simulateRoundRobinGroupWithSeed(
+  group: TeamGroupState[],
+  seedId: number,
+  pairLambdas: Map<string, LambdaPair>,
+  strengthWeight: number,
+  rng: () => number,
+  pendingPairs: Array<[number, number]> | null
+): { winner: TeamGroupState; finalStates: TeamGroupState[] } {
+  const states = cloneStates(group);
+  const ids = group.map((t) => t.teamId);
+  const legs =
+    pendingPairs ??
+    roundRobinPairs(ids).flatMap(([a, b]) => [
+      [a, b] as [number, number],
+      [b, a] as [number, number],
+    ]);
+
+  for (const [homeId, awayId] of legs) {
+    if (!states.has(homeId) || !states.has(awayId)) continue;
+    const score = sampleNoisyScore(
+      pairLambdas,
+      homeId,
+      awayId,
+      strengthWeight,
+      rng
+    );
+    applyMatchToStates(states, homeId, awayId, score.homeGoals, score.awayGoals);
+  }
+
+  const ranked = rankCuadrangularStates([...states.values()], seedId);
+  return { winner: ranked[0]!, finalStates: ranked };
+}
+
+/**
+ * Monte Carlo de cuadrangulares ya sorteados: % final y % campeón por grupo.
+ * Aplica punto invisible a las cabezas de serie.
+ */
+export function simulateBetPlayCuadrangularesSemis(input: {
+  standings: StandingTeam[];
+  fixtures: Fixture[];
+  historyFixtures?: Fixture[];
+  groupANames: readonly string[];
+  groupBNames: readonly string[];
+  seedAName: string;
+  seedBName: string;
+  simulations?: number;
+  rng?: () => number;
+}): CuadrangularSemisResult {
+  const {
+    standings,
+    fixtures,
+    historyFixtures,
+    groupANames,
+    groupBNames,
+    seedAName,
+    seedBName,
+    simulations = BETPLAY_SEMIS_SIMULATIONS,
+    rng = Math.random,
+  } = input;
+
+  const history = historyFixtures ?? fixtures;
+  const n = Math.max(1, simulations);
+
+  const resolveGroup = (names: readonly string[], seedName: string) => {
+    const rows: StandingTeam[] = [];
+    for (const name of names) {
+      const row = matchStandingByName(standings, name);
+      if (!row) throw new Error(`No standing for ${name}`);
+      rows.push(row);
+    }
+    const seed = matchStandingByName(standings, seedName);
+    if (!seed) throw new Error(`No seed standing for ${seedName}`);
+    return { rows, seedId: seed.team.id };
+  };
+
+  const gA = resolveGroup(groupANames, seedAName);
+  const gB = resolveGroup(groupBNames, seedBName);
+  const rawRows = [...gA.rows, ...gB.rows];
+  // Borrón y cuenta nueva: suavizar tabla regular hacia la media del top-8.
+  const allRows = rawRows.map((s) =>
+    softenStandingForSemis(s, rawRows, BETPLAY_SEMIS_TABLE_BLEND)
+  );
+  const softById = new Map(allRows.map((s) => [s.team.id, s]));
+  const ids = new Set(allRows.map((s) => s.team.id));
+
+  const maxPlayed = Math.max(...rawRows.map((s) => s.all.played), 0);
+  const strengthWeight = BETPLAY_SEMIS_STRENGTH_WEIGHT;
+  const finishedForAvg = history.filter((f) =>
+    isFixtureFinished(f.fixture.status.short)
+  );
+  const baseTotalGoals = avgGoalsFromFixtures(
+    finishedForAvg.length > 0 ? finishedForAvg : fixtures
+  );
+
+  const metaById = new Map<number, TeamMeta>();
+  const baseStates: TeamGroupState[] = [];
+  const rawPriors = rawRows.map((s) => standingToTeamGroupState(s, false).priorStrength);
+  const meanPrior =
+    rawPriors.reduce((a, b) => a + b, 0) / Math.max(1, rawPriors.length);
+
+  for (const raw of rawRows) {
+    const soft = softById.get(raw.team.id)!;
+    metaById.set(raw.team.id, {
+      teamId: raw.team.id,
+      teamName: raw.team.name,
+      teamLogo: raw.team.logo,
+      // Lambdas usan standing suavizado (menos peso a la fase regular).
+      standing: soft,
+    });
+    const rawPrior = standingToTeamGroupState(raw, false).priorStrength;
+    const priorStrength =
+      meanPrior * (1 - BETPLAY_SEMIS_TABLE_BLEND) +
+      rawPrior * BETPLAY_SEMIS_TABLE_BLEND;
+    // Fase nueva: arrancan en 0 pts salvo resultados ya jugados de cuadrangulares.
+    baseStates.push({
+      teamId: raw.team.id,
+      teamName: raw.team.name,
+      points: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      priorStrength,
+    });
+  }
+
+  const liveStates = cloneStates(baseStates);
+  const groupOf = new Map<number, "A" | "B">();
+  for (const s of gA.rows) groupOf.set(s.team.id, "A");
+  for (const s of gB.rows) groupOf.set(s.team.id, "B");
+
+  const cuadFixtures = fixtures.filter(
+    (f) =>
+      ids.has(f.teams.home.id) &&
+      ids.has(f.teams.away.id) &&
+      groupOf.get(f.teams.home.id) === groupOf.get(f.teams.away.id) &&
+      isCuadrangularRound(f.league.round)
+  );
+
+  const finishedCuad = cuadFixtures.filter((f) =>
+    isFixtureFinished(f.fixture.status.short)
+  );
+  for (const f of finishedCuad) {
+    applyMatchToStates(
+      liveStates,
+      f.teams.home.id,
+      f.teams.away.id,
+      f.goals.home ?? 0,
+      f.goals.away ?? 0
+    );
+  }
+
+  const pendingCuad = cuadFixtures.filter(isPendingFixture);
+  const hasCuadCalendar = cuadFixtures.length > 0;
+
+  const pendingByGroup = (group: "A" | "B"): Array<[number, number]> | null => {
+    if (!hasCuadCalendar) return null;
+    return pendingCuad
+      .filter((f) => groupOf.get(f.teams.home.id) === group)
+      .map((f) => [f.teams.home.id, f.teams.away.id] as [number, number]);
+  };
+
+  // Forma reciente: solo partidos de cuadrangulares (si hay); no arrastrar la regular.
+  const rawLambdas = buildAllPairLambdas(
+    baseStates,
+    metaById,
+    history,
+    baseTotalGoals,
+    false,
+    finishedCuad
+  );
+  const pairLambdas = shrinkPairLambdas(rawLambdas, strengthWeight);
+
+  const counts = new Map<
+    number,
+    { final: number; champion: number; pointsSum: number }
+  >();
+  for (const s of baseStates) {
+    counts.set(s.teamId, { final: 0, champion: 0, pointsSum: 0 });
+  }
+
+  const groupAStates = () =>
+    gA.rows.map((r) => ({ ...liveStates.get(r.team.id)! }));
+  const groupBStates = () =>
+    gB.rows.map((r) => ({ ...liveStates.get(r.team.id)! }));
+
+  for (let sim = 0; sim < n; sim++) {
+    const resA = simulateRoundRobinGroupWithSeed(
+      groupAStates(),
+      gA.seedId,
+      pairLambdas,
+      strengthWeight,
+      rng,
+      pendingByGroup("A")
+    );
+    const resB = simulateRoundRobinGroupWithSeed(
+      groupBStates(),
+      gB.seedId,
+      pairLambdas,
+      strengthWeight,
+      rng,
+      pendingByGroup("B")
+    );
+
+    for (const t of resA.finalStates) {
+      counts.get(t.teamId)!.pointsSum += t.points;
+    }
+    for (const t of resB.finalStates) {
+      counts.get(t.teamId)!.pointsSum += t.points;
+    }
+
+    counts.get(resA.winner.teamId)!.final += 1;
+    counts.get(resB.winner.teamId)!.final += 1;
+
+    const championId = simulateTwoLegFinal(
+      resA.winner,
+      resB.winner,
+      // Mejor campaña regular: menor rank en tabla de fase (standings).
+      (metaById.get(resA.winner.teamId)?.standing.rank ?? 99) <=
+        (metaById.get(resB.winner.teamId)?.standing.rank ?? 99)
+        ? resA.winner.teamId
+        : resB.winner.teamId,
+      pairLambdas,
+      strengthWeight,
+      rng
+    );
+    counts.get(championId)!.champion += 1;
+  }
+
+  const toRows = (
+    rows: StandingTeam[],
+    group: "A" | "B",
+    seedId: number
+  ): CuadrangularSemisTeamProbs[] => {
+    const out = rows.map((s) => {
+      const c = counts.get(s.team.id)!;
+      return {
+        teamId: s.team.id,
+        teamName: s.team.name,
+        teamLogo: s.team.logo,
+        group,
+        isSeed: s.team.id === seedId,
+        probFinal: c.final / n,
+        probChampion: c.champion / n,
+        projectedPoints: c.pointsSum / n,
+      };
+    });
+    out.sort((a, b) => b.probFinal - a.probFinal || b.probChampion - a.probChampion);
+    return out;
+  };
+
+  return {
+    groupA: toRows(gA.rows, "A", gA.seedId),
+    groupB: toRows(gB.rows, "B", gB.seedId),
+    meta: {
+      maxPlayed,
+      pendingCount: pendingCuad.length,
+      simulations: n,
+      strengthWeight,
+      historyFixtureCount: history.length,
+      seedAId: gA.seedId,
+      seedBId: gB.seedId,
+    },
+  };
 }

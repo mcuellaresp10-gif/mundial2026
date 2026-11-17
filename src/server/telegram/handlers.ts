@@ -47,6 +47,11 @@ import {
   publishApprovedPhaseProbsThread,
   rejectPhaseProbsDraft,
 } from "@/server/x/publishPhaseProbsThread";
+import { sendBetPlayOnceIdealPreviewToTelegram } from "@/server/x/sendOnceIdealPreview";
+import {
+  publishApprovedOnceIdealThread,
+  rejectOnceIdealDraft,
+} from "@/server/x/publishOnceIdealThread";
 import { sendConmebolForecastPreviewToTelegram } from "@/server/x/sendConmebolForecastPreview";
 import {
   publishApprovedConmebolForecastThread,
@@ -291,6 +296,16 @@ export async function handleIntent(ctx: Context, intent: BotIntent): Promise<voi
       });
       return;
 
+    case "x_once_ideal":
+      await withTyping(ctx, async () => {
+        const chatId = ctx.chat?.id;
+        if (!chatId) return;
+        await sendBetPlayOnceIdealPreviewToTelegram(ctx.api, chatId, {
+          force: intent.force === true,
+        });
+      });
+      return;
+
     case "x_conmebol":
       await withTyping(ctx, async () => {
         const chatId = ctx.chat?.id;
@@ -416,6 +431,46 @@ export async function handleIntent(ctx: Context, intent: BotIntent): Promise<voi
           ok
             ? `❌ Borrador de cuadrangulares *${intent.dayKey}* descartado.`
             : `No hay borrador de cuadrangulares para ${intent.dayKey}.`,
+          { parse_mode: "Markdown", reply_markup: afterActionKeyboard() }
+        );
+      });
+      return;
+
+    case "xo_approve":
+      await withTyping(ctx, async () => {
+        const result = await publishApprovedOnceIdealThread(intent.dayKey);
+        if (result.ok && result.error === "already_published") {
+          await ctx.reply(`✅ Ya estaba publicado (${intent.dayKey}).`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        if (!result.ok) {
+          await ctx.reply(`❌ No se pudo publicar: ${result.error ?? "error"}`, {
+            reply_markup: afterActionKeyboard(),
+          });
+          return;
+        }
+        const link =
+          result.rootId && result.rootId !== "dry-run"
+            ? `\nhttps://x.com/i/web/status/${result.rootId}`
+            : result.rootId === "dry-run"
+              ? "\n_(dry-run: no se envió a X)_"
+              : "";
+        await ctx.reply(`✅ *Once Ideal publicado en X* · ${intent.dayKey}${link}`, {
+          parse_mode: "Markdown",
+          reply_markup: afterActionKeyboard(),
+        });
+      });
+      return;
+
+    case "xo_reject":
+      await withTyping(ctx, async () => {
+        const ok = rejectOnceIdealDraft(intent.dayKey);
+        await ctx.reply(
+          ok
+            ? `❌ Borrador de Once Ideal *${intent.dayKey}* descartado.`
+            : `No hay borrador de Once Ideal para ${intent.dayKey}.`,
           { parse_mode: "Markdown", reply_markup: afterActionKeyboard() }
         );
       });
@@ -657,6 +712,7 @@ export async function answerCallback(ctx: Context, intent: BotIntent): Promise<v
         ? "Alertas activadas 🔔"
         : intent.type === "x_approve" ||
             intent.type === "xp_approve" ||
+            intent.type === "xo_approve" ||
             intent.type === "xc_approve" ||
             intent.type === "xa_approve" ||
             intent.type === "xap_approve" ||
@@ -665,6 +721,7 @@ export async function answerCallback(ctx: Context, intent: BotIntent): Promise<v
           ? "Publicando…"
           : intent.type === "x_reject" ||
               intent.type === "xp_reject" ||
+              intent.type === "xo_reject" ||
               intent.type === "xc_reject" ||
               intent.type === "xa_reject" ||
               intent.type === "xap_reject" ||

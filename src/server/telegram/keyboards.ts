@@ -11,13 +11,15 @@ export function mainReplyKeyboard(): Keyboard {
     .text("🐦 Pronósticos X")
     .text("📊 Cuadrangulares X")
     .row()
+    .text("⭐ Once Ideal X")
     .text("🏆 Conmebol X")
+    .row()
     .text("🇦🇷 Argentina X")
-    .row()
     .text("🏁 Playoffs AR")
-    .text("🇧🇷 Brasil X")
     .row()
+    .text("🇧🇷 Brasil X")
     .text("📊 Tabla BR")
+    .row()
     .text("❓ Ayuda")
     .resized()
     .persistent();
@@ -28,13 +30,15 @@ export function afterActionKeyboard(): InlineKeyboard {
     .text("🐦 BetPlay", "act:pronosticos")
     .text("📊 Cuadrang.", "act:cuadrangulares")
     .row()
+    .text("⭐ Once Ideal", "act:once_ideal")
     .text("🏆 Conmebol", "act:conmebol")
+    .row()
     .text("🇦🇷 Argentina", "act:argentina")
-    .row()
     .text("🏁 Playoffs AR", "act:playoffs_ar")
-    .text("🇧🇷 Brasil", "act:brazil")
     .row()
+    .text("🇧🇷 Brasil", "act:brazil")
     .text("📊 Tabla BR", "act:tabla_br")
+    .row()
     .text("❓ Ayuda", "act:help");
 }
 
@@ -184,10 +188,18 @@ export function xBrazilPhaseApprovalKeyboard(dayKey: string): InlineKeyboard {
     .text("❌ Descartar", `xbp:reject:${dayKey}`);
 }
 
+/** Validación Once Ideal BetPlay → X. */
+export function xOnceIdealApprovalKeyboard(dayKey: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("✅ Publicar en X", `xo:approve:${dayKey}`)
+    .text("❌ Descartar", `xo:reject:${dayKey}`);
+}
+
 export const BOT_COMMANDS = [
   { command: "start", description: "Inicio · contenido X" },
   { command: "pronosticos", description: "Borrador BetPlay hoy → X" },
-  { command: "cuadrangulares", description: "Borrador probs clasificar → X" },
+  { command: "cuadrangulares", description: "Borrador semis A/B → X" },
+  { command: "onceideal", description: "Borrador Once Ideal BetPlay → X" },
   { command: "conmebol", description: "Borrador Libertadores/Sudaca → X" },
   { command: "argentina", description: "Borrador Liga Argentina hoy → X" },
   { command: "playoffsar", description: "Borrador playoffs Argentina → X" },

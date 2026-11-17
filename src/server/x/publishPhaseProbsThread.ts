@@ -3,7 +3,8 @@ import {
   getPhaseProbsDraftForDay,
   setPhaseProbsDraftStatus,
 } from "@/server/x/phaseProbsDraftStore";
-import { renderPhaseProbsTablePng } from "@/server/x/renderPhaseProbsTablePng";
+import { renderCuadrangularesSemisPng } from "@/server/x/renderCuadrangularesSemisPng";
+import { BETPLAY_SEMIS_SIMULATIONS } from "@/utils/betPlaySeasonSimulation";
 
 export async function publishApprovedPhaseProbsThread(dayKey: string): Promise<{
   ok: boolean;
@@ -25,14 +26,39 @@ export async function publishApprovedPhaseProbsThread(dayKey: string): Promise<{
   try {
     let mediaBuffers: Buffer[] | undefined;
     try {
-      const png = await renderPhaseProbsTablePng(draft.rows, {
-        jornada: draft.jornada,
-        phase: draft.phase,
-        maxPlayed: draft.jornada,
-        simulations: 1000,
+      const groupA = draft.rows
+        .filter((r) => r.group === "A")
+        .map((r) => ({
+          teamId: r.teamId,
+          teamName: r.teamName,
+          teamLogo: r.teamLogo ?? "",
+          group: "A" as const,
+          isSeed: r.isSeed ?? false,
+          probFinal: r.probFinal,
+          probChampion: r.probChampion,
+          projectedPoints: r.projectedPoints ?? 0,
+        }));
+      const groupB = draft.rows
+        .filter((r) => r.group === "B")
+        .map((r) => ({
+          teamId: r.teamId,
+          teamName: r.teamName,
+          teamLogo: r.teamLogo ?? "",
+          group: "B" as const,
+          isSeed: r.isSeed ?? false,
+          probFinal: r.probFinal,
+          probChampion: r.probChampion,
+          projectedPoints: r.projectedPoints ?? 0,
+        }));
+
+      const png = await renderCuadrangularesSemisPng({
+        groupA,
+        groupB,
+        simulations: draft.simulations ?? BETPLAY_SEMIS_SIMULATIONS,
+        phaseLabel: draft.phase === "apertura" ? "Apertura 2026" : "Clausura 2026",
       });
       mediaBuffers = [png];
-      console.info(`[x-phase] PNG table ${png.length} bytes`);
+      console.info(`[x-phase] semis PNG ${png.length} bytes`);
     } catch (imgErr) {
       console.error("[x-phase] PNG render failed, publishing text only:", imgErr);
     }
